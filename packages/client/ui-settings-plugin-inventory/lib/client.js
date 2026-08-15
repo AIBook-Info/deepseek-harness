@@ -18,24 +18,24 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PluginInventorySettingsTab_module_css_default = {
-			"details": "EgO7Pa_details",
-			"failure": "EgO7Pa_failure",
-			"entryValue": "EgO7Pa_entryValue",
-			"search": "EgO7Pa_search",
-			"catalog": "EgO7Pa_catalog",
-			"section": "EgO7Pa_section",
-			"cardContent": "EgO7Pa_cardContent",
-			"cardTitle": "EgO7Pa_cardTitle",
-			"card": "EgO7Pa_card",
-			"chevron": "EgO7Pa_chevron",
 			"statusDot": "EgO7Pa_statusDot",
-			"status": "EgO7Pa_status",
-			"cards": "EgO7Pa_cards",
 			"cardTrailing": "EgO7Pa_cardTrailing",
-			"configTag": "EgO7Pa_configTag",
+			"entryValue": "EgO7Pa_entryValue",
+			"cards": "EgO7Pa_cards",
+			"cardDetails": "EgO7Pa_cardDetails",
+			"failure": "EgO7Pa_failure",
 			"visuallyHidden": "EgO7Pa_visuallyHidden",
+			"configTag": "EgO7Pa_configTag",
+			"cardContent": "EgO7Pa_cardContent",
+			"status": "EgO7Pa_status",
+			"cardTitle": "EgO7Pa_cardTitle",
+			"catalog": "EgO7Pa_catalog",
+			"details": "EgO7Pa_details",
+			"chevron": "EgO7Pa_chevron",
+			"card": "EgO7Pa_card",
 			"catalogHeading": "EgO7Pa_catalogHeading",
-			"cardDetails": "EgO7Pa_cardDetails"
+			"search": "EgO7Pa_search",
+			"section": "EgO7Pa_section"
 		};
 		//#endregion
 		//#region lib/types/client/PluginInventorySettingsTab.js

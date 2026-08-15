@@ -64,11 +64,11 @@ window.__ModuleLoader__.load({
 		}
 		var AppFrame_module_css_default = {
 			"handle": "eOCkAG_handle",
-			"overlayLayer": "eOCkAG_overlayLayer",
 			"centerCol": "eOCkAG_centerCol",
+			"overlayLayer": "eOCkAG_overlayLayer",
 			"frame": "eOCkAG_frame",
-			"detailsCol": "eOCkAG_detailsCol",
-			"sidebarCol": "eOCkAG_sidebarCol"
+			"sidebarCol": "eOCkAG_sidebarCol",
+			"detailsCol": "eOCkAG_detailsCol"
 		};
 		//#endregion
 		//#region lib/types/client/AppFrame.js

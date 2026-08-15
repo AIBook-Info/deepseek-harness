@@ -33,27 +33,27 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SidebarRoot_module_css_default = {
-			"panelIcon": "f-XTJG_panelIcon",
+			"fading": "f-XTJG_fading",
+			"regionArea": "f-XTJG_regionArea",
+			"iconButton": "f-XTJG_iconButton",
 			"logoRow": "f-XTJG_logoRow",
 			"footerActions": "f-XTJG_footerActions",
-			"iconButton": "f-XTJG_iconButton",
-			"railFish": "f-XTJG_railFish",
-			"regionArea": "f-XTJG_regionArea",
-			"rail-fade-in": "f-XTJG_rail-fade-in",
-			"settingsArea": "f-XTJG_settingsArea",
-			"toggle": "f-XTJG_toggle",
-			"quietBars": "f-XTJG_quietBars",
-			"fading": "f-XTJG_fading",
-			"brand": "f-XTJG_brand",
-			"newSessionLabel": "f-XTJG_newSessionLabel",
-			"railIn": "f-XTJG_railIn",
-			"root": "f-XTJG_root",
-			"wide-in": "f-XTJG_wide-in",
 			"wide": "f-XTJG_wide",
-			"collapsed": "f-XTJG_collapsed",
+			"newSessionLabel": "f-XTJG_newSessionLabel",
+			"quietBars": "f-XTJG_quietBars",
 			"footArea": "f-XTJG_footArea",
+			"railFish": "f-XTJG_railFish",
+			"panelIcon": "f-XTJG_panelIcon",
+			"brand": "f-XTJG_brand",
+			"settingsArea": "f-XTJG_settingsArea",
+			"root": "f-XTJG_root",
+			"toggle": "f-XTJG_toggle",
+			"newSession": "f-XTJG_newSession",
+			"collapsed": "f-XTJG_collapsed",
+			"wide-in": "f-XTJG_wide-in",
 			"rail-in": "f-XTJG_rail-in",
-			"newSession": "f-XTJG_newSession"
+			"rail-fade-in": "f-XTJG_rail-fade-in",
+			"railIn": "f-XTJG_railIn"
 		};
 		//#endregion
 		//#region lib/types/client/SidebarRoot.js

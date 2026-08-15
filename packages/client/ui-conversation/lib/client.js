@@ -2878,21 +2878,21 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ContextMeter_module_css_default = {
-			"swatch": "_7tjl3G_swatch",
-			"colorSystem": "_7tjl3G_colorSystem",
-			"root": "_7tjl3G_root",
-			"row": "_7tjl3G_row",
-			"figures": "_7tjl3G_figures",
-			"colorTools": "_7tjl3G_colorTools",
-			"trigger": "_7tjl3G_trigger",
-			"bar": "_7tjl3G_bar",
 			"fill": "_7tjl3G_fill",
-			"colorMessages": "_7tjl3G_colorMessages",
-			"rows": "_7tjl3G_rows",
-			"panel": "_7tjl3G_panel",
+			"trigger": "_7tjl3G_trigger",
+			"figures": "_7tjl3G_figures",
 			"header": "_7tjl3G_header",
-			"segment": "_7tjl3G_segment",
+			"panel": "_7tjl3G_panel",
+			"colorTools": "_7tjl3G_colorTools",
 			"track": "_7tjl3G_track",
+			"bar": "_7tjl3G_bar",
+			"segment": "_7tjl3G_segment",
+			"rows": "_7tjl3G_rows",
+			"root": "_7tjl3G_root",
+			"colorSystem": "_7tjl3G_colorSystem",
+			"row": "_7tjl3G_row",
+			"colorMessages": "_7tjl3G_colorMessages",
+			"swatch": "_7tjl3G_swatch",
 			"percent": "_7tjl3G_percent",
 			"headline": "_7tjl3G_headline"
 		};
@@ -3066,10 +3066,10 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PermissionSelect_module_css_default = {
-			"chevron": "e1DaAq_chevron",
-			"chevronOpen": "e1DaAq_chevronOpen",
-			"triggerLabel": "e1DaAq_triggerLabel",
 			"trigger": "e1DaAq_trigger",
+			"chevron": "e1DaAq_chevron",
+			"triggerLabel": "e1DaAq_triggerLabel",
+			"chevronOpen": "e1DaAq_chevronOpen",
 			"triggerIcon": "e1DaAq_triggerIcon"
 		};
 		//#endregion
@@ -3274,37 +3274,37 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var InputBar_module_css_default = {
-			"hlSegment": "b0GJPG_hlSegment",
-			"textRef": "b0GJPG_textRef",
-			"tools": "b0GJPG_tools",
-			"retry": "b0GJPG_retry",
-			"chipLabel": "b0GJPG_chipLabel",
-			"backdrop": "b0GJPG_backdrop",
-			"accessory": "b0GJPG_accessory",
 			"hint": "b0GJPG_hint",
-			"root": "b0GJPG_root",
-			"notice": "b0GJPG_notice",
-			"chipInvalid": "b0GJPG_chipInvalid",
-			"input": "b0GJPG_input",
-			"row": "b0GJPG_row",
-			"chip": "b0GJPG_chip",
-			"pending": "b0GJPG_pending",
-			"cardWorkspaceTrigger": "b0GJPG_cardWorkspaceTrigger",
-			"input-pending": "b0GJPG_input-pending",
-			"noticeError": "b0GJPG_noticeError",
-			"hlToken": "b0GJPG_hlToken",
-			"add": "b0GJPG_add",
-			"primary": "b0GJPG_primary",
-			"mirror": "b0GJPG_mirror",
-			"grow": "b0GJPG_grow",
 			"select": "b0GJPG_select",
-			"attachments": "b0GJPG_attachments",
-			"hero": "b0GJPG_hero",
-			"modes": "b0GJPG_modes",
-			"scroll": "b0GJPG_scroll",
+			"noticeError": "b0GJPG_noticeError",
+			"accessory": "b0GJPG_accessory",
 			"overlayAnchor": "b0GJPG_overlayAnchor",
+			"attachments": "b0GJPG_attachments",
+			"mirror": "b0GJPG_mirror",
+			"scroll": "b0GJPG_scroll",
+			"hlSegment": "b0GJPG_hlSegment",
+			"add": "b0GJPG_add",
 			"trailing": "b0GJPG_trailing",
-			"card": "b0GJPG_card"
+			"notice": "b0GJPG_notice",
+			"backdrop": "b0GJPG_backdrop",
+			"cardWorkspaceTrigger": "b0GJPG_cardWorkspaceTrigger",
+			"pending": "b0GJPG_pending",
+			"hlToken": "b0GJPG_hlToken",
+			"chipLabel": "b0GJPG_chipLabel",
+			"row": "b0GJPG_row",
+			"retry": "b0GJPG_retry",
+			"chip": "b0GJPG_chip",
+			"tools": "b0GJPG_tools",
+			"grow": "b0GJPG_grow",
+			"root": "b0GJPG_root",
+			"card": "b0GJPG_card",
+			"modes": "b0GJPG_modes",
+			"hero": "b0GJPG_hero",
+			"textRef": "b0GJPG_textRef",
+			"chipInvalid": "b0GJPG_chipInvalid",
+			"input-pending": "b0GJPG_input-pending",
+			"input": "b0GJPG_input",
+			"primary": "b0GJPG_primary"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/InputBar.js
@@ -3947,11 +3947,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var EnterBehaviorRow_module_css_default = {
-			"selector": "-xxOca_selector",
-			"chevron": "-xxOca_chevron",
 			"row": "-xxOca_row",
-			"title": "-xxOca_title",
 			"desc": "-xxOca_desc",
+			"chevron": "-xxOca_chevron",
+			"title": "-xxOca_title",
+			"selector": "-xxOca_selector",
 			"rowText": "-xxOca_rowText"
 		};
 		//#endregion
@@ -4025,33 +4025,33 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageItem_module_css_default = {
-			"compactionSummary": "m3HOmW_compactionSummary",
-			"compactionLeading": "m3HOmW_compactionLeading",
-			"retryRow": "m3HOmW_retryRow",
-			"retrySummary": "m3HOmW_retrySummary",
-			"turnErrorRow": "m3HOmW_turnErrorRow",
-			"compactionSep": "m3HOmW_compactionSep",
-			"retryText": "m3HOmW_retryText",
-			"refChip": "m3HOmW_refChip",
-			"maxTokensTitle": "m3HOmW_maxTokensTitle",
-			"retryDetailLabel": "m3HOmW_retryDetailLabel",
-			"turnErrorTitle": "m3HOmW_turnErrorTitle",
-			"compactionDisclosureIcon": "m3HOmW_compactionDisclosureIcon",
-			"turnErrorCode": "m3HOmW_turnErrorCode",
-			"userStack": "m3HOmW_userStack",
-			"contextRow": "m3HOmW_contextRow",
 			"turnErrorMessage": "m3HOmW_turnErrorMessage",
-			"compactionTitle": "m3HOmW_compactionTitle",
-			"compactionButton": "m3HOmW_compactionButton",
-			"compactionRow": "m3HOmW_compactionRow",
-			"compactionBody": "m3HOmW_compactionBody",
+			"compactionSummary": "m3HOmW_compactionSummary",
 			"retry-shimmer": "m3HOmW_retry-shimmer",
-			"retryDetails": "m3HOmW_retryDetails",
+			"retrySummary": "m3HOmW_retrySummary",
+			"compactionBody": "m3HOmW_compactionBody",
+			"compactionTitle": "m3HOmW_compactionTitle",
+			"retryDetailLabel": "m3HOmW_retryDetailLabel",
+			"compactionSep": "m3HOmW_compactionSep",
+			"compactionButton": "m3HOmW_compactionButton",
+			"retryRow": "m3HOmW_retryRow",
 			"userRow": "m3HOmW_userRow",
-			"turnErrorDot": "m3HOmW_turnErrorDot",
+			"contextRow": "m3HOmW_contextRow",
+			"retryText": "m3HOmW_retryText",
 			"compactionContextIcon": "m3HOmW_compactionContextIcon",
+			"retryDetails": "m3HOmW_retryDetails",
+			"compactionDisclosureIcon": "m3HOmW_compactionDisclosureIcon",
+			"turnErrorRow": "m3HOmW_turnErrorRow",
 			"bubble": "m3HOmW_bubble",
-			"turnErrorCopy": "m3HOmW_turnErrorCopy"
+			"turnErrorCode": "m3HOmW_turnErrorCode",
+			"refChip": "m3HOmW_refChip",
+			"userStack": "m3HOmW_userStack",
+			"compactionRow": "m3HOmW_compactionRow",
+			"turnErrorDot": "m3HOmW_turnErrorDot",
+			"turnErrorTitle": "m3HOmW_turnErrorTitle",
+			"turnErrorCopy": "m3HOmW_turnErrorCopy",
+			"maxTokensTitle": "m3HOmW_maxTokensTitle",
+			"compactionLeading": "m3HOmW_compactionLeading"
 		};
 		//#endregion
 		//#region lib/types/client/chat/CompactionItem.js
@@ -4124,28 +4124,28 @@ window.__ModuleLoader__.load({
 		}
 		var ContextBody_module_css_default = {
 			"text": "xmRVlG_text",
-			"fileAction": "xmRVlG_fileAction",
-			"entryName": "xmRVlG_entryName",
-			"field": "xmRVlG_field",
-			"sections": "xmRVlG_sections",
-			"recall": "xmRVlG_recall",
-			"recallCounts": "xmRVlG_recallCounts",
-			"relaySender": "xmRVlG_relaySender",
-			"fieldKey": "xmRVlG_fieldKey",
-			"fields": "xmRVlG_fields",
-			"file": "xmRVlG_file",
-			"catalogNotice": "xmRVlG_catalogNotice",
-			"recalls": "xmRVlG_recalls",
 			"fieldValue": "xmRVlG_fieldValue",
-			"entryDescription": "xmRVlG_entryDescription",
+			"entryName": "xmRVlG_entryName",
+			"recallCounts": "xmRVlG_recallCounts",
+			"recalls": "xmRVlG_recalls",
+			"fileAction": "xmRVlG_fileAction",
 			"sectionText": "xmRVlG_sectionText",
-			"files": "xmRVlG_files",
+			"entries": "xmRVlG_entries",
+			"sections": "xmRVlG_sections",
 			"filePath": "xmRVlG_filePath",
-			"recallLabel": "xmRVlG_recallLabel",
-			"entry": "xmRVlG_entry",
-			"section": "xmRVlG_section",
 			"sectionName": "xmRVlG_sectionName",
-			"entries": "xmRVlG_entries"
+			"section": "xmRVlG_section",
+			"fieldKey": "xmRVlG_fieldKey",
+			"recall": "xmRVlG_recall",
+			"field": "xmRVlG_field",
+			"entryDescription": "xmRVlG_entryDescription",
+			"relaySender": "xmRVlG_relaySender",
+			"recallLabel": "xmRVlG_recallLabel",
+			"files": "xmRVlG_files",
+			"file": "xmRVlG_file",
+			"fields": "xmRVlG_fields",
+			"catalogNotice": "xmRVlG_catalogNotice",
+			"entry": "xmRVlG_entry"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ContextBody.js
@@ -4680,12 +4680,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ContextInjectionRow_module_css_default = {
-			"summary": "_6ncqMa_summary",
-			"source": "_6ncqMa_source",
+			"sep": "_6ncqMa_sep",
 			"body": "_6ncqMa_body",
-			"root": "_6ncqMa_root",
 			"chevron": "_6ncqMa_chevron",
-			"sep": "_6ncqMa_sep"
+			"source": "_6ncqMa_source",
+			"root": "_6ncqMa_root",
+			"summary": "_6ncqMa_summary"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ContextInjectionRow.js
@@ -4780,12 +4780,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageIconActions_module_css_default = {
-			"timeStart": "E7EeGa_timeStart",
-			"timeEnd": "E7EeGa_timeEnd",
-			"visuallyHidden": "E7EeGa_visuallyHidden",
 			"actions": "E7EeGa_actions",
 			"runTimeDot": "E7EeGa_runTimeDot",
-			"action": "E7EeGa_action"
+			"timeStart": "E7EeGa_timeStart",
+			"visuallyHidden": "E7EeGa_visuallyHidden",
+			"action": "E7EeGa_action",
+			"timeEnd": "E7EeGa_timeEnd"
 		};
 		//#endregion
 		//#region lib/types/client/chat/MessageIconActions.js
@@ -5179,18 +5179,18 @@ window.__ModuleLoader__.load({
 		}
 		var ChatView_module_css_default = {
 			"dsh-turn-status-shimmer": "fk-mTa_dsh-turn-status-shimmer",
-			"scroll": "fk-mTa_scroll",
-			"turnStatusClock": "fk-mTa_turnStatusClock",
-			"toBottom": "fk-mTa_toBottom",
-			"root": "fk-mTa_root",
-			"turnStatus": "fk-mTa_turnStatus",
-			"hint": "fk-mTa_hint",
 			"openError": "fk-mTa_openError",
 			"flowItem": "fk-mTa_flowItem",
-			"callRow": "fk-mTa_callRow",
+			"hint": "fk-mTa_hint",
 			"toBottomSlot": "fk-mTa_toBottomSlot",
+			"callRow": "fk-mTa_callRow",
+			"turnStatusClock": "fk-mTa_turnStatusClock",
+			"root": "fk-mTa_root",
+			"toBottom": "fk-mTa_toBottom",
 			"older": "fk-mTa_older",
-			"column": "fk-mTa_column"
+			"turnStatus": "fk-mTa_turnStatus",
+			"column": "fk-mTa_column",
+			"scroll": "fk-mTa_scroll"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ChatNodeSeat.js
@@ -5667,15 +5667,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ApprovalPanel_module_css_default = {
-			"headline": "phN0Uq_headline",
-			"actionRow": "phN0Uq_actionRow",
 			"command": "phN0Uq_command",
-			"dot": "phN0Uq_dot",
 			"body": "phN0Uq_body",
 			"root": "phN0Uq_root",
-			"reject": "phN0Uq_reject",
 			"strip": "phN0Uq_strip",
-			"card": "phN0Uq_card"
+			"dot": "phN0Uq_dot",
+			"actionRow": "phN0Uq_actionRow",
+			"card": "phN0Uq_card",
+			"reject": "phN0Uq_reject",
+			"headline": "phN0Uq_headline"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/ApprovalPanel.js
@@ -6114,21 +6114,21 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TodoPanel_module_css_default = {
-			"progress": "fMd3wW_progress",
-			"todo-progress-spin": "fMd3wW_todo-progress-spin",
-			"glyphPending": "fMd3wW_glyphPending",
+			"content": "fMd3wW_content",
+			"lead": "fMd3wW_lead",
 			"root": "fMd3wW_root",
 			"title": "fMd3wW_title",
-			"chevron": "fMd3wW_chevron",
-			"glyphCompleted": "fMd3wW_glyphCompleted",
-			"glyph": "fMd3wW_glyph",
-			"body": "fMd3wW_body",
-			"glyphProgress": "fMd3wW_glyphProgress",
-			"content": "fMd3wW_content",
+			"progress": "fMd3wW_progress",
+			"glyphPending": "fMd3wW_glyphPending",
 			"item": "fMd3wW_item",
+			"glyphCompleted": "fMd3wW_glyphCompleted",
 			"header": "fMd3wW_header",
 			"list": "fMd3wW_list",
-			"lead": "fMd3wW_lead"
+			"chevron": "fMd3wW_chevron",
+			"todo-progress-spin": "fMd3wW_todo-progress-spin",
+			"glyph": "fMd3wW_glyph",
+			"glyphProgress": "fMd3wW_glyphProgress",
+			"body": "fMd3wW_body"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/TodoPanel.js
@@ -6322,18 +6322,18 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var QueueDock_module_css_default = {
+			"panel": "kzy8fG_panel",
+			"preview": "kzy8fG_preview",
+			"row": "kzy8fG_row",
 			"dock": "kzy8fG_dock",
-			"lead": "kzy8fG_lead",
+			"chevron": "kzy8fG_chevron",
 			"header": "kzy8fG_header",
 			"list": "kzy8fG_list",
-			"action": "kzy8fG_action",
-			"chevron": "kzy8fG_chevron",
-			"count": "kzy8fG_count",
 			"editor": "kzy8fG_editor",
-			"panel": "kzy8fG_panel",
-			"row": "kzy8fG_row",
+			"lead": "kzy8fG_lead",
+			"count": "kzy8fG_count",
 			"actions": "kzy8fG_actions",
-			"preview": "kzy8fG_preview"
+			"action": "kzy8fG_action"
 		};
 		//#endregion
 		//#region lib/types/client/queue/QueueDock.js
@@ -6591,23 +6591,23 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var HeroShell_module_css_default = {
+			"fish": "Rp-JhG_fish",
 			"folder": "Rp-JhG_folder",
-			"hero-fish-swim": "Rp-JhG_hero-fish-swim",
 			"body": "Rp-JhG_body",
+			"hero-fish-swim": "Rp-JhG_hero-fish-swim",
+			"fishHitbox": "Rp-JhG_fishHitbox",
+			"previewBadge": "Rp-JhG_previewBadge",
+			"chevron": "Rp-JhG_chevron",
+			"stack": "Rp-JhG_stack",
+			"headline": "Rp-JhG_headline",
+			"workspaceLabel": "Rp-JhG_workspaceLabel",
+			"workspaceRow": "Rp-JhG_workspaceRow",
+			"modalInput": "Rp-JhG_modalInput",
+			"workspace": "Rp-JhG_workspace",
 			"modalAction": "Rp-JhG_modalAction",
 			"headlineText": "Rp-JhG_headlineText",
-			"modalError": "Rp-JhG_modalError",
-			"fishHitbox": "Rp-JhG_fishHitbox",
-			"modalInput": "Rp-JhG_modalInput",
-			"chevron": "Rp-JhG_chevron",
-			"workspaceLabel": "Rp-JhG_workspaceLabel",
 			"root": "Rp-JhG_root",
-			"stack": "Rp-JhG_stack",
-			"workspace": "Rp-JhG_workspace",
-			"headline": "Rp-JhG_headline",
-			"previewBadge": "Rp-JhG_previewBadge",
-			"fish": "Rp-JhG_fish",
-			"workspaceRow": "Rp-JhG_workspaceRow"
+			"modalError": "Rp-JhG_modalError"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/EmptyHero.js
@@ -6757,28 +6757,28 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ConversationRoot_module_css_default = {
-			"crumb": "_9auDpG_crumb",
-			"heroWorkspaceRow": "_9auDpG_heroWorkspaceRow",
-			"headerActions": "_9auDpG_headerActions",
-			"viewArea": "_9auDpG_viewArea",
-			"titleCluster": "_9auDpG_titleCluster",
-			"titleRow": "_9auDpG_titleRow",
-			"composerStack": "_9auDpG_composerStack",
-			"headerUtilities": "_9auDpG_headerUtilities",
-			"headerHidden": "_9auDpG_headerHidden",
-			"crumbCurrent": "_9auDpG_crumbCurrent",
 			"scrollBody": "_9auDpG_scrollBody",
-			"header": "_9auDpG_header",
+			"viewArea": "_9auDpG_viewArea",
+			"tabActive": "_9auDpG_tabActive",
+			"titleRow": "_9auDpG_titleRow",
 			"crumbSep": "_9auDpG_crumbSep",
-			"tab": "_9auDpG_tab",
+			"crumb": "_9auDpG_crumb",
+			"composerSeat": "_9auDpG_composerSeat",
 			"heroGlow": "_9auDpG_heroGlow",
+			"headerHidden": "_9auDpG_headerHidden",
+			"titleCluster": "_9auDpG_titleCluster",
+			"root": "_9auDpG_root",
+			"headerActions": "_9auDpG_headerActions",
+			"heroWorkspaceRow": "_9auDpG_heroWorkspaceRow",
+			"headerUtilities": "_9auDpG_headerUtilities",
+			"header": "_9auDpG_header",
+			"composerStack": "_9auDpG_composerStack",
+			"tab": "_9auDpG_tab",
 			"tabs": "_9auDpG_tabs",
 			"composerHero": "_9auDpG_composerHero",
 			"crumbSeg": "_9auDpG_crumbSeg",
-			"tabActive": "_9auDpG_tabActive",
-			"root": "_9auDpG_root",
-			"composerSeat": "_9auDpG_composerSeat",
-			"crumbs": "_9auDpG_crumbs"
+			"crumbs": "_9auDpG_crumbs",
+			"crumbCurrent": "_9auDpG_crumbCurrent"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/ConversationRoot.js
@@ -7054,15 +7054,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var DetailsPanel_module_css_default = {
-			"header": "ig1DZq_header",
-			"sectionLabel": "ig1DZq_sectionLabel",
-			"code": "ig1DZq_code",
-			"body": "ig1DZq_body",
-			"root": "ig1DZq_root",
-			"section": "ig1DZq_section",
 			"title": "ig1DZq_title",
+			"section": "ig1DZq_section",
+			"empty": "ig1DZq_empty",
+			"body": "ig1DZq_body",
+			"code": "ig1DZq_code",
 			"close": "ig1DZq_close",
-			"empty": "ig1DZq_empty"
+			"root": "ig1DZq_root",
+			"header": "ig1DZq_header",
+			"sectionLabel": "ig1DZq_sectionLabel"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/DetailsPanel.js
@@ -8915,15 +8915,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ReasoningRow_module_css_default = {
-			"dsh-reasoning-row-sweep": "PjqOGa_dsh-reasoning-row-sweep",
-			"separator": "PjqOGa_separator",
-			"root": "PjqOGa_root",
-			"chevron": "PjqOGa_chevron",
 			"thinkBody": "PjqOGa_thinkBody",
-			"title": "PjqOGa_title",
-			"leading": "PjqOGa_leading",
 			"row": "PjqOGa_row",
-			"summary": "PjqOGa_summary"
+			"chevron": "PjqOGa_chevron",
+			"summary": "PjqOGa_summary",
+			"separator": "PjqOGa_separator",
+			"dsh-reasoning-row-sweep": "PjqOGa_dsh-reasoning-row-sweep",
+			"leading": "PjqOGa_leading",
+			"root": "PjqOGa_root",
+			"title": "PjqOGa_title"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ReasoningRow.js
@@ -9008,10 +9008,10 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AssistantMarkdown_module_css_default = {
-			"body": "dqz0pq_body",
 			"actions": "dqz0pq_actions",
-			"stopped": "dqz0pq_stopped",
-			"root": "dqz0pq_root"
+			"body": "dqz0pq_body",
+			"root": "dqz0pq_root",
+			"stopped": "dqz0pq_stopped"
 		};
 		//#endregion
 		//#region lib/types/client/chat/AssistantMarkdown.js
@@ -9124,15 +9124,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var GenericCommandCard_module_css_default = {
-			"separator": "Ix6fWq_separator",
-			"leading": "Ix6fWq_leading",
-			"summary": "Ix6fWq_summary",
-			"row": "Ix6fWq_row",
 			"chevron": "Ix6fWq_chevron",
-			"root": "Ix6fWq_root",
-			"title": "Ix6fWq_title",
 			"dsh-command-row-sweep": "Ix6fWq_dsh-command-row-sweep",
-			"body": "Ix6fWq_body"
+			"summary": "Ix6fWq_summary",
+			"title": "Ix6fWq_title",
+			"leading": "Ix6fWq_leading",
+			"separator": "Ix6fWq_separator",
+			"row": "Ix6fWq_row",
+			"body": "Ix6fWq_body",
+			"root": "Ix6fWq_root"
 		};
 		//#endregion
 		//#region lib/types/client/chat/GenericCommandCard.js
@@ -9267,8 +9267,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TurnTailNodeView_module_css_default = {
-			"actions": "DeENmq_actions",
-			"root": "DeENmq_root"
+			"root": "DeENmq_root",
+			"actions": "DeENmq_actions"
 		};
 		//#endregion
 		//#region lib/types/client/chat/TurnTailNodeView.js

@@ -18,23 +18,23 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SkillRow_module_css_default = {
-			"iconIdle": "LU-sNq_iconIdle",
-			"leading": "LU-sNq_leading",
-			"chevron": "LU-sNq_chevron",
-			"visuallyHidden": "LU-sNq_visuallyHidden",
-			"separator": "LU-sNq_separator",
-			"card": "LU-sNq_card",
-			"chevronHover": "LU-sNq_chevronHover",
-			"instructionsCard": "LU-sNq_instructionsCard",
-			"instructionsHeader": "LU-sNq_instructionsHeader",
-			"row": "LU-sNq_row",
-			"title": "LU-sNq_title",
-			"bodyWrap": "LU-sNq_bodyWrap",
-			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
-			"summary": "LU-sNq_summary",
 			"errorSummary": "LU-sNq_errorSummary",
+			"visuallyHidden": "LU-sNq_visuallyHidden",
+			"bodyWrap": "LU-sNq_bodyWrap",
+			"card": "LU-sNq_card",
+			"instructionsCard": "LU-sNq_instructionsCard",
+			"title": "LU-sNq_title",
+			"row": "LU-sNq_row",
+			"leading": "LU-sNq_leading",
+			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
+			"chevron": "LU-sNq_chevron",
+			"separator": "LU-sNq_separator",
+			"instructionsHeader": "LU-sNq_instructionsHeader",
+			"inspectButton": "LU-sNq_inspectButton",
+			"summary": "LU-sNq_summary",
+			"iconIdle": "LU-sNq_iconIdle",
 			"instructions": "LU-sNq_instructions",
-			"inspectButton": "LU-sNq_inspectButton"
+			"chevronHover": "LU-sNq_chevronHover"
 		};
 		//#endregion
 		//#region lib/types/client/SkillRow.js

@@ -335,13 +335,13 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageFeedbackActions_module_css_default = {
-			"noteEditor": "FSCzfq_noteEditor",
-			"action": "FSCzfq_action",
 			"noteOpen": "FSCzfq_noteOpen",
-			"noteInput": "FSCzfq_noteInput",
+			"noteSave": "FSCzfq_noteSave",
 			"noteCancel": "FSCzfq_noteCancel",
+			"action": "FSCzfq_action",
 			"failure": "FSCzfq_failure",
-			"noteSave": "FSCzfq_noteSave"
+			"noteEditor": "FSCzfq_noteEditor",
+			"noteInput": "FSCzfq_noteInput"
 		};
 		//#endregion
 		//#region lib/types/client/MessageFeedbackActions.js

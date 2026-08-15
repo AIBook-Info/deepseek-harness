@@ -886,11 +886,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var LanguageRow_module_css_default = {
+			"selector": "Nntjkq_selector",
 			"row": "Nntjkq_row",
 			"chevron": "Nntjkq_chevron",
 			"title": "Nntjkq_title",
-			"rowText": "Nntjkq_rowText",
-			"selector": "Nntjkq_selector"
+			"rowText": "Nntjkq_rowText"
 		};
 		//#endregion
 		//#region lib/types/client/LanguageRow.js

@@ -18,9 +18,9 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PlanModeControl_module_css_default = {
-			"wrap": "iNpjFa_wrap",
 			"close": "iNpjFa_close",
 			"chip": "iNpjFa_chip",
+			"wrap": "iNpjFa_wrap",
 			"error": "iNpjFa_error"
 		};
 		//#endregion

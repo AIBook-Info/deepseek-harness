@@ -673,15 +673,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MenuView_module_css_default = {
-			"itemDescription": "V-RcIG_itemDescription",
-			"menu": "V-RcIG_menu",
 			"loading": "V-RcIG_loading",
-			"active": "V-RcIG_active",
 			"groupTitle": "V-RcIG_groupTitle",
-			"itemName": "V-RcIG_itemName",
-			"viewport": "V-RcIG_viewport",
 			"item": "V-RcIG_item",
-			"itemIcon": "V-RcIG_itemIcon"
+			"itemIcon": "V-RcIG_itemIcon",
+			"viewport": "V-RcIG_viewport",
+			"itemName": "V-RcIG_itemName",
+			"itemDescription": "V-RcIG_itemDescription",
+			"active": "V-RcIG_active",
+			"menu": "V-RcIG_menu"
 		};
 		//#endregion
 		//#region lib/types/client/MenuView.js

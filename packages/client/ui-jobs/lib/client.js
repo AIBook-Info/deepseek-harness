@@ -18,18 +18,18 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var JobListAction_module_css_default = {
-			"count": "jBBRLa_count",
-			"menu": "jBBRLa_menu",
-			"kind": "jBBRLa_kind",
-			"triggerOpen": "jBBRLa_triggerOpen",
-			"row": "jBBRLa_row",
-			"root": "jBBRLa_root",
 			"trigger": "jBBRLa_trigger",
-			"rowDot": "jBBRLa_rowDot",
+			"duration": "jBBRLa_duration",
+			"row": "jBBRLa_row",
+			"menu": "jBBRLa_menu",
+			"count": "jBBRLa_count",
+			"root": "jBBRLa_root",
+			"triggerOpen": "jBBRLa_triggerOpen",
 			"rowSettled": "jBBRLa_rowSettled",
 			"label": "jBBRLa_label",
+			"kind": "jBBRLa_kind",
+			"rowDot": "jBBRLa_rowDot",
 			"status": "jBBRLa_status",
-			"duration": "jBBRLa_duration",
 			"triggerDot": "jBBRLa_triggerDot"
 		};
 		//#endregion

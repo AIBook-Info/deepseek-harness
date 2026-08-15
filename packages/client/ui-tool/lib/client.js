@@ -605,33 +605,33 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ToolRow_module_css_default = {
-			"visuallyHidden": "oKJXba_visuallyHidden",
-			"dsh-tool-row-sweep": "oKJXba_dsh-tool-row-sweep",
-			"readBody": "oKJXba_readBody",
-			"summarySuffix": "oKJXba_summarySuffix",
-			"root": "oKJXba_root",
-			"summary": "oKJXba_summary",
-			"errorSummary": "oKJXba_errorSummary",
-			"bodyScroll": "oKJXba_bodyScroll",
-			"row": "oKJXba_row",
-			"leading": "oKJXba_leading",
-			"ioCard": "oKJXba_ioCard",
-			"bodyWrap": "oKJXba_bodyWrap",
-			"ioText": "oKJXba_ioText",
-			"inspectButton": "oKJXba_inspectButton",
-			"diffBody": "oKJXba_diffBody",
-			"title": "oKJXba_title",
 			"sep": "oKJXba_sep",
+			"summary": "oKJXba_summary",
 			"fileLink": "oKJXba_fileLink",
-			"ioLabel": "oKJXba_ioLabel",
-			"chevron": "oKJXba_chevron",
-			"codeBody": "oKJXba_codeBody",
+			"bodyWrap": "oKJXba_bodyWrap",
+			"inspectButton": "oKJXba_inspectButton",
 			"ioSection": "oKJXba_ioSection",
-			"terminalBody": "oKJXba_terminalBody",
-			"searchBody": "oKJXba_searchBody",
+			"ioLabel": "oKJXba_ioLabel",
+			"root": "oKJXba_root",
+			"title": "oKJXba_title",
+			"ioCard": "oKJXba_ioCard",
+			"diffBody": "oKJXba_diffBody",
+			"readBody": "oKJXba_readBody",
+			"visuallyHidden": "oKJXba_visuallyHidden",
+			"summarySuffix": "oKJXba_summarySuffix",
+			"errorSummary": "oKJXba_errorSummary",
+			"row": "oKJXba_row",
+			"codeBody": "oKJXba_codeBody",
 			"webBody": "oKJXba_webBody",
 			"ioDivider": "oKJXba_ioDivider",
-			"searchRecovery": "oKJXba_searchRecovery"
+			"bodyScroll": "oKJXba_bodyScroll",
+			"searchRecovery": "oKJXba_searchRecovery",
+			"terminalBody": "oKJXba_terminalBody",
+			"dsh-tool-row-sweep": "oKJXba_dsh-tool-row-sweep",
+			"chevron": "oKJXba_chevron",
+			"leading": "oKJXba_leading",
+			"ioText": "oKJXba_ioText",
+			"searchBody": "oKJXba_searchBody"
 		};
 		//#endregion
 		//#region lib/types/client/tool/components/ToolRow.js
@@ -850,8 +850,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ToolCallTree_module_css_default = {
-			"subCalls": "K3na2W_subCalls",
-			"callRow": "K3na2W_callRow"
+			"callRow": "K3na2W_callRow",
+			"subCalls": "K3na2W_subCalls"
 		};
 		//#endregion
 		//#region lib/types/client/tool/ToolCallTree.js
@@ -949,13 +949,13 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ToolDetails_module_css_default = {
-			"code": "ZqI_Na_code",
 			"description": "ZqI_Na_description",
-			"empty": "ZqI_Na_empty",
 			"recovery": "ZqI_Na_recovery",
+			"cardBody": "ZqI_Na_cardBody",
+			"code": "ZqI_Na_code",
 			"read": "ZqI_Na_read",
-			"web": "ZqI_Na_web",
-			"cardBody": "ZqI_Na_cardBody"
+			"empty": "ZqI_Na_empty",
+			"web": "ZqI_Na_web"
 		};
 		//#endregion
 		//#region lib/types/client/tool/ToolDetails.js
@@ -1099,25 +1099,25 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var bash_sample_module_css_default = {
-			"dsh-bash-row-sweep": "sEXBMa_dsh-bash-row-sweep",
-			"card": "sEXBMa_card",
-			"title": "sEXBMa_title",
-			"errorSummary": "sEXBMa_errorSummary",
-			"ioLabel": "sEXBMa_ioLabel",
 			"chevronHover": "sEXBMa_chevronHover",
-			"ioSection": "sEXBMa_ioSection",
-			"chevron": "sEXBMa_chevron",
-			"inspectButton": "sEXBMa_inspectButton",
-			"sep": "sEXBMa_sep",
-			"iconIdle": "sEXBMa_iconIdle",
-			"visuallyHidden": "sEXBMa_visuallyHidden",
-			"root": "sEXBMa_root",
 			"terminal": "sEXBMa_terminal",
-			"bodyWrap": "sEXBMa_bodyWrap",
 			"ioCard": "sEXBMa_ioCard",
-			"leading": "sEXBMa_leading",
-			"summary": "sEXBMa_summary",
+			"chevron": "sEXBMa_chevron",
+			"title": "sEXBMa_title",
+			"card": "sEXBMa_card",
+			"dsh-bash-row-sweep": "sEXBMa_dsh-bash-row-sweep",
+			"iconIdle": "sEXBMa_iconIdle",
 			"ioText": "sEXBMa_ioText",
+			"errorSummary": "sEXBMa_errorSummary",
+			"ioSection": "sEXBMa_ioSection",
+			"bodyWrap": "sEXBMa_bodyWrap",
+			"root": "sEXBMa_root",
+			"ioLabel": "sEXBMa_ioLabel",
+			"leading": "sEXBMa_leading",
+			"sep": "sEXBMa_sep",
+			"summary": "sEXBMa_summary",
+			"inspectButton": "sEXBMa_inspectButton",
+			"visuallyHidden": "sEXBMa_visuallyHidden",
 			"ioDivider": "sEXBMa_ioDivider"
 		};
 		//#endregion

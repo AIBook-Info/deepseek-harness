@@ -36,25 +36,25 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SettingsRoot_module_css_default = {
-			"panel": "RAr_ZW_panel",
-			"content": "RAr_ZW_content",
-			"options": "RAr_ZW_options",
-			"actions": "RAr_ZW_actions",
-			"close": "RAr_ZW_close",
-			"nav": "RAr_ZW_nav",
-			"navList": "RAr_ZW_navList",
-			"triggerLabel": "RAr_ZW_triggerLabel",
-			"trigger": "RAr_ZW_trigger",
 			"rail": "RAr_ZW_rail",
+			"active": "RAr_ZW_active",
+			"content": "RAr_ZW_content",
 			"overlay": "RAr_ZW_overlay",
-			"mask": "RAr_ZW_mask",
-			"navCell": "RAr_ZW_navCell",
-			"navIcon": "RAr_ZW_navIcon",
+			"navList": "RAr_ZW_navList",
+			"panel": "RAr_ZW_panel",
 			"hiddenLabel": "RAr_ZW_hiddenLabel",
-			"navTitle": "RAr_ZW_navTitle",
-			"header": "RAr_ZW_header",
+			"navCell": "RAr_ZW_navCell",
+			"close": "RAr_ZW_close",
+			"options": "RAr_ZW_options",
 			"navLabel": "RAr_ZW_navLabel",
-			"active": "RAr_ZW_active"
+			"nav": "RAr_ZW_nav",
+			"mask": "RAr_ZW_mask",
+			"trigger": "RAr_ZW_trigger",
+			"navTitle": "RAr_ZW_navTitle",
+			"triggerLabel": "RAr_ZW_triggerLabel",
+			"navIcon": "RAr_ZW_navIcon",
+			"header": "RAr_ZW_header",
+			"actions": "RAr_ZW_actions"
 		};
 		//#endregion
 		//#region lib/types/client/SettingsRoot.js

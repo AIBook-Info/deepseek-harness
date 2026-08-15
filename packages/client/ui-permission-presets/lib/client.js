@@ -42,12 +42,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PermissionRow_module_css_default = {
-			"row": "irjv2a_row",
-			"rowText": "irjv2a_rowText",
-			"desc": "irjv2a_desc",
 			"chevron": "irjv2a_chevron",
+			"title": "irjv2a_title",
+			"row": "irjv2a_row",
 			"selector": "irjv2a_selector",
-			"title": "irjv2a_title"
+			"rowText": "irjv2a_rowText",
+			"desc": "irjv2a_desc"
 		};
 		//#endregion
 		//#region lib/types/client/PermissionRow.js
