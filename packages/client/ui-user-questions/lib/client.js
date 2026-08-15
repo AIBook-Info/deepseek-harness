@@ -122,15 +122,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PlanReviewPanel_module_css_default = {
-			"body": "_1k41fG_body",
-			"discuss": "_1k41fG_discuss",
-			"dot": "_1k41fG_dot",
-			"feedback": "_1k41fG_feedback",
-			"strip": "_1k41fG_strip",
-			"card": "_1k41fG_card",
+			"actions": "_1k41fG_actions",
 			"frame": "_1k41fG_frame",
 			"footer": "_1k41fG_footer",
-			"actions": "_1k41fG_actions"
+			"body": "_1k41fG_body",
+			"card": "_1k41fG_card",
+			"dot": "_1k41fG_dot",
+			"feedback": "_1k41fG_feedback",
+			"discuss": "_1k41fG_discuss",
+			"strip": "_1k41fG_strip"
 		};
 		//#endregion
 		//#region lib/types/client/PlanReviewPanel.js
@@ -240,35 +240,35 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var QuestionComposer_module_css_default = {
-			"description": "jeGEnG_description",
-			"eyebrow": "jeGEnG_eyebrow",
-			"headingBlock": "jeGEnG_headingBlock",
-			"frame": "jeGEnG_frame",
-			"customRowActive": "jeGEnG_customRowActive",
-			"body": "jeGEnG_body",
-			"footerActions": "jeGEnG_footerActions",
-			"title": "jeGEnG_title",
-			"optionLine": "jeGEnG_optionLine",
-			"detail": "jeGEnG_detail",
-			"checkbox": "jeGEnG_checkbox",
-			"checkboxChecked": "jeGEnG_checkboxChecked",
-			"option": "jeGEnG_option",
-			"customRow": "jeGEnG_customRow",
-			"optionCopy": "jeGEnG_optionCopy",
-			"optionLabel": "jeGEnG_optionLabel",
-			"progress": "jeGEnG_progress",
-			"iconButton": "jeGEnG_iconButton",
 			"options": "jeGEnG_options",
-			"header": "jeGEnG_header",
-			"optionSelected": "jeGEnG_optionSelected",
-			"customTextarea": "jeGEnG_customTextarea",
-			"feedback": "jeGEnG_feedback",
-			"customInput": "jeGEnG_customInput",
-			"badge": "jeGEnG_badge",
+			"body": "jeGEnG_body",
+			"title": "jeGEnG_title",
+			"description": "jeGEnG_description",
+			"option": "jeGEnG_option",
 			"number": "jeGEnG_number",
+			"optionCopy": "jeGEnG_optionCopy",
+			"checkboxChecked": "jeGEnG_checkboxChecked",
 			"pager": "jeGEnG_pager",
-			"card": "jeGEnG_card",
-			"footer": "jeGEnG_footer"
+			"optionSelected": "jeGEnG_optionSelected",
+			"header": "jeGEnG_header",
+			"eyebrow": "jeGEnG_eyebrow",
+			"customInput": "jeGEnG_customInput",
+			"headingBlock": "jeGEnG_headingBlock",
+			"detail": "jeGEnG_detail",
+			"badge": "jeGEnG_badge",
+			"customRowActive": "jeGEnG_customRowActive",
+			"feedback": "jeGEnG_feedback",
+			"customTextarea": "jeGEnG_customTextarea",
+			"progress": "jeGEnG_progress",
+			"frame": "jeGEnG_frame",
+			"footer": "jeGEnG_footer",
+			"customRow": "jeGEnG_customRow",
+			"optionLabel": "jeGEnG_optionLabel",
+			"footerActions": "jeGEnG_footerActions",
+			"checkbox": "jeGEnG_checkbox",
+			"iconButton": "jeGEnG_iconButton",
+			"optionLine": "jeGEnG_optionLine",
+			"card": "jeGEnG_card"
 		};
 		//#endregion
 		//#region lib/types/client/QuestionComposer.js

@@ -855,18 +855,18 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PopupSelectView_module_css_default = {
-			"card": "FuUabW_card",
-			"status": "FuUabW_status",
-			"row": "FuUabW_row",
-			"viewport": "FuUabW_viewport",
-			"label": "FuUabW_label",
-			"detail": "FuUabW_detail",
+			"search": "FuUabW_search",
 			"error": "FuUabW_error",
 			"errorText": "FuUabW_errorText",
 			"retry": "FuUabW_retry",
-			"search": "FuUabW_search",
+			"card": "FuUabW_card",
 			"check": "FuUabW_check",
-			"rowActive": "FuUabW_rowActive"
+			"rowActive": "FuUabW_rowActive",
+			"row": "FuUabW_row",
+			"detail": "FuUabW_detail",
+			"viewport": "FuUabW_viewport",
+			"label": "FuUabW_label",
+			"status": "FuUabW_status"
 		};
 		//#endregion
 		//#region lib/types/client/PopupSelectView.js

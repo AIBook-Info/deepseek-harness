@@ -36,25 +36,25 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SettingsRoot_module_css_default = {
+			"nav": "RAr_ZW_nav",
+			"navTitle": "RAr_ZW_navTitle",
 			"rail": "RAr_ZW_rail",
-			"active": "RAr_ZW_active",
-			"content": "RAr_ZW_content",
+			"actions": "RAr_ZW_actions",
 			"overlay": "RAr_ZW_overlay",
 			"navList": "RAr_ZW_navList",
-			"panel": "RAr_ZW_panel",
-			"hiddenLabel": "RAr_ZW_hiddenLabel",
 			"navCell": "RAr_ZW_navCell",
-			"close": "RAr_ZW_close",
-			"options": "RAr_ZW_options",
 			"navLabel": "RAr_ZW_navLabel",
-			"nav": "RAr_ZW_nav",
 			"mask": "RAr_ZW_mask",
+			"hiddenLabel": "RAr_ZW_hiddenLabel",
 			"trigger": "RAr_ZW_trigger",
-			"navTitle": "RAr_ZW_navTitle",
-			"triggerLabel": "RAr_ZW_triggerLabel",
-			"navIcon": "RAr_ZW_navIcon",
 			"header": "RAr_ZW_header",
-			"actions": "RAr_ZW_actions"
+			"active": "RAr_ZW_active",
+			"close": "RAr_ZW_close",
+			"navIcon": "RAr_ZW_navIcon",
+			"options": "RAr_ZW_options",
+			"content": "RAr_ZW_content",
+			"triggerLabel": "RAr_ZW_triggerLabel",
+			"panel": "RAr_ZW_panel"
 		};
 		//#endregion
 		//#region lib/types/client/SettingsRoot.js
@@ -311,8 +311,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SettingsDocumentAction_module_css_default = {
-			"error": "Iea0tq_error",
-			"action": "Iea0tq_action"
+			"action": "Iea0tq_action",
+			"error": "Iea0tq_error"
 		};
 		//#endregion
 		//#region lib/types/client/SettingsDocumentAction.js

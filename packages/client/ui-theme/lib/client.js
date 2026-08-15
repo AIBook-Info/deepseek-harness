@@ -33,10 +33,10 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AppearanceRow_module_css_default = {
-			"group": "i0ky8W_group",
 			"selected": "i0ky8W_selected",
-			"title": "i0ky8W_title",
 			"cubeRow": "i0ky8W_cubeRow",
+			"title": "i0ky8W_title",
+			"group": "i0ky8W_group",
 			"themeCube": "i0ky8W_themeCube"
 		};
 		//#endregion

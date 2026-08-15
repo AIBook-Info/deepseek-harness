@@ -20,17 +20,17 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var fields_module_css_default = {
-			"hint": "xdk53a_hint",
-			"input": "xdk53a_input",
 			"label": "xdk53a_label",
-			"reset": "xdk53a_reset",
-			"field": "xdk53a_field",
-			"head": "xdk53a_head",
-			"badges": "xdk53a_badges",
-			"badge": "xdk53a_badge",
+			"input": "xdk53a_input",
 			"badgeMuted": "xdk53a_badgeMuted",
+			"invalid": "xdk53a_invalid",
+			"hint": "xdk53a_hint",
+			"head": "xdk53a_head",
+			"badge": "xdk53a_badge",
+			"field": "xdk53a_field",
+			"reset": "xdk53a_reset",
 			"inputInvalid": "xdk53a_inputInvalid",
-			"invalid": "xdk53a_invalid"
+			"badges": "xdk53a_badges"
 		};
 		//#endregion
 		//#region lib/types/client/fields.js
@@ -162,21 +162,21 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PluginCard_module_css_default = {
-			"failed": "pZRj2G_failed",
+			"header": "pZRj2G_header",
+			"footer": "pZRj2G_footer",
+			"save": "pZRj2G_save",
 			"cardOpen": "pZRj2G_cardOpen",
 			"body": "pZRj2G_body",
-			"discard": "pZRj2G_discard",
+			"chevronOpen": "pZRj2G_chevronOpen",
+			"description": "pZRj2G_description",
 			"chevron": "pZRj2G_chevron",
 			"pending": "pZRj2G_pending",
-			"chevronOpen": "pZRj2G_chevronOpen",
-			"card": "pZRj2G_card",
-			"description": "pZRj2G_description",
-			"save": "pZRj2G_save",
+			"discard": "pZRj2G_discard",
 			"readOnly": "pZRj2G_readOnly",
+			"failed": "pZRj2G_failed",
 			"name": "pZRj2G_name",
-			"header": "pZRj2G_header",
 			"headText": "pZRj2G_headText",
-			"footer": "pZRj2G_footer"
+			"card": "pZRj2G_card"
 		};
 		//#endregion
 		//#region lib/types/client/PluginCard.js
@@ -371,14 +371,14 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PluginsSettingsSection_module_css_default = {
-			"tab": "N4_Vbq_tab",
+			"section": "N4_Vbq_section",
+			"panel": "N4_Vbq_panel",
 			"intro": "N4_Vbq_intro",
+			"tabs": "N4_Vbq_tabs",
 			"heading": "N4_Vbq_heading",
 			"cards": "N4_Vbq_cards",
-			"tabs": "N4_Vbq_tabs",
-			"section": "N4_Vbq_section",
-			"empty": "N4_Vbq_empty",
-			"panel": "N4_Vbq_panel"
+			"tab": "N4_Vbq_tab",
+			"empty": "N4_Vbq_empty"
 		};
 		//#endregion
 		//#region lib/types/client/ConfigurablePluginsTab.js

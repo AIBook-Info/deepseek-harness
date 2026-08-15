@@ -19,28 +19,28 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var WorkflowRunPanel_module_css_default = {
-			"phase": "Dlhu8q_phase",
-			"statusTail": "Dlhu8q_statusTail",
-			"phaseLeading": "Dlhu8q_phaseLeading",
-			"phaseList": "Dlhu8q_phaseList",
-			"runHeader": "Dlhu8q_runHeader",
-			"runLeading": "Dlhu8q_runLeading",
 			"phaseStatus": "Dlhu8q_phaseStatus",
-			"members": "Dlhu8q_members",
-			"memberStatus": "Dlhu8q_memberStatus",
-			"memberRow": "Dlhu8q_memberRow",
-			"separator": "Dlhu8q_separator",
-			"memberButton": "Dlhu8q_memberButton",
-			"memberLabel": "Dlhu8q_memberLabel",
-			"phaseHeader": "Dlhu8q_phaseHeader",
-			"runSummary": "Dlhu8q_runSummary",
-			"root": "Dlhu8q_root",
+			"dotSlot": "Dlhu8q_dotSlot",
 			"runTitle": "Dlhu8q_runTitle",
-			"phaseTitle": "Dlhu8q_phaseTitle",
+			"root": "Dlhu8q_root",
 			"phaseCount": "Dlhu8q_phaseCount",
+			"phaseList": "Dlhu8q_phaseList",
 			"memberLabelWrap": "Dlhu8q_memberLabelWrap",
+			"phaseHeader": "Dlhu8q_phaseHeader",
+			"runHeader": "Dlhu8q_runHeader",
+			"phaseLeading": "Dlhu8q_phaseLeading",
+			"statusTail": "Dlhu8q_statusTail",
+			"phase": "Dlhu8q_phase",
+			"members": "Dlhu8q_members",
+			"memberButton": "Dlhu8q_memberButton",
+			"phaseTitle": "Dlhu8q_phaseTitle",
+			"memberLabel": "Dlhu8q_memberLabel",
+			"memberStatus": "Dlhu8q_memberStatus",
+			"runLeading": "Dlhu8q_runLeading",
+			"memberRow": "Dlhu8q_memberRow",
+			"runSummary": "Dlhu8q_runSummary",
 			"empty": "Dlhu8q_empty",
-			"dotSlot": "Dlhu8q_dotSlot"
+			"separator": "Dlhu8q_separator"
 		};
 		//#endregion
 		//#region lib/types/client/WorkflowRunPanel.js

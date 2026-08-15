@@ -605,33 +605,33 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ToolRow_module_css_default = {
-			"sep": "oKJXba_sep",
-			"summary": "oKJXba_summary",
-			"fileLink": "oKJXba_fileLink",
 			"bodyWrap": "oKJXba_bodyWrap",
 			"inspectButton": "oKJXba_inspectButton",
-			"ioSection": "oKJXba_ioSection",
-			"ioLabel": "oKJXba_ioLabel",
-			"root": "oKJXba_root",
-			"title": "oKJXba_title",
-			"ioCard": "oKJXba_ioCard",
-			"diffBody": "oKJXba_diffBody",
-			"readBody": "oKJXba_readBody",
-			"visuallyHidden": "oKJXba_visuallyHidden",
-			"summarySuffix": "oKJXba_summarySuffix",
 			"errorSummary": "oKJXba_errorSummary",
-			"row": "oKJXba_row",
-			"codeBody": "oKJXba_codeBody",
-			"webBody": "oKJXba_webBody",
-			"ioDivider": "oKJXba_ioDivider",
-			"bodyScroll": "oKJXba_bodyScroll",
-			"searchRecovery": "oKJXba_searchRecovery",
+			"sep": "oKJXba_sep",
 			"terminalBody": "oKJXba_terminalBody",
+			"diffBody": "oKJXba_diffBody",
+			"searchBody": "oKJXba_searchBody",
+			"webBody": "oKJXba_webBody",
+			"ioText": "oKJXba_ioText",
+			"searchRecovery": "oKJXba_searchRecovery",
+			"visuallyHidden": "oKJXba_visuallyHidden",
+			"codeBody": "oKJXba_codeBody",
+			"readBody": "oKJXba_readBody",
 			"dsh-tool-row-sweep": "oKJXba_dsh-tool-row-sweep",
+			"root": "oKJXba_root",
 			"chevron": "oKJXba_chevron",
 			"leading": "oKJXba_leading",
-			"ioText": "oKJXba_ioText",
-			"searchBody": "oKJXba_searchBody"
+			"title": "oKJXba_title",
+			"row": "oKJXba_row",
+			"summary": "oKJXba_summary",
+			"fileLink": "oKJXba_fileLink",
+			"bodyScroll": "oKJXba_bodyScroll",
+			"ioCard": "oKJXba_ioCard",
+			"ioSection": "oKJXba_ioSection",
+			"ioLabel": "oKJXba_ioLabel",
+			"summarySuffix": "oKJXba_summarySuffix",
+			"ioDivider": "oKJXba_ioDivider"
 		};
 		//#endregion
 		//#region lib/types/client/tool/components/ToolRow.js
@@ -949,12 +949,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ToolDetails_module_css_default = {
-			"description": "ZqI_Na_description",
-			"recovery": "ZqI_Na_recovery",
-			"cardBody": "ZqI_Na_cardBody",
-			"code": "ZqI_Na_code",
-			"read": "ZqI_Na_read",
 			"empty": "ZqI_Na_empty",
+			"description": "ZqI_Na_description",
+			"cardBody": "ZqI_Na_cardBody",
+			"read": "ZqI_Na_read",
+			"recovery": "ZqI_Na_recovery",
+			"code": "ZqI_Na_code",
 			"web": "ZqI_Na_web"
 		};
 		//#endregion
@@ -1099,26 +1099,26 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var bash_sample_module_css_default = {
-			"chevronHover": "sEXBMa_chevronHover",
-			"terminal": "sEXBMa_terminal",
-			"ioCard": "sEXBMa_ioCard",
-			"chevron": "sEXBMa_chevron",
-			"title": "sEXBMa_title",
 			"card": "sEXBMa_card",
-			"dsh-bash-row-sweep": "sEXBMa_dsh-bash-row-sweep",
-			"iconIdle": "sEXBMa_iconIdle",
-			"ioText": "sEXBMa_ioText",
 			"errorSummary": "sEXBMa_errorSummary",
-			"ioSection": "sEXBMa_ioSection",
-			"bodyWrap": "sEXBMa_bodyWrap",
-			"root": "sEXBMa_root",
-			"ioLabel": "sEXBMa_ioLabel",
-			"leading": "sEXBMa_leading",
-			"sep": "sEXBMa_sep",
-			"summary": "sEXBMa_summary",
-			"inspectButton": "sEXBMa_inspectButton",
+			"chevron": "sEXBMa_chevron",
 			"visuallyHidden": "sEXBMa_visuallyHidden",
-			"ioDivider": "sEXBMa_ioDivider"
+			"ioText": "sEXBMa_ioText",
+			"inspectButton": "sEXBMa_inspectButton",
+			"sep": "sEXBMa_sep",
+			"dsh-bash-row-sweep": "sEXBMa_dsh-bash-row-sweep",
+			"ioSection": "sEXBMa_ioSection",
+			"iconIdle": "sEXBMa_iconIdle",
+			"title": "sEXBMa_title",
+			"root": "sEXBMa_root",
+			"ioCard": "sEXBMa_ioCard",
+			"terminal": "sEXBMa_terminal",
+			"ioLabel": "sEXBMa_ioLabel",
+			"ioDivider": "sEXBMa_ioDivider",
+			"summary": "sEXBMa_summary",
+			"chevronHover": "sEXBMa_chevronHover",
+			"leading": "sEXBMa_leading",
+			"bodyWrap": "sEXBMa_bodyWrap"
 		};
 		//#endregion
 		//#region lib/types/client/tool/toolviews/bash-sample.js

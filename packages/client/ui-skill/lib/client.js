@@ -18,23 +18,23 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SkillRow_module_css_default = {
-			"errorSummary": "LU-sNq_errorSummary",
-			"visuallyHidden": "LU-sNq_visuallyHidden",
 			"bodyWrap": "LU-sNq_bodyWrap",
-			"card": "LU-sNq_card",
-			"instructionsCard": "LU-sNq_instructionsCard",
-			"title": "LU-sNq_title",
 			"row": "LU-sNq_row",
+			"visuallyHidden": "LU-sNq_visuallyHidden",
+			"card": "LU-sNq_card",
+			"instructionsHeader": "LU-sNq_instructionsHeader",
+			"instructions": "LU-sNq_instructions",
+			"chevronHover": "LU-sNq_chevronHover",
+			"inspectButton": "LU-sNq_inspectButton",
 			"leading": "LU-sNq_leading",
+			"separator": "LU-sNq_separator",
+			"title": "LU-sNq_title",
+			"iconIdle": "LU-sNq_iconIdle",
 			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
 			"chevron": "LU-sNq_chevron",
-			"separator": "LU-sNq_separator",
-			"instructionsHeader": "LU-sNq_instructionsHeader",
-			"inspectButton": "LU-sNq_inspectButton",
-			"summary": "LU-sNq_summary",
-			"iconIdle": "LU-sNq_iconIdle",
-			"instructions": "LU-sNq_instructions",
-			"chevronHover": "LU-sNq_chevronHover"
+			"errorSummary": "LU-sNq_errorSummary",
+			"instructionsCard": "LU-sNq_instructionsCard",
+			"summary": "LU-sNq_summary"
 		};
 		//#endregion
 		//#region lib/types/client/SkillRow.js

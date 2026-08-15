@@ -167,14 +167,14 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ProducedFiles_module_css_default = {
-			"probe": "HHQQoW_probe",
-			"file": "HHQQoW_file",
-			"showFolder": "HHQQoW_showFolder",
-			"more": "HHQQoW_more",
 			"root": "HHQQoW_root",
 			"row": "HHQQoW_row",
-			"label": "HHQQoW_label",
-			"measure": "HHQQoW_measure"
+			"measure": "HHQQoW_measure",
+			"showFolder": "HHQQoW_showFolder",
+			"more": "HHQQoW_more",
+			"probe": "HHQQoW_probe",
+			"file": "HHQQoW_file",
+			"label": "HHQQoW_label"
 		};
 		//#endregion
 		//#region lib/types/client/ProducedFiles.js

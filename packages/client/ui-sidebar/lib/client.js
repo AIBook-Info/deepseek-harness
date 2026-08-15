@@ -33,27 +33,27 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SidebarRoot_module_css_default = {
-			"fading": "f-XTJG_fading",
-			"regionArea": "f-XTJG_regionArea",
-			"iconButton": "f-XTJG_iconButton",
-			"logoRow": "f-XTJG_logoRow",
-			"footerActions": "f-XTJG_footerActions",
-			"wide": "f-XTJG_wide",
-			"newSessionLabel": "f-XTJG_newSessionLabel",
 			"quietBars": "f-XTJG_quietBars",
-			"footArea": "f-XTJG_footArea",
-			"railFish": "f-XTJG_railFish",
-			"panelIcon": "f-XTJG_panelIcon",
-			"brand": "f-XTJG_brand",
+			"fading": "f-XTJG_fading",
+			"iconButton": "f-XTJG_iconButton",
 			"settingsArea": "f-XTJG_settingsArea",
-			"root": "f-XTJG_root",
-			"toggle": "f-XTJG_toggle",
-			"newSession": "f-XTJG_newSession",
+			"newSessionLabel": "f-XTJG_newSessionLabel",
+			"panelIcon": "f-XTJG_panelIcon",
+			"railFish": "f-XTJG_railFish",
+			"footerActions": "f-XTJG_footerActions",
 			"collapsed": "f-XTJG_collapsed",
-			"wide-in": "f-XTJG_wide-in",
 			"rail-in": "f-XTJG_rail-in",
+			"wide-in": "f-XTJG_wide-in",
+			"newSession": "f-XTJG_newSession",
+			"railIn": "f-XTJG_railIn",
+			"logoRow": "f-XTJG_logoRow",
+			"toggle": "f-XTJG_toggle",
 			"rail-fade-in": "f-XTJG_rail-fade-in",
-			"railIn": "f-XTJG_railIn"
+			"footArea": "f-XTJG_footArea",
+			"root": "f-XTJG_root",
+			"regionArea": "f-XTJG_regionArea",
+			"wide": "f-XTJG_wide",
+			"brand": "f-XTJG_brand"
 		};
 		//#endregion
 		//#region lib/types/client/SidebarRoot.js

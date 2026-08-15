@@ -18,19 +18,19 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var JobListAction_module_css_default = {
-			"trigger": "jBBRLa_trigger",
-			"duration": "jBBRLa_duration",
 			"row": "jBBRLa_row",
+			"rowSettled": "jBBRLa_rowSettled",
+			"rowDot": "jBBRLa_rowDot",
+			"kind": "jBBRLa_kind",
+			"duration": "jBBRLa_duration",
+			"status": "jBBRLa_status",
 			"menu": "jBBRLa_menu",
-			"count": "jBBRLa_count",
+			"triggerDot": "jBBRLa_triggerDot",
+			"trigger": "jBBRLa_trigger",
 			"root": "jBBRLa_root",
 			"triggerOpen": "jBBRLa_triggerOpen",
-			"rowSettled": "jBBRLa_rowSettled",
-			"label": "jBBRLa_label",
-			"kind": "jBBRLa_kind",
-			"rowDot": "jBBRLa_rowDot",
-			"status": "jBBRLa_status",
-			"triggerDot": "jBBRLa_triggerDot"
+			"count": "jBBRLa_count",
+			"label": "jBBRLa_label"
 		};
 		//#endregion
 		//#region lib/types/client/JobListAction.js
