@@ -2,6 +2,9 @@
 node_modules/
 .pnpm-store/
 
+# OpenCode local state
+.opencode/
+
 # Build artifacts
 dist/
 build/
