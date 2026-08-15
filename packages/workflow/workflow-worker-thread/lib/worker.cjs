@@ -15,7 +15,7 @@ var __copyProps = (to, from, except, desc) => {
 	}
 	return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
 	value: mod,
 	enumerable: true
 }) : target, mod));
@@ -159,7 +159,6 @@ function materialize(value, path, seen) {
 		case "function": throw new MaterializeError(path, "functions are not plain JSON data");
 		case "symbol": throw new MaterializeError(path, "symbols are not plain JSON data");
 		case "undefined": throw new MaterializeError(path, "undefined is not JSON data");
-		case "object": break;
 	}
 	if (value === null) return null;
 	const objectValue = value;
@@ -213,7 +212,7 @@ function materializeObject(value, path, seen) {
 * @module @deepseek-ai/dsh-workflow-worker-thread/runtime
 */
 /** The `agent()` options the script may pass; everything else rejects loud. */
-const SUPPORTED_AGENT_OPTIONS = new Set([
+const SUPPORTED_AGENT_OPTIONS = /* @__PURE__ */ new Set([
 	"label",
 	"phase",
 	"schema",
@@ -221,7 +220,7 @@ const SUPPORTED_AGENT_OPTIONS = new Set([
 	"model"
 ]);
 /** Deferred Claude Code options we name explicitly in the rejection message. */
-const DEFERRED_AGENT_OPTIONS = new Set([
+const DEFERRED_AGENT_OPTIONS = /* @__PURE__ */ new Set([
 	"effort",
 	"isolation",
 	"agentType"

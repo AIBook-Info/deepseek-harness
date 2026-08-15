@@ -3726,7 +3726,7 @@ const LANGS = [
 * (including embedded sub-grammars). The three boot grammars are absent —
 * already loaded, so no alias value ever points at a missing entry here.
 */
-const LAZY_GRAMMARS = new Map([
+const LAZY_GRAMMARS = /* @__PURE__ */ new Map([
 	["python", () => import("@shikijs/langs/python")],
 	["ruby", () => import("@shikijs/langs/ruby")],
 	["go", () => import("@shikijs/langs/go")],
@@ -3762,7 +3762,7 @@ const LAZY_GRAMMARS = new Map([
 * the JSX/TSX approximation). A value not in {@link LANGS} names a
 * {@link LAZY_GRAMMARS} entry loaded on first use.
 */
-const LANG_ALIASES = new Map([
+const LANG_ALIASES = /* @__PURE__ */ new Map([
 	["typescript", "typescript"],
 	["ts", "typescript"],
 	["tsx", "typescript"],
@@ -3994,10 +3994,11 @@ function renderSpans(spans) {
 */
 function ReadBlock({ label, lines, totalLines, lang, maxLines = 16, className }) {
 	const raw = useMemo(() => lines.map((line) => line.text).join("\n"), [lines]);
+	const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount);
 	const highlighted = useMemo(() => highlightLines(raw, lang), [
 		raw,
 		lang,
-		useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
+		loaded
 	]);
 	const [expanded, setExpanded] = useState(false);
 	const [copied, setCopied] = useState(false);
@@ -4926,10 +4927,11 @@ var CodeBlock_module_css_default = {};
 //#region lib/types/markdown/CodeBlock.js
 function CodeBlock({ code, lang, className, copyLabel = "复制", copiedLabel = "复制成功" }) {
 	const trimmed = code.endsWith("\n") ? code.slice(0, -1) : code;
+	const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount);
 	const html = useMemo(() => highlightToHtml(trimmed, lang), [
 		trimmed,
 		lang,
-		useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
+		loaded
 	]);
 	const rootRef = useRef(null);
 	const [copied, setCopied] = useState(false);
@@ -5295,9 +5297,10 @@ function renderTableRow(row, cellTag, align, key, context) {
 function renderSafeLink(href, children, key) {
 	const safeHref = sanitizeUrl(href);
 	if (safeHref === "") return jsx(Fragment$1, { children }, key);
+	const external = ["http:", "https:"].includes(new URL(safeHref).protocol);
 	return jsx("a", {
 		href: safeHref,
-		...["http:", "https:"].includes(new URL(safeHref).protocol) ? {
+		...external ? {
 			target: "_blank",
 			rel: "noopener noreferrer"
 		} : {},

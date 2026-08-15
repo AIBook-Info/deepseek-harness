@@ -649,7 +649,7 @@ function traceSession(records, sessionId) {
 	const target = byId.get(sessionId);
 	if (target === void 0) throw new SessionQueryError(`session "${sessionId}" not found`, "SESSION_QUERY_SESSION_NOT_FOUND");
 	const ancestors = [];
-	const ancestrySeen = new Set([sessionId]);
+	const ancestrySeen = /* @__PURE__ */ new Set([sessionId]);
 	let unresolvedParentId;
 	let parentId = target.header.parentSession;
 	while (parentId !== void 0) {

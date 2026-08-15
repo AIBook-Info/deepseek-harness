@@ -535,7 +535,8 @@ var DeepSeekAdapter = class extends LlmAdapter {
 			const apiKey = await this.config.resolveApiKey(connection);
 			const userId = this.config.resolveUserId();
 			const consumer = new AbortController();
-			const watchdog = __addDisposableResource(env_1, idleWatchdog(options.signal === void 0 ? consumer.signal : AbortSignal.any([options.signal, consumer.signal]), connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE), false);
+			const upstream = options.signal === void 0 ? consumer.signal : AbortSignal.any([options.signal, consumer.signal]);
+			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE), false);
 			const iterator = this.request(options, watchdog.signal, connection, apiKey, userId, () => {
 				watchdog.pulse();
 			})[Symbol.asyncIterator]();

@@ -216,7 +216,7 @@ function isJsonValue(value) {
 * @module @deepseek-ai/dsh-session/surface
 */
 /** Runtime counterpart of the message-producing event union. */
-const SURFACE_EVENT_TYPES = new Set([
+const SURFACE_EVENT_TYPES = /* @__PURE__ */ new Set([
 	"user/message",
 	"assistant/message",
 	"tool/result"
@@ -654,10 +654,7 @@ function interruptedTurnClosers(events) {
 				if (entry) entry.callSeq = event.seq;
 			}
 			break;
-		case "tool/result":
-			pendingCalls.delete(event.data.message.source.callId);
-			break;
-		default: break;
+		case "tool/result": pendingCalls.delete(event.data.message.source.callId);
 	}
 	const last = events.at(-1);
 	if (openTurn === null || last === void 0) return [];
@@ -1051,7 +1048,7 @@ function decodeStorageRecord(value) {
 * construction; a registration surface for them is deferred until such a
 * consumer exists.
 */
-const KNOWN_SESSION_EVENT_TYPES = new Set([
+const KNOWN_SESSION_EVENT_TYPES = /* @__PURE__ */ new Set([
 	"agent-preset/selected",
 	"agent/inbox/spliced",
 	"approval/asked",
@@ -1157,10 +1154,7 @@ function adoptSessionEvent(event) {
 			deepFreeze(event.data);
 			break;
 		case "assistant/message":
-		case "tool/result":
-			deepFreeze(event.data.message);
-			break;
-		default: break;
+		case "tool/result": deepFreeze(event.data.message);
 	}
 	return event;
 }
@@ -1207,9 +1201,7 @@ function assertSessionEventEnvelope(value, index) {
 		case "request/header":
 		case "user/message":
 		case "assistant/message":
-		case "tool/result":
-			assertCurrentLlmShape(event, index);
-			break;
+		case "tool/result": assertCurrentLlmShape(event, index);
 	}
 }
 /** Reject obsolete request headers and malformed messages at the seed/load boundary. */
@@ -1230,7 +1222,7 @@ function assertCurrentLlmShape(event, index) {
 	if (type !== "user/message" && type !== "assistant/message" && type !== "tool/result") return;
 	assertMessageEventShape(event, `seed ${type} at index ${index}`);
 }
-const allowedAdapterKeys = new Set(["reasoningEffort", "maxTokens"]);
+const allowedAdapterKeys = /* @__PURE__ */ new Set(["reasoningEffort", "maxTokens"]);
 /** Validate adapter-default markers imported from a durable request header. */
 function assertAdapterDefaults(value, config, index) {
 	if (value === void 0) return;

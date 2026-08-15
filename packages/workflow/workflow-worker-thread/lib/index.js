@@ -91,7 +91,6 @@ function materialize(value, path, seen) {
 		case "function": throw new MaterializeError(path, "functions are not plain JSON data");
 		case "symbol": throw new MaterializeError(path, "symbols are not plain JSON data");
 		case "undefined": throw new MaterializeError(path, "undefined is not JSON data");
-		case "object": break;
 	}
 	if (value === null) return null;
 	const objectValue = value;
@@ -641,13 +640,15 @@ var WorkerRun = class {
 			if (!outcomeWasClaimed) this.terminalClaimed = true;
 			if (this.children.size > 0 || this.pendingStarts.size > 0) this.reapChildren("workflow worker gone");
 			this.endStrandedAgents();
-			if (!outcomeWasClaimed) if (cancellationWasRequested) this.settleResult(this.cancelledResult(this.hostStarted));
-			else this.settleResult({
-				value: null,
-				stopReason: "error",
-				error: message,
-				agentsStarted: this.hostStarted
-			});
+			if (!outcomeWasClaimed) {
+				if (cancellationWasRequested) this.settleResult(this.cancelledResult(this.hostStarted));
+				else this.settleResult({
+					value: null,
+					stopReason: "error",
+					error: message,
+					agentsStarted: this.hostStarted
+				});
+			}
 		}
 		if (!isExit) return;
 		for (const [callId, record] of [...this.children]) this.disposeChild(callId, record);
@@ -731,7 +732,7 @@ function validateMetaShape(meta) {
 	const violations = [];
 	if (typeof meta !== "object" || meta === null || Array.isArray(meta)) return { violations: ["meta must be an object"] };
 	const record = meta;
-	const known = new Set([
+	const known = /* @__PURE__ */ new Set([
 		"name",
 		"description",
 		"whenToUse",
@@ -742,30 +743,32 @@ function validateMetaShape(meta) {
 	if (typeof record.description !== "string" || record.description.length === 0) violations.push("meta.description must be a non-empty string");
 	if (record.whenToUse !== void 0 && typeof record.whenToUse !== "string") violations.push("meta.whenToUse must be a string");
 	const phases = [];
-	if (record.phases !== void 0) if (!Array.isArray(record.phases)) violations.push("meta.phases must be an array");
-	else record.phases.forEach((phase, index) => {
-		if (typeof phase !== "object" || phase === null || Array.isArray(phase)) {
-			violations.push(`meta.phases[${index}] must be an object`);
-			return;
-		}
-		const entry = phase;
-		for (const key of Object.keys(entry)) if (![
-			"title",
-			"detail",
-			"provider",
-			"model"
-		].includes(key)) violations.push(`meta.phases[${index}].${key} is not a recognized field`);
-		if (typeof entry.title !== "string" || entry.title.length === 0) violations.push(`meta.phases[${index}].title must be a non-empty string`);
-		if (entry.detail !== void 0 && typeof entry.detail !== "string") violations.push(`meta.phases[${index}].detail must be a string`);
-		if (entry.provider !== void 0 && typeof entry.provider !== "string") violations.push(`meta.phases[${index}].provider must be a string`);
-		if (entry.model !== void 0 && typeof entry.model !== "string") violations.push(`meta.phases[${index}].model must be a string`);
-		if (violations.length === 0) phases.push({
-			title: entry.title,
-			...entry.detail !== void 0 ? { detail: entry.detail } : {},
-			...entry.provider !== void 0 ? { provider: entry.provider } : {},
-			...entry.model !== void 0 ? { model: entry.model } : {}
+	if (record.phases !== void 0) {
+		if (!Array.isArray(record.phases)) violations.push("meta.phases must be an array");
+		else record.phases.forEach((phase, index) => {
+			if (typeof phase !== "object" || phase === null || Array.isArray(phase)) {
+				violations.push(`meta.phases[${index}] must be an object`);
+				return;
+			}
+			const entry = phase;
+			for (const key of Object.keys(entry)) if (![
+				"title",
+				"detail",
+				"provider",
+				"model"
+			].includes(key)) violations.push(`meta.phases[${index}].${key} is not a recognized field`);
+			if (typeof entry.title !== "string" || entry.title.length === 0) violations.push(`meta.phases[${index}].title must be a non-empty string`);
+			if (entry.detail !== void 0 && typeof entry.detail !== "string") violations.push(`meta.phases[${index}].detail must be a string`);
+			if (entry.provider !== void 0 && typeof entry.provider !== "string") violations.push(`meta.phases[${index}].provider must be a string`);
+			if (entry.model !== void 0 && typeof entry.model !== "string") violations.push(`meta.phases[${index}].model must be a string`);
+			if (violations.length === 0) phases.push({
+				title: entry.title,
+				...entry.detail !== void 0 ? { detail: entry.detail } : {},
+				...entry.provider !== void 0 ? { provider: entry.provider } : {},
+				...entry.model !== void 0 ? { model: entry.model } : {}
+			});
 		});
-	});
+	}
 	if (violations.length > 0) return { violations };
 	return {
 		violations,

@@ -286,7 +286,7 @@ var HttpFetchProvider = class {
 		}
 		/* v8 ignore next -- a 2xx Response from fetch always exposes a body stream; the null guard is defensive. */
 		if (response.body === null) return {
-			bytes: new Uint8Array(0),
+			bytes: /* @__PURE__ */ new Uint8Array(0),
 			truncatedByBytes: false
 		};
 		const chunks = [];

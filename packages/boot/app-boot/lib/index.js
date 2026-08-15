@@ -407,7 +407,8 @@ function ensureSymlink(link, target) {
 * @param home - the Harness home; defaults to {@link resolveDshHome}.
 */
 function healProfilesModuleFallback(installAnchor, home = resolveDshHome()) {
-	const modulesDir = join(join(home, PROFILES_DIR), "node_modules");
+	const profilesDir = join(home, PROFILES_DIR);
+	const modulesDir = join(profilesDir, "node_modules");
 	mkdirSync(modulesDir, { recursive: true });
 	const appManifest = JSON.parse(readFileSync(installAnchor, "utf8"));
 	const links = /* @__PURE__ */ new Map();
@@ -599,7 +600,9 @@ function composeEntries(layers, warn = () => {}) {
 function resolveConfigPath(configPath, snapshotMode, cwd = process.cwd()) {
 	const absolute = resolve(cwd, configPath);
 	if (snapshotMode !== "replay") return absolute;
-	return resolve(dirname(absolute), basename(absolute).replace(/cordis\.ya?ml$/, "cordis.snapshot.yml"));
+	const dir = dirname(absolute);
+	const replayName = basename(absolute).replace(/cordis\.ya?ml$/, "cordis.snapshot.yml");
+	return resolve(dir, replayName);
 }
 /**
 * Load the optional gitignored `.env` from `dir`. Missing files fall back to the
@@ -616,7 +619,7 @@ function loadEnv(binName, dir = process.cwd(), warn = (line) => void process.std
 	}
 }
 /** Exact names no discovered file may set. */
-const BOOTSTRAP_NAMES = new Set([
+const BOOTSTRAP_NAMES = /* @__PURE__ */ new Set([
 	"PATH",
 	"HOME",
 	"USERPROFILE",
@@ -765,7 +768,8 @@ async function watchUserPatches(ctx, options) {
 	if (entry === void 0) throw new Error(`${binName}: user patch-layer watching requires the root Include entry`);
 	const register = hmr.registerConfig(filename, async () => {
 		const { patches: _previousPatches, ...includeConfig } = entry.options.config;
-		const patches = compose(loadOptionalPatches(binName, filename) ?? []);
+		const userPatches = loadOptionalPatches(binName, filename) ?? [];
+		const patches = compose(userPatches);
 		await entry.update({ config: {
 			...includeConfig,
 			patches
@@ -891,7 +895,8 @@ function renderConfigDump(binName, absoluteConfigPath, layers, warn = (line) => 
 	const baseLabel = basename(absoluteConfigPath);
 	const base = parsed;
 	const snapshot = (count, warnings) => {
-		return applyEntryPatches(base, structuredClone(layers.slice(0, count).flatMap((layer) => layer.patches)), (message, ...args) => {
+		const flattened = structuredClone(layers.slice(0, count).flatMap((layer) => layer.patches));
+		return applyEntryPatches(base, flattened, (message, ...args) => {
 			let index = 0;
 			warnings.push(message.replace(/%C/g, () => JSON.stringify(args[index++])));
 		});

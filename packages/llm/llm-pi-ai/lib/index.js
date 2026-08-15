@@ -145,7 +145,6 @@ function foreignAssistant(message) {
 			});
 			break;
 		case "image": throw new LlmError("pi-ai chat history cannot represent structured assistant image output", "UNSUPPORTED_CONTENT");
-		default: break;
 	}
 	return {
 		role: "assistant",
@@ -244,18 +243,15 @@ async function userContent(blocks, attachments) {
 			});
 			break;
 		}
-		case "tool-result":
-			{
-				const nested = await userContent(block.content, attachments);
-				if (typeof nested === "string") {
-					if (nested.length > 0) content.push({
-						type: "text",
-						text: nested
-					});
-				} else content.push(...nested);
-			}
-			break;
-		default: break;
+		case "tool-result": {
+			const nested = await userContent(block.content, attachments);
+			if (typeof nested === "string") {
+				if (nested.length > 0) content.push({
+					type: "text",
+					text: nested
+				});
+			} else content.push(...nested);
+		}
 	}
 	if (content.every((block) => block.type === "text")) return content.map((block) => block.text).join("");
 	return content;
@@ -1502,7 +1498,7 @@ function resolveProfiles(providers) {
 * either would report an authentication failure as a provider with no models.
 * pi-ai's remaining protocols are absent for the same reason.
 */
-const LISTABLE_PROTOCOLS = new Set(["openai-completions", "openai-responses"]);
+const LISTABLE_PROTOCOLS = /* @__PURE__ */ new Set(["openai-completions", "openai-responses"]);
 /**
 * Endpoint replies larger than this are refused. The endpoint is whatever URL
 * the user typed, so the ceiling holds on the bytes actually read rather than
@@ -1510,7 +1506,7 @@ const LISTABLE_PROTOCOLS = new Set(["openai-completions", "openai-responses"]);
 * uses for its own caller-supplied URLs, except that a truncated model listing
 * is not parseable, so overflow rejects instead of truncating.
 */
-const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+const MAX_RESPONSE_BYTES = 4194304;
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
 function capacity(...candidates) {
 	for (const candidate of candidates) if (typeof candidate === "number" && Number.isInteger(candidate) && candidate > 0) return candidate;

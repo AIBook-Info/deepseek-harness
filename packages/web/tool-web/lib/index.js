@@ -323,7 +323,7 @@ function parseFetchArgs(args) {
 */
 const MAX_CONVERSION_DEPTH = 512;
 /** Elements that never take a closing tag, so they do not grow the lexical stack. */
-const VOID_ELEMENTS = new Set([
+const VOID_ELEMENTS = /* @__PURE__ */ new Set([
 	"area",
 	"base",
 	"br",
@@ -340,7 +340,7 @@ const VOID_ELEMENTS = new Set([
 	"wbr"
 ]);
 /** Elements whose contents HTML parses as text until their matching end tag. */
-const RAW_TEXT_ELEMENTS = new Set([
+const RAW_TEXT_ELEMENTS = /* @__PURE__ */ new Set([
 	"script",
 	"style",
 	"noscript"

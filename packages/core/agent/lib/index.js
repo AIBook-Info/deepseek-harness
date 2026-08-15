@@ -244,7 +244,6 @@ function foldConsumedWork(events) {
 			}
 			break;
 		}
-		default: break;
 	}
 	return {
 		...end === void 0 ? {} : { end },

@@ -254,11 +254,11 @@ async function readImageFile(root, ref, signal) {
 //#region lib/types/index.js
 /** Local durable attachment backend rooted below `DSH_HOME`. @module @deepseek-ai/dsh-attachment-local */
 /** Default maximum encoded bytes for one image. */
-const DEFAULT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_BYTES = 5242880;
 /** Default maximum images in one prompt. */
 const DEFAULT_MAX_IMAGES_PER_MESSAGE = 20;
 /** Default maximum aggregate image bytes in one prompt. */
-const DEFAULT_MAX_MESSAGE_IMAGE_BYTES = 100 * 1024 * 1024;
+const DEFAULT_MAX_MESSAGE_IMAGE_BYTES = 104857600;
 /** Default maximum intrinsic pixels for one image. */
 const DEFAULT_MAX_IMAGE_PIXELS = 4e7;
 /** Persistent content-addressed local attachment store. */

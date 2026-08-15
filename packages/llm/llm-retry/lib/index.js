@@ -143,11 +143,12 @@ function apply(ctx, config = {}, internals = {}) {
 		const retry = previousRetry + 1;
 		const retryId = priorPolicyRetry?.data.retryId ?? RetryId(randomUUID());
 		let delayMs;
-		if (failure.providerRetryAfterMs !== void 0 && Number.isFinite(failure.providerRetryAfterMs) && failure.providerRetryAfterMs > 0) if (failure.providerRetryAfterMs > policy.maxDelayMs) {
-			if (policy.mode === "normal") return next();
-			delayMs = localDelay(policy, retry, random);
-		} else delayMs = failure.providerRetryAfterMs;
-		else delayMs = localDelay(policy, retry, random);
+		if (failure.providerRetryAfterMs !== void 0 && Number.isFinite(failure.providerRetryAfterMs) && failure.providerRetryAfterMs > 0) {
+			if (failure.providerRetryAfterMs > policy.maxDelayMs) {
+				if (policy.mode === "normal") return next();
+				delayMs = localDelay(policy, retry, random);
+			} else delayMs = failure.providerRetryAfterMs;
+		} else delayMs = localDelay(policy, retry, random);
 		return backoff(agent, turn, step, failure, provider, policy, policyKey, retry, retryId, delayMs, signal);
 	}
 	const disposeListener = ctx.on("agent/request-error", (payload, next) => {

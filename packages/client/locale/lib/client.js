@@ -875,8 +875,8 @@ window.__ModuleLoader__.load({
 		/** English dictionary, checked complete against the zh key set. */
 		const en = { "language.title": "Language" };
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\locale\src\client\LanguageRow.module.css.mjs
-		const css = ".wyeJua_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.wyeJua_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.wyeJua_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.wyeJua_selector{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.wyeJua_selector:hover{background:var(--dsw-alias-interactive-bg-hover)}.wyeJua_chevron{flex:none}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\locale\src\client\LanguageRow.module.css.mjs
+		const css = ".Nntjkq_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.Nntjkq_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.Nntjkq_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.Nntjkq_selector{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.Nntjkq_selector:hover{background:var(--dsw-alias-interactive-bg-hover)}.Nntjkq_chevron{flex:none}";
 		const tagId = "@deepseek-ai/dsh-client-locale/LanguageRow.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -886,11 +886,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var LanguageRow_module_css_default = {
-			"rowText": "wyeJua_rowText",
-			"chevron": "wyeJua_chevron",
-			"row": "wyeJua_row",
-			"title": "wyeJua_title",
-			"selector": "wyeJua_selector"
+			"row": "Nntjkq_row",
+			"chevron": "Nntjkq_chevron",
+			"title": "Nntjkq_title",
+			"rowText": "Nntjkq_rowText",
+			"selector": "Nntjkq_selector"
 		};
 		//#endregion
 		//#region lib/types/client/LanguageRow.js

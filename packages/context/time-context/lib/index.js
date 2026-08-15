@@ -304,7 +304,6 @@ function precedingMessageTime(agent) {
 		case "user/message":
 		case "assistant/message":
 		case "tool/result": return event.time;
-		default: break;
 	}
 }
 /** Find the preceding time-context event within the open turn. */
@@ -351,7 +350,7 @@ function apply(ctx, config) {
 		throw new Error(message, { cause: error });
 	}
 	const fallbackTimeZone = fallbackFormatter.resolvedOptions().timeZone;
-	const formatters = new Map([[fallbackTimeZone, fallbackFormatter]]);
+	const formatters = /* @__PURE__ */ new Map([[fallbackTimeZone, fallbackFormatter]]);
 	/** Resolve and cache one request-local timestamp formatter. */
 	const formatterFor = (selectedTimeZone) => {
 		const existing = formatters.get(selectedTimeZone);

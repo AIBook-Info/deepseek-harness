@@ -8,8 +8,8 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-subagent\src\client\SubagentCatalogAction.module.css.mjs
-		const css$1 = ".u7hKUq_root{position:relative}.u7hKUq_trigger{min-height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;border-radius:6px;align-items:center;gap:3px;padding:3px 2px;font-size:12px;line-height:18px;display:inline-flex}.u7hKUq_count{margin:0 5px}.u7hKUq_activitySlot{flex:none;width:10px;height:10px;display:inline-flex}.u7hKUq_trigger:hover,.u7hKUq_trigger:focus-visible{color:var(--dsw-alias-label-secondary)}.u7hKUq_trigger svg{transition:transform .12s}.u7hKUq_triggerOpen{transform:rotate(180deg)}.u7hKUq_menu{z-index:100;box-sizing:border-box;background:var(--dsw-specific-menu);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);width:336px;max-width:min(400px,100vw - 32px);max-height:min(560px,100vh - 140px);box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;padding:4px;display:flex;position:absolute;top:calc(100% + 5px);left:0;overflow:auto}.u7hKUq_node{min-width:0;position:relative}.u7hKUq_menu>.u7hKUq_node{margin-left:-3px}.u7hKUq_row{box-sizing:border-box;width:100%;min-height:50px;color:var(--dsw-alias-label-primary);text-align:left;cursor:pointer;background:0 0;border:0;border-radius:8px;outline:none;align-items:flex-start;gap:8px;padding:7px 8px 7px 11px;font-size:13px;line-height:18px;display:flex;position:relative}.u7hKUq_row:hover>.u7hKUq_clickarea,.u7hKUq_row:focus-visible>.u7hKUq_clickarea{background:var(--dsw-alias-interactive-bg-hover)}.u7hKUq_clickarea{box-sizing:border-box;border-radius:8px;flex:1;align-self:stretch;align-items:flex-start;gap:8px;min-width:0;margin:-7px -8px;padding:7px 8px;display:flex}.u7hKUq_row>[data-state],.u7hKUq_clickarea>[data-state]{margin-top:4px}.u7hKUq_disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.u7hKUq_disabled:hover{background:0 0}.u7hKUq_loadingRow{cursor:default}.u7hKUq_disclosure,.u7hKUq_disclosureSpace{flex:none;width:14px;height:18px}.u7hKUq_disclosure{color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;justify-content:center;align-items:center;padding:0;transition:transform .12s;display:inline-flex}.u7hKUq_disclosure:hover{color:var(--dsw-alias-label-primary)}.u7hKUq_disclosureOpen{transform:rotate(90deg)}.u7hKUq_content{flex-direction:column;flex:1;min-width:0;display:flex}.u7hKUq_label,.u7hKUq_summary{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.u7hKUq_label{color:inherit;font-weight:400}.u7hKUq_summary,.u7hKUq_metrics{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px}.u7hKUq_metrics{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;flex:none;grid-template-rows:18px 16px;display:grid}.u7hKUq_metricToken{grid-row:1;line-height:18px}.u7hKUq_metricDuration{grid-row:2}.u7hKUq_children{margin-left:18px;padding-left:4px;position:relative}.u7hKUq_children:before,.u7hKUq_children>.u7hKUq_node:before{content:\"\";border-left:1px solid var(--dsw-alias-border-l2);position:absolute;left:0}.u7hKUq_children:before{height:26px;top:-26px}.u7hKUq_children[aria-busy=true]:before{content:none}.u7hKUq_children>.u7hKUq_node:before{top:0;bottom:0;left:-4px}.u7hKUq_children>.u7hKUq_node:last-child:before{height:17px;bottom:auto}.u7hKUq_children>.u7hKUq_node>.u7hKUq_row:before{content:\"\";border-top:1px solid var(--dsw-alias-border-l2);width:14px;position:absolute;top:16px;left:-4px}.u7hKUq_notice,.u7hKUq_error{color:var(--dsw-alias-label-tertiary);padding:10px 12px;font-size:12px;line-height:18px}.u7hKUq_error{color:var(--dsw-alias-state-error-primary);justify-content:space-between;align-items:center;gap:12px;display:flex}.u7hKUq_refresh{color:inherit;cursor:pointer;background:0 0;border:0;border-radius:6px;flex:none;align-items:center;gap:4px;padding:4px 6px;display:inline-flex}.u7hKUq_refresh:hover{background:var(--dsw-alias-interactive-bg-hover)}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-subagent\src\client\SubagentCatalogAction.module.css.mjs
+		const css$1 = ".RoBCgG_root{position:relative}.RoBCgG_trigger{min-height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;border-radius:6px;align-items:center;gap:3px;padding:3px 2px;font-size:12px;line-height:18px;display:inline-flex}.RoBCgG_count{margin:0 5px}.RoBCgG_activitySlot{flex:none;width:10px;height:10px;display:inline-flex}.RoBCgG_trigger:hover,.RoBCgG_trigger:focus-visible{color:var(--dsw-alias-label-secondary)}.RoBCgG_trigger svg{transition:transform .12s}.RoBCgG_triggerOpen{transform:rotate(180deg)}.RoBCgG_menu{z-index:100;box-sizing:border-box;background:var(--dsw-specific-menu);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);width:336px;max-width:min(400px,100vw - 32px);max-height:min(560px,100vh - 140px);box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;padding:4px;display:flex;position:absolute;top:calc(100% + 5px);left:0;overflow:auto}.RoBCgG_node{min-width:0;position:relative}.RoBCgG_menu>.RoBCgG_node{margin-left:-3px}.RoBCgG_row{box-sizing:border-box;width:100%;min-height:50px;color:var(--dsw-alias-label-primary);text-align:left;cursor:pointer;background:0 0;border:0;border-radius:8px;outline:none;align-items:flex-start;gap:8px;padding:7px 8px 7px 11px;font-size:13px;line-height:18px;display:flex;position:relative}.RoBCgG_row:hover>.RoBCgG_clickarea,.RoBCgG_row:focus-visible>.RoBCgG_clickarea{background:var(--dsw-alias-interactive-bg-hover)}.RoBCgG_clickarea{box-sizing:border-box;border-radius:8px;flex:1;align-self:stretch;align-items:flex-start;gap:8px;min-width:0;margin:-7px -8px;padding:7px 8px;display:flex}.RoBCgG_row>[data-state],.RoBCgG_clickarea>[data-state]{margin-top:4px}.RoBCgG_disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.RoBCgG_disabled:hover{background:0 0}.RoBCgG_loadingRow{cursor:default}.RoBCgG_disclosure,.RoBCgG_disclosureSpace{flex:none;width:14px;height:18px}.RoBCgG_disclosure{color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;justify-content:center;align-items:center;padding:0;transition:transform .12s;display:inline-flex}.RoBCgG_disclosure:hover{color:var(--dsw-alias-label-primary)}.RoBCgG_disclosureOpen{transform:rotate(90deg)}.RoBCgG_content{flex-direction:column;flex:1;min-width:0;display:flex}.RoBCgG_label,.RoBCgG_summary{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.RoBCgG_label{color:inherit;font-weight:400}.RoBCgG_summary,.RoBCgG_metrics{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px}.RoBCgG_metrics{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;flex:none;grid-template-rows:18px 16px;display:grid}.RoBCgG_metricToken{grid-row:1;line-height:18px}.RoBCgG_metricDuration{grid-row:2}.RoBCgG_children{margin-left:18px;padding-left:4px;position:relative}.RoBCgG_children:before,.RoBCgG_children>.RoBCgG_node:before{content:\"\";border-left:1px solid var(--dsw-alias-border-l2);position:absolute;left:0}.RoBCgG_children:before{height:26px;top:-26px}.RoBCgG_children[aria-busy=true]:before{content:none}.RoBCgG_children>.RoBCgG_node:before{top:0;bottom:0;left:-4px}.RoBCgG_children>.RoBCgG_node:last-child:before{height:17px;bottom:auto}.RoBCgG_children>.RoBCgG_node>.RoBCgG_row:before{content:\"\";border-top:1px solid var(--dsw-alias-border-l2);width:14px;position:absolute;top:16px;left:-4px}.RoBCgG_notice,.RoBCgG_error{color:var(--dsw-alias-label-tertiary);padding:10px 12px;font-size:12px;line-height:18px}.RoBCgG_error{color:var(--dsw-alias-state-error-primary);justify-content:space-between;align-items:center;gap:12px;display:flex}.RoBCgG_refresh{color:inherit;cursor:pointer;background:0 0;border:0;border-radius:6px;flex:none;align-items:center;gap:4px;padding:4px 6px;display:inline-flex}.RoBCgG_refresh:hover{background:var(--dsw-alias-interactive-bg-hover)}";
 		const tagId$1 = "@deepseek-ai/dsh-client-ui-subagent/SubagentCatalogAction.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
@@ -19,30 +19,30 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SubagentCatalogAction_module_css_default = {
-			"trigger": "u7hKUq_trigger",
-			"root": "u7hKUq_root",
-			"row": "u7hKUq_row",
-			"node": "u7hKUq_node",
-			"disclosureSpace": "u7hKUq_disclosureSpace",
-			"children": "u7hKUq_children",
-			"summary": "u7hKUq_summary",
-			"error": "u7hKUq_error",
-			"content": "u7hKUq_content",
-			"metricToken": "u7hKUq_metricToken",
-			"disclosureOpen": "u7hKUq_disclosureOpen",
-			"disclosure": "u7hKUq_disclosure",
-			"menu": "u7hKUq_menu",
-			"loadingRow": "u7hKUq_loadingRow",
-			"clickarea": "u7hKUq_clickarea",
-			"metrics": "u7hKUq_metrics",
-			"metricDuration": "u7hKUq_metricDuration",
-			"notice": "u7hKUq_notice",
-			"label": "u7hKUq_label",
-			"activitySlot": "u7hKUq_activitySlot",
-			"triggerOpen": "u7hKUq_triggerOpen",
-			"count": "u7hKUq_count",
-			"refresh": "u7hKUq_refresh",
-			"disabled": "u7hKUq_disabled"
+			"refresh": "RoBCgG_refresh",
+			"disclosureOpen": "RoBCgG_disclosureOpen",
+			"triggerOpen": "RoBCgG_triggerOpen",
+			"content": "RoBCgG_content",
+			"summary": "RoBCgG_summary",
+			"disabled": "RoBCgG_disabled",
+			"metrics": "RoBCgG_metrics",
+			"notice": "RoBCgG_notice",
+			"label": "RoBCgG_label",
+			"error": "RoBCgG_error",
+			"menu": "RoBCgG_menu",
+			"row": "RoBCgG_row",
+			"disclosure": "RoBCgG_disclosure",
+			"metricToken": "RoBCgG_metricToken",
+			"metricDuration": "RoBCgG_metricDuration",
+			"children": "RoBCgG_children",
+			"trigger": "RoBCgG_trigger",
+			"activitySlot": "RoBCgG_activitySlot",
+			"node": "RoBCgG_node",
+			"clickarea": "RoBCgG_clickarea",
+			"disclosureSpace": "RoBCgG_disclosureSpace",
+			"count": "RoBCgG_count",
+			"root": "RoBCgG_root",
+			"loadingRow": "RoBCgG_loadingRow"
 		};
 		//#endregion
 		//#region lib/types/client/SubagentCatalogAction.js
@@ -519,8 +519,8 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-subagent\src\client\SubagentReadOnlyComposer.module.css.mjs
-		const css = ".KO0Tqq_frame{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-height:54px;color:var(--dsw-alias-label-tertiary);border-radius:14px;justify-content:center;align-items:center;gap:8px;margin:0 24px 20px;padding:10px 16px;font-size:13px;line-height:20px;display:flex}.KO0Tqq_frame strong{color:var(--dsw-alias-label-primary);font-weight:510}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-subagent\src\client\SubagentReadOnlyComposer.module.css.mjs
+		const css = ".MyE95a_frame{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-height:54px;color:var(--dsw-alias-label-tertiary);border-radius:14px;justify-content:center;align-items:center;gap:8px;margin:0 24px 20px;padding:10px 16px;font-size:13px;line-height:20px;display:flex}.MyE95a_frame strong{color:var(--dsw-alias-label-primary);font-weight:510}";
 		const tagId = "@deepseek-ai/dsh-client-ui-subagent/SubagentReadOnlyComposer.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -529,7 +529,7 @@ window.__ModuleLoader__.load({
 			tag.textContent = css;
 			document.head.appendChild(tag);
 		}
-		var SubagentReadOnlyComposer_module_css_default = { "frame": "KO0Tqq_frame" };
+		var SubagentReadOnlyComposer_module_css_default = { "frame": "MyE95a_frame" };
 		//#endregion
 		//#region lib/types/client/SubagentReadOnlyComposer.js
 		/**

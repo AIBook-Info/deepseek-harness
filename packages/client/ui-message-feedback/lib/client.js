@@ -324,8 +324,8 @@ window.__ModuleLoader__.load({
 			}
 		};
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-message-feedback\src\client\MessageFeedbackActions.module.css.mjs
-		const css = ".TeNaoW_action{width:28px;height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:none;border-radius:28px;justify-content:center;align-items:center;padding:6px;display:inline-flex}.TeNaoW_action:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.TeNaoW_action:disabled{cursor:default;opacity:.4}.TeNaoW_action[data-active]{color:var(--dsw-alias-label-primary)}.TeNaoW_noteOpen{max-width:220px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;text-overflow:ellipsis;cursor:pointer;background:0 0;border:none;border-radius:14px;padding:0 8px;font-size:13px;line-height:28px;overflow:hidden}.TeNaoW_noteOpen:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.TeNaoW_noteEditor{align-items:flex-start;gap:6px;display:inline-flex}.TeNaoW_noteInput{border:1px solid var(--dsw-alias-border-secondary);background:var(--dsw-alias-bg-primary);width:260px;color:var(--dsw-alias-label-primary);font:inherit;resize:vertical;border-radius:8px;padding:6px 8px;font-size:13px}.TeNaoW_noteSave,.TeNaoW_noteCancel{cursor:pointer;border:none;border-radius:14px;height:28px;padding:0 10px;font-size:13px}.TeNaoW_noteSave{background:var(--dsw-alias-interactive-bg-primary);color:var(--dsw-alias-label-inverse)}.TeNaoW_noteSave:disabled{cursor:default;opacity:.4}.TeNaoW_noteCancel{color:var(--dsw-alias-label-tertiary);background:0 0}.TeNaoW_noteCancel:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.TeNaoW_failure{color:var(--dsw-alias-label-tertiary);padding-left:4px;font-size:13px;line-height:28px}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-message-feedback\src\client\MessageFeedbackActions.module.css.mjs
+		const css = ".FSCzfq_action{width:28px;height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:none;border-radius:28px;justify-content:center;align-items:center;padding:6px;display:inline-flex}.FSCzfq_action:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.FSCzfq_action:disabled{cursor:default;opacity:.4}.FSCzfq_action[data-active]{color:var(--dsw-alias-label-primary)}.FSCzfq_noteOpen{max-width:220px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;text-overflow:ellipsis;cursor:pointer;background:0 0;border:none;border-radius:14px;padding:0 8px;font-size:13px;line-height:28px;overflow:hidden}.FSCzfq_noteOpen:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.FSCzfq_noteEditor{align-items:flex-start;gap:6px;display:inline-flex}.FSCzfq_noteInput{border:1px solid var(--dsw-alias-border-secondary);background:var(--dsw-alias-bg-primary);width:260px;color:var(--dsw-alias-label-primary);font:inherit;resize:vertical;border-radius:8px;padding:6px 8px;font-size:13px}.FSCzfq_noteSave,.FSCzfq_noteCancel{cursor:pointer;border:none;border-radius:14px;height:28px;padding:0 10px;font-size:13px}.FSCzfq_noteSave{background:var(--dsw-alias-interactive-bg-primary);color:var(--dsw-alias-label-inverse)}.FSCzfq_noteSave:disabled{cursor:default;opacity:.4}.FSCzfq_noteCancel{color:var(--dsw-alias-label-tertiary);background:0 0}.FSCzfq_noteCancel:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}.FSCzfq_failure{color:var(--dsw-alias-label-tertiary);padding-left:4px;font-size:13px;line-height:28px}";
 		const tagId = "@deepseek-ai/dsh-client-ui-message-feedback/MessageFeedbackActions.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -335,13 +335,13 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageFeedbackActions_module_css_default = {
-			"noteInput": "TeNaoW_noteInput",
-			"noteEditor": "TeNaoW_noteEditor",
-			"action": "TeNaoW_action",
-			"noteOpen": "TeNaoW_noteOpen",
-			"noteCancel": "TeNaoW_noteCancel",
-			"failure": "TeNaoW_failure",
-			"noteSave": "TeNaoW_noteSave"
+			"noteEditor": "FSCzfq_noteEditor",
+			"action": "FSCzfq_action",
+			"noteOpen": "FSCzfq_noteOpen",
+			"noteInput": "FSCzfq_noteInput",
+			"noteCancel": "FSCzfq_noteCancel",
+			"failure": "FSCzfq_failure",
+			"noteSave": "FSCzfq_noteSave"
 		};
 		//#endregion
 		//#region lib/types/client/MessageFeedbackActions.js

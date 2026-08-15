@@ -16,8 +16,8 @@ const Config = z.object({
 	rows: z.number().default(40),
 	cols: z.number().default(160),
 	scrollbackLines: z.number().default(1e4),
-	scrollbackMaxBytes: z.number().default(4 * 1024 * 1024),
-	maxReadBytes: z.number().default(256 * 1024),
+	scrollbackMaxBytes: z.number().default(4194304),
+	maxReadBytes: z.number().default(262144),
 	pollIntervalMs: z.number().default(50),
 	exactProbeAfterMs: z.number().default(150),
 	idleSilenceMs: z.number().default(3e3),
@@ -396,7 +396,10 @@ var LocalPtySession = class {
 	startSend(request) {
 		if (this.closing) throw new Error("PTY session is closing");
 		if (this.statusValue.kind === "exited") throw new Error("PTY session has exited");
-		if (this.active !== void 0) throw new TerminalError(`PTY session already has an active send${this.activeWrite !== void 0 ? " or draining provider write" : this.interrupting !== void 0 ? " or draining foreground interrupt" : ""}`, "SEND_ACTIVE");
+		if (this.active !== void 0) {
+			const draining = this.activeWrite !== void 0 ? " or draining provider write" : this.interrupting !== void 0 ? " or draining foreground interrupt" : "";
+			throw new TerminalError(`PTY session already has an active send${draining}`, "SEND_ACTIVE");
+		}
 		if (request.signal?.aborted === true) throw new Error("PTY send aborted before write");
 		const operation = new LocalSendOperation(this.config.maxReadBytes, Date.now(), () => {
 			this.interrupt(operation);
@@ -448,8 +451,10 @@ var LocalPtySession = class {
 				this.schedulePoll(operation);
 			}
 		} catch (error) {
-			if (this.active === operation && !this.closing) if (operation.settled) this.clearActive();
-			else this.failActive(error);
+			if (this.active === operation && !this.closing) {
+				if (operation.settled) this.clearActive();
+				else this.failActive(error);
+			}
 		}
 	}
 	resetReadinessEvidence() {

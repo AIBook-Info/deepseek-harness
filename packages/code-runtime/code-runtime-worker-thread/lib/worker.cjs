@@ -45,7 +45,8 @@ function takeLast$1(target) {
 }
 /** One code-point-aligned character from a string. */
 function characterAt(text, index) {
-	return intrinsicReflectApply$1(intrinsicStringSlice, text, [index, index + (intrinsicReflectApply$1(intrinsicStringCodePointAt, text, [index]) > 65535 ? 2 : 1)]);
+	const width = intrinsicReflectApply$1(intrinsicStringCodePointAt, text, [index]) > 65535 ? 2 : 1;
+	return intrinsicReflectApply$1(intrinsicStringSlice, text, [index, index + width]);
 }
 /** Serialized bytes contributed by one complete Unicode code point inside JSON quotes. */
 function serializedCharacterBytes(character) {
@@ -835,7 +836,8 @@ function makeNamespaces(data, port, pending, nextId, errorClasses = makeBindingE
 						});
 					} catch (error) {
 						pending.delete(id);
-						reject(bindingFailure(errorClass, name, `binding arguments must be structured-cloneable: ${error instanceof CapturedError ? error.message : String(error)}`));
+						const message = `binding arguments must be structured-cloneable: ${error instanceof CapturedError ? error.message : String(error)}`;
+						reject(bindingFailure(errorClass, name, message));
 					}
 				});
 			}

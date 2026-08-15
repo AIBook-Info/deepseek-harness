@@ -7,8 +7,8 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-skill\src\client\SkillRow.module.css.mjs
-		const css = ".NlqhIG_card{flex-direction:column;display:flex}.NlqhIG_row{align-items:center;min-width:0;height:24px;display:flex;position:relative;overflow:hidden}.NlqhIG_row[data-expandable]{cursor:pointer}.NlqhIG_card[data-state=running] .NlqhIG_row:after{content:\"\";background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--dsw-alias-bg-base) 60%, transparent) 55%, transparent 100%);pointer-events:none;width:300px;animation:2.6s ease-out infinite NlqhIG_dsh-skill-row-sweep;position:absolute;inset:0 auto 0 0}@keyframes NlqhIG_dsh-skill-row-sweep{0%{left:-300px}90%,to{left:100%}}.NlqhIG_leading{width:16px;height:16px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;margin-right:6px;display:inline-flex;position:relative}.NlqhIG_chevron{color:var(--dsw-alias-label-secondary)}.NlqhIG_iconIdle{opacity:1;transition:opacity .1s;display:inline-flex}.NlqhIG_chevronHover{opacity:0;margin:auto;transition:opacity .1s;position:absolute;inset:0}.NlqhIG_row:hover .NlqhIG_iconIdle{opacity:0}.NlqhIG_row:hover .NlqhIG_chevronHover{opacity:1}.NlqhIG_title{color:var(--dsw-alias-label-secondary);flex:none;font-size:14px;line-height:24px}.NlqhIG_separator{background:var(--dsw-alias-label-caption);border-radius:1px;flex:none;width:2px;height:2px;margin:0 8px}.NlqhIG_summary{text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dsw-alias-label-tertiary);flex:auto;font-size:14px;line-height:24px;overflow:hidden}.NlqhIG_errorSummary{color:var(--dsw-alias-state-error-primary)}.NlqhIG_bodyWrap{flex-direction:column;display:flex}.NlqhIG_instructionsCard{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-markdown-code-block);border-radius:12px;flex-direction:column;max-height:260px;margin:4px 0 4px 4px;display:flex;overflow:hidden}.NlqhIG_instructionsHeader{border-bottom:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-markdown-code-block-banner);color:var(--dsw-alias-label-caption);text-transform:uppercase;letter-spacing:.04em;flex:none;padding:8px 12px;font-size:11px;font-weight:500;line-height:16px}.NlqhIG_instructions{white-space:pre-wrap;overflow-wrap:anywhere;min-height:0;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-secondary);margin:0;padding:10px 12px 12px;overflow:auto}.NlqhIG_instructions[data-error]{color:var(--dsw-alias-state-error-primary)}.NlqhIG_instructions::-webkit-scrollbar-thumb{background-clip:padding-box;border:2px solid #0000;border-radius:6px}.NlqhIG_instructions::-webkit-scrollbar-track{margin:6px 0}.NlqhIG_inspectButton{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);cursor:pointer;opacity:0;border-radius:999px;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;font-size:11px;line-height:16px;transition:opacity .1s;display:inline-flex}.NlqhIG_card:hover .NlqhIG_inspectButton,.NlqhIG_inspectButton:focus-visible{opacity:1}.NlqhIG_inspectButton:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}.NlqhIG_visuallyHidden{clip:rect(0 0 0 0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}@media (prefers-reduced-motion:reduce){.NlqhIG_card[data-state=running] .NlqhIG_row:after{animation:none;display:none}.NlqhIG_iconIdle,.NlqhIG_chevronHover,.NlqhIG_inspectButton{transition:none}}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-skill\src\client\SkillRow.module.css.mjs
+		const css = ".LU-sNq_card{flex-direction:column;display:flex}.LU-sNq_row{align-items:center;min-width:0;height:24px;display:flex;position:relative;overflow:hidden}.LU-sNq_row[data-expandable]{cursor:pointer}.LU-sNq_card[data-state=running] .LU-sNq_row:after{content:\"\";background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--dsw-alias-bg-base) 60%, transparent) 55%, transparent 100%);pointer-events:none;width:300px;animation:2.6s ease-out infinite LU-sNq_dsh-skill-row-sweep;position:absolute;inset:0 auto 0 0}@keyframes LU-sNq_dsh-skill-row-sweep{0%{left:-300px}90%,to{left:100%}}.LU-sNq_leading{width:16px;height:16px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;margin-right:6px;display:inline-flex;position:relative}.LU-sNq_chevron{color:var(--dsw-alias-label-secondary)}.LU-sNq_iconIdle{opacity:1;transition:opacity .1s;display:inline-flex}.LU-sNq_chevronHover{opacity:0;margin:auto;transition:opacity .1s;position:absolute;inset:0}.LU-sNq_row:hover .LU-sNq_iconIdle{opacity:0}.LU-sNq_row:hover .LU-sNq_chevronHover{opacity:1}.LU-sNq_title{color:var(--dsw-alias-label-secondary);flex:none;font-size:14px;line-height:24px}.LU-sNq_separator{background:var(--dsw-alias-label-caption);border-radius:1px;flex:none;width:2px;height:2px;margin:0 8px}.LU-sNq_summary{text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dsw-alias-label-tertiary);flex:auto;font-size:14px;line-height:24px;overflow:hidden}.LU-sNq_errorSummary{color:var(--dsw-alias-state-error-primary)}.LU-sNq_bodyWrap{flex-direction:column;display:flex}.LU-sNq_instructionsCard{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-markdown-code-block);border-radius:12px;flex-direction:column;max-height:260px;margin:4px 0 4px 4px;display:flex;overflow:hidden}.LU-sNq_instructionsHeader{border-bottom:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-markdown-code-block-banner);color:var(--dsw-alias-label-caption);text-transform:uppercase;letter-spacing:.04em;flex:none;padding:8px 12px;font-size:11px;font-weight:500;line-height:16px}.LU-sNq_instructions{white-space:pre-wrap;overflow-wrap:anywhere;min-height:0;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-secondary);margin:0;padding:10px 12px 12px;overflow:auto}.LU-sNq_instructions[data-error]{color:var(--dsw-alias-state-error-primary)}.LU-sNq_instructions::-webkit-scrollbar-thumb{background-clip:padding-box;border:2px solid #0000;border-radius:6px}.LU-sNq_instructions::-webkit-scrollbar-track{margin:6px 0}.LU-sNq_inspectButton{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);cursor:pointer;opacity:0;border-radius:999px;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;font-size:11px;line-height:16px;transition:opacity .1s;display:inline-flex}.LU-sNq_card:hover .LU-sNq_inspectButton,.LU-sNq_inspectButton:focus-visible{opacity:1}.LU-sNq_inspectButton:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}.LU-sNq_visuallyHidden{clip:rect(0 0 0 0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}@media (prefers-reduced-motion:reduce){.LU-sNq_card[data-state=running] .LU-sNq_row:after{animation:none;display:none}.LU-sNq_iconIdle,.LU-sNq_chevronHover,.LU-sNq_inspectButton{transition:none}}";
 		const tagId = "@deepseek-ai/dsh-client-ui-skill/SkillRow.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -18,23 +18,23 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SkillRow_module_css_default = {
-			"row": "NlqhIG_row",
-			"instructions": "NlqhIG_instructions",
-			"chevron": "NlqhIG_chevron",
-			"iconIdle": "NlqhIG_iconIdle",
-			"chevronHover": "NlqhIG_chevronHover",
-			"instructionsCard": "NlqhIG_instructionsCard",
-			"instructionsHeader": "NlqhIG_instructionsHeader",
-			"summary": "NlqhIG_summary",
-			"inspectButton": "NlqhIG_inspectButton",
-			"visuallyHidden": "NlqhIG_visuallyHidden",
-			"errorSummary": "NlqhIG_errorSummary",
-			"leading": "NlqhIG_leading",
-			"card": "NlqhIG_card",
-			"separator": "NlqhIG_separator",
-			"bodyWrap": "NlqhIG_bodyWrap",
-			"title": "NlqhIG_title",
-			"dsh-skill-row-sweep": "NlqhIG_dsh-skill-row-sweep"
+			"iconIdle": "LU-sNq_iconIdle",
+			"leading": "LU-sNq_leading",
+			"chevron": "LU-sNq_chevron",
+			"visuallyHidden": "LU-sNq_visuallyHidden",
+			"separator": "LU-sNq_separator",
+			"card": "LU-sNq_card",
+			"chevronHover": "LU-sNq_chevronHover",
+			"instructionsCard": "LU-sNq_instructionsCard",
+			"instructionsHeader": "LU-sNq_instructionsHeader",
+			"row": "LU-sNq_row",
+			"title": "LU-sNq_title",
+			"bodyWrap": "LU-sNq_bodyWrap",
+			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
+			"summary": "LU-sNq_summary",
+			"errorSummary": "LU-sNq_errorSummary",
+			"instructions": "LU-sNq_instructions",
+			"inspectButton": "LU-sNq_inspectButton"
 		};
 		//#endregion
 		//#region lib/types/client/SkillRow.js

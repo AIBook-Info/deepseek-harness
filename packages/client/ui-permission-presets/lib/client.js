@@ -31,8 +31,8 @@ window.__ModuleLoader__.load({
 			return value === "danger-full-access" ? "Full access" : displayPresetName(name);
 		}
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-permission-presets\src\client\PermissionRow.module.css.mjs
-		const css = ".GsBP6q_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.GsBP6q_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.GsBP6q_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.GsBP6q_desc{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;line-height:18px}.GsBP6q_selector{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.GsBP6q_selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.GsBP6q_selector:disabled{cursor:default}.GsBP6q_chevron{flex:none}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-permission-presets\src\client\PermissionRow.module.css.mjs
+		const css = ".irjv2a_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.irjv2a_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.irjv2a_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.irjv2a_desc{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;line-height:18px}.irjv2a_selector{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.irjv2a_selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.irjv2a_selector:disabled{cursor:default}.irjv2a_chevron{flex:none}";
 		const tagId = "@deepseek-ai/dsh-client-ui-permission-presets/PermissionRow.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -42,12 +42,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PermissionRow_module_css_default = {
-			"chevron": "GsBP6q_chevron",
-			"rowText": "GsBP6q_rowText",
-			"title": "GsBP6q_title",
-			"row": "GsBP6q_row",
-			"desc": "GsBP6q_desc",
-			"selector": "GsBP6q_selector"
+			"row": "irjv2a_row",
+			"rowText": "irjv2a_rowText",
+			"desc": "irjv2a_desc",
+			"chevron": "irjv2a_chevron",
+			"selector": "irjv2a_selector",
+			"title": "irjv2a_title"
 		};
 		//#endregion
 		//#region lib/types/client/PermissionRow.js

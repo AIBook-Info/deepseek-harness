@@ -25,7 +25,7 @@ import { Service } from "@deepseek-ai/cordis";
 * unreachable from the program — accepted by validation, unusable on the
 * Python backend, which is exactly the split the shared set exists to prevent.
 */
-const RESERVED_BINDING_GLOBALS = new Set([
+const RESERVED_BINDING_GLOBALS = /* @__PURE__ */ new Set([
 	"console",
 	"__dsh_main__",
 	"__builtins__",
@@ -42,7 +42,7 @@ const RESERVED_BINDING_GLOBALS = new Set([
 * raises while constructing the rejection, and the exact set is an interpreter
 * version detail. Any other non-empty own property name is accepted everywhere.
 */
-const RESERVED_ERROR_MEMBERS = new Set([
+const RESERVED_ERROR_MEMBERS = /* @__PURE__ */ new Set([
 	"name",
 	"message",
 	"stack",
@@ -65,7 +65,7 @@ const DUNDER_MEMBER = /^__.+__$/;
 * the Python one. Extending the seam with a new language means widening this
 * union (a breaking review of existing binding names, by design).
 */
-const PORTABLE_RESERVED_WORDS = new Set([
+const PORTABLE_RESERVED_WORDS = /* @__PURE__ */ new Set([
 	"await",
 	"break",
 	"case",

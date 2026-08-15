@@ -79,7 +79,6 @@ window.__ModuleLoader__.load({
 					Object.defineProperty(this, "value", { value });
 					return value;
 				}
-				throw new Error("cached value already set");
 			} };
 		}
 		function nullish(input) {
@@ -125,7 +124,10 @@ window.__ModuleLoader__.load({
 		}
 		function mergeDefs(...defs) {
 			const mergedDescriptors = {};
-			for (const def of defs) Object.assign(mergedDescriptors, Object.getOwnPropertyDescriptors(def));
+			for (const def of defs) {
+				const descriptors = Object.getOwnPropertyDescriptors(def);
+				Object.assign(mergedDescriptors, descriptors);
+			}
 			return Object.defineProperties({}, mergedDescriptors);
 		}
 		function esc(str) {
@@ -632,8 +634,10 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
-				if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
-				else bag.exclusiveMaximum = def.value;
+				if (def.value < curr) {
+					if (def.inclusive) bag.maximum = def.value;
+					else bag.exclusiveMaximum = def.value;
+				}
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
@@ -654,8 +658,10 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
-				if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
-				else bag.exclusiveMinimum = def.value;
+				if (def.value > curr) {
+					if (def.inclusive) bag.minimum = def.value;
+					else bag.exclusiveMinimum = def.value;
+				}
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
@@ -1426,7 +1432,7 @@ window.__ModuleLoader__.load({
 		const $ZodUndefined = /*@__PURE__*/ $constructor("$ZodUndefined", (inst, def) => {
 			$ZodType.init(inst, def);
 			inst._zod.pattern = _undefined$2;
-			inst._zod.values = new Set([void 0]);
+			inst._zod.values = /* @__PURE__ */ new Set([void 0]);
 			inst._zod.parse = (payload, _ctx) => {
 				const input = payload.value;
 				if (typeof input === "undefined") return payload;
@@ -2056,7 +2062,7 @@ window.__ModuleLoader__.load({
 			inst._zod.optin = "optional";
 			inst._zod.optout = "optional";
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, void 0]) : void 0;
+				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, void 0]) : void 0;
 			});
 			defineLazy(inst._zod, "pattern", () => {
 				const pattern = def.innerType._zod.pattern;
@@ -2090,7 +2096,7 @@ window.__ModuleLoader__.load({
 				return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
 			});
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, null]) : void 0;
+				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, null]) : void 0;
 			});
 			inst._zod.parse = (payload, ctx) => {
 				if (payload.value === null) return payload;
@@ -3046,8 +3052,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					defs[seen.defId] = seen.def;
 				}
 			}
-			if (ctx.external) {} else if (Object.keys(defs).length > 0) if (ctx.target === "draft-2020-12") result.$defs = defs;
-			else result.definitions = defs;
+			if (ctx.external) {} else if (Object.keys(defs).length > 0) {
+				if (ctx.target === "draft-2020-12") result.$defs = defs;
+				else result.definitions = defs;
+			}
 			try {
 				const finalized = JSON.parse(JSON.stringify(result));
 				Object.defineProperty(finalized, "~standard", {
@@ -3160,16 +3168,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 			const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 			const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
-			if (exMin) if (legacy) {
-				json.minimum = exclusiveMinimum;
-				json.exclusiveMinimum = true;
-			} else json.exclusiveMinimum = exclusiveMinimum;
-			else if (typeof minimum === "number") json.minimum = minimum;
-			if (exMax) if (legacy) {
-				json.maximum = exclusiveMaximum;
-				json.exclusiveMaximum = true;
-			} else json.exclusiveMaximum = exclusiveMaximum;
-			else if (typeof maximum === "number") json.maximum = maximum;
+			if (exMin) {
+				if (legacy) {
+					json.minimum = exclusiveMinimum;
+					json.exclusiveMinimum = true;
+				} else json.exclusiveMinimum = exclusiveMinimum;
+			} else if (typeof minimum === "number") json.minimum = minimum;
+			if (exMax) {
+				if (legacy) {
+					json.maximum = exclusiveMaximum;
+					json.exclusiveMaximum = true;
+				} else json.exclusiveMaximum = exclusiveMaximum;
+			} else if (typeof maximum === "number") json.maximum = maximum;
 			if (typeof multipleOf === "number") json.multipleOf = multipleOf;
 		};
 		const booleanProcessor = (_schema, _ctx, json, _params) => {
@@ -3193,9 +3203,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const vals = [];
 			for (const val of def.values) if (val === void 0) {
 				if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
-			} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
-			else vals.push(Number(val));
-			else vals.push(val);
+			} else if (typeof val === "bigint") {
+				if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+				else vals.push(Number(val));
+			} else vals.push(val);
 			if (vals.length === 0) {} else if (vals.length === 1) {
 				const val = vals[0];
 				json.type = val === null ? "null" : typeof val;
@@ -3989,11 +4000,12 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			});
 		});
 		function object(shape, params) {
-			return new ZodObject({
+			const def = {
 				type: "object",
 				shape: shape ?? {},
 				...normalizeParams(params)
-			});
+			};
+			return new ZodObject(def);
 		}
 		const ZodUnion = /*@__PURE__*/ $constructor("ZodUnion", (inst, def) => {
 			$ZodUnion.init(inst, def);
@@ -4072,9 +4084,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			};
 		});
 		function _enum(values, params) {
+			const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
 			return new ZodEnum({
 				type: "enum",
-				entries: Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values,
+				entries,
 				...normalizeParams(params)
 			});
 		}

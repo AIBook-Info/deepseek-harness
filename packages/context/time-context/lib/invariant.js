@@ -211,8 +211,6 @@ function preparationPosition(history, fail) {
 			openTurn = void 0;
 			openStep = void 0;
 			requestStarted = false;
-			break;
-		default: break;
 	}
 	if (openTurn === void 0) fail("time-context reading must be appended inside an open turn");
 	if (openStep === void 0) fail("time-context reading must follow step/start");

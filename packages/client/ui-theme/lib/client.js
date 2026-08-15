@@ -22,8 +22,8 @@ window.__ModuleLoader__.load({
 			return n;
 		}
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-theme\src\client\AppearanceRow.module.css.mjs
-		const css = ".Bo49XW_group{border-bottom:1px solid var(--dsw-alias-border-l2);flex-direction:column;gap:8px;padding:16px 0;display:flex}.Bo49XW_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.Bo49XW_cubeRow{flex-wrap:wrap;align-items:stretch;gap:8px;display:flex}.Bo49XW_themeCube{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border-radius:16px;flex-direction:column;flex:180px;justify-content:center;align-items:center;gap:4px;padding:20px 32px;font-size:14px;line-height:22px;display:flex}.Bo49XW_themeCube:hover:not(.Bo49XW_selected){background:var(--dsw-alias-interactive-bg-hover)}.Bo49XW_selected{background:var(--dsw-alias-bg-module-platform);border-color:var(--dsw-static-neutral-bluish-400)}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-theme\src\client\AppearanceRow.module.css.mjs
+		const css = ".i0ky8W_group{border-bottom:1px solid var(--dsw-alias-border-l2);flex-direction:column;gap:8px;padding:16px 0;display:flex}.i0ky8W_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.i0ky8W_cubeRow{flex-wrap:wrap;align-items:stretch;gap:8px;display:flex}.i0ky8W_themeCube{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border-radius:16px;flex-direction:column;flex:180px;justify-content:center;align-items:center;gap:4px;padding:20px 32px;font-size:14px;line-height:22px;display:flex}.i0ky8W_themeCube:hover:not(.i0ky8W_selected){background:var(--dsw-alias-interactive-bg-hover)}.i0ky8W_selected{background:var(--dsw-alias-bg-module-platform);border-color:var(--dsw-static-neutral-bluish-400)}";
 		const tagId = "@deepseek-ai/dsh-client-ui-theme/AppearanceRow.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -33,11 +33,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AppearanceRow_module_css_default = {
-			"themeCube": "Bo49XW_themeCube",
-			"title": "Bo49XW_title",
-			"selected": "Bo49XW_selected",
-			"group": "Bo49XW_group",
-			"cubeRow": "Bo49XW_cubeRow"
+			"selected": "i0ky8W_selected",
+			"cubeRow": "i0ky8W_cubeRow",
+			"title": "i0ky8W_title",
+			"group": "i0ky8W_group",
+			"themeCube": "i0ky8W_themeCube"
 		};
 		//#endregion
 		//#region lib/types/client/AppearanceRow.js

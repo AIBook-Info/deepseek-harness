@@ -812,7 +812,7 @@ var __disposeResources = (function(SuppressedError) {
 	return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 });
 /** Fiber states that cannot own or serve a new lifecycle. */
-const INACTIVE_STATES = new Set([
+const INACTIVE_STATES = /* @__PURE__ */ new Set([
 	5,
 	4,
 	3

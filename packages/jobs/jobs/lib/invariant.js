@@ -1,7 +1,7 @@
 //#region lib/types/invariant.js
 /** Package-owned background-job snapshot invariants. @module @deepseek-ai/dsh-jobs/invariant */
 const PACKAGE_NAME = "@deepseek-ai/dsh-jobs";
-const TERMINAL_STATUSES = new Set([
+const TERMINAL_STATUSES = /* @__PURE__ */ new Set([
 	"completed",
 	"killed",
 	"failed"

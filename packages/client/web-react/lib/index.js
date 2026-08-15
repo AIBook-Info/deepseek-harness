@@ -608,10 +608,11 @@ function SlotOutlet({ slotKey, ownerProps, opts }) {
 	const host = useHost();
 	useSyncExternalStore((fn) => host.subscribe(slotKey, fn), () => host.getVersion(slotKey));
 	useLocaleRevision(host.locale);
+	const sessionInfo = useSessionMaybeProvideInfo();
 	return jsx("div", {
 		"data-slot": slotKey,
 		style: ANCHOR_STYLE,
-		children: renderOutletContent(host, slotKey, ownerProps, opts, useSessionMaybeProvideInfo())
+		children: renderOutletContent(host, slotKey, ownerProps, opts, sessionInfo)
 	});
 }
 /** Kind dispatch behind the outlet anchor (single/keyed/list/chain, fallbacks, crash faces). */

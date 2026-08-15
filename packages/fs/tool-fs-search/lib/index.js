@@ -41,7 +41,7 @@ const SEARCH_TIMEOUT_MS = 3e4;
 * diagnostic excerpt only (the tool never reads a stderr spill path, and the
 * collect disposition requests none).
 */
-const SEARCH_STDERR_MAX_BYTES = 64 * 1024;
+const SEARCH_STDERR_MAX_BYTES = 65536;
 /** Default terminate grace period for a search process (ms). */
 const SEARCH_GRACE_MS = 3e3;
 /**

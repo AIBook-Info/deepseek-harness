@@ -29,7 +29,7 @@ var JsonSchemaError = class extends HarnessError {
 		this.violations = violations;
 	}
 };
-const CONSTRAINT_KEYWORDS = new Set([
+const CONSTRAINT_KEYWORDS = /* @__PURE__ */ new Set([
 	"type",
 	"oneOf",
 	"properties",
@@ -39,7 +39,7 @@ const CONSTRAINT_KEYWORDS = new Set([
 	"enum",
 	"const"
 ]);
-const ANNOTATION_KEYWORDS = new Set([
+const ANNOTATION_KEYWORDS = /* @__PURE__ */ new Set([
 	"description",
 	"title",
 	"default",
@@ -150,10 +150,12 @@ const ONE_OF_SIBLING_KEYWORDS = [
 function checkObjectSchemaTail(node, path, properties, violations) {
 	const hasRequired = Object.hasOwn(node, "required");
 	const required = hasRequired ? node.required : void 0;
-	if (hasRequired) if (!isPlainJsonArray(required) || required.some((entry) => typeof entry !== "string")) violations.push(`${path}.required must be an array of strings`);
-	else {
-		const declared = isJsonSchemaRecord(properties) ? properties : {};
-		for (const key of required) if (!Object.hasOwn(declared, key)) violations.push(`${path}.required names "${key}" which is not in properties`);
+	if (hasRequired) {
+		if (!isPlainJsonArray(required) || required.some((entry) => typeof entry !== "string")) violations.push(`${path}.required must be an array of strings`);
+		else {
+			const declared = isJsonSchemaRecord(properties) ? properties : {};
+			for (const key of required) if (!Object.hasOwn(declared, key)) violations.push(`${path}.required names "${key}" which is not in properties`);
+		}
 	}
 	if (Object.hasOwn(node, "additionalProperties") && typeof node.additionalProperties !== "boolean") violations.push(`${path}.additionalProperties must be a boolean`);
 }
@@ -265,18 +267,20 @@ function checkSchemaNode(root, rootPath, violations, seen) {
 					path,
 					properties
 				});
-				if (Object.hasOwn(node, "properties")) if (!isJsonSchemaRecord(properties)) violations.push(`${path}.properties must be an object of schemas`);
-				else {
-					const entries = Object.entries(properties);
-					for (let index = entries.length - 1; index >= 0; index--) {
-						const entry = entries[index];
-						/* v8 ignore next -- the loop is bounded by the captured entry count. */
-						if (entry === void 0) continue;
-						tasks.push({
-							kind: "enter",
-							node: entry[1],
-							path: `${path}.properties.${entry[0]}`
-						});
+				if (Object.hasOwn(node, "properties")) {
+					if (!isJsonSchemaRecord(properties)) violations.push(`${path}.properties must be an object of schemas`);
+					else {
+						const entries = Object.entries(properties);
+						for (let index = entries.length - 1; index >= 0; index--) {
+							const entry = entries[index];
+							/* v8 ignore next -- the loop is bounded by the captured entry count. */
+							if (entry === void 0) continue;
+							tasks.push({
+								kind: "enter",
+								node: entry[1],
+								path: `${path}.properties.${entry[0]}`
+							});
+						}
 					}
 				}
 				break;
@@ -570,9 +574,7 @@ function assignCompiledNode(destination, node) {
 		case "item":
 			destination.target.items = node;
 			break;
-		case "one-of":
-			destination.target[destination.index] = node;
-			break;
+		case "one-of": destination.target[destination.index] = node;
 	}
 }
 /** Install a compiled property map at its root or containing object node. */
@@ -1613,7 +1615,7 @@ function renderToolsSdk(schemas) {
 		argsMembers.push(`${pad$1(1)}${renderKey(schema.name)}: ${jsonSchemaToTs(schema.parameters, 1)};`);
 		outputMembers.push(`${pad$1(1)}${renderKey(schema.name)}: ${jsonSchemaToTs(schema.output, 1)};`);
 	}
-	return `${SDK_INSTRUCTIONS$1}\n\n\`\`\`ts\ntype JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }\n\n${[
+	const declaration = [
 		`interface ToolArgsMap {${argsMembers.length > 0 ? `\n${argsMembers.join("\n")}\n` : ""}}`,
 		`interface ToolOutputMap {${outputMembers.length > 0 ? `\n${outputMembers.join("\n")}\n` : ""}}`,
 		"type ToolName = keyof ToolOutputMap",
@@ -1628,7 +1630,8 @@ function renderToolsSdk(schemas) {
 			"  [K in ToolName]: (args: ToolArgsMap[K]) => Promise<ToolOutputMap[K]>;",
 			"}"
 		].join("\n")
-	].join("\n\n")}\n\`\`\``;
+	].join("\n\n");
+	return `${SDK_INSTRUCTIONS$1}\n\n\`\`\`ts\ntype JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }\n\n${declaration}\n\`\`\``;
 }
 //#endregion
 //#region lib/types/py-types.js
@@ -1745,7 +1748,7 @@ function isBareIdentifier(name) {
 * ``object``/``type`` resolves before the proxy hook, and implicit
 * special-method lookup bypasses the hook.
 */
-const RESERVED = new Set([
+const RESERVED = /* @__PURE__ */ new Set([
 	"False",
 	"None",
 	"True",
@@ -2312,7 +2315,7 @@ function renderToolsSdkPy(schemas) {
 		classes: [],
 		usedClassNames: /* @__PURE__ */ new Set(),
 		nextClassCounter: /* @__PURE__ */ new Map(),
-		typing: new Set(["Protocol"])
+		typing: /* @__PURE__ */ new Set(["Protocol"])
 	};
 	const members = [];
 	let statements = 0;
@@ -2333,8 +2336,9 @@ function renderToolsSdkPy(schemas) {
 	const body = (statements > 0 ? members : [`${pad(1)}pass`, ...members]).join("\n");
 	const imports = TYPING_ORDER.filter((symbol) => state.typing.has(symbol));
 	const classBlock = state.classes.length > 0 ? `${state.classes.join("\n\n")}\n\n` : "";
-	return `${SDK_INSTRUCTIONS}\n\n\`\`\`python\n${`from typing import ${imports.join(", ")}\n\nclass ToolCallError(Exception):
-    toolName: str\n\n${classBlock}class Tools(Protocol):\n${body}\n\ntools: Tools`}\n\`\`\``;
+	const declaration = `from typing import ${imports.join(", ")}\n\nclass ToolCallError(Exception):
+    toolName: str\n\n${classBlock}class Tools(Protocol):\n${body}\n\ntools: Tools`;
+	return `${SDK_INSTRUCTIONS}\n\n\`\`\`python\n${declaration}\n\`\`\``;
 }
 //#endregion
 //#region lib/types/testing.js
@@ -3455,12 +3459,13 @@ var ToolRuntime = class extends Service {
 			error: result.error,
 			...presentation
 		});
+		const detached = materializePresentation({
+			isError: false,
+			...presentation,
+			...result.concludesTurn === true ? { concludesTurn: true } : {}
+		});
 		return deepFreeze({
-			...materializePresentation({
-				isError: false,
-				...presentation,
-				...result.concludesTurn === true ? { concludesTurn: true } : {}
-			}),
+			...detached,
 			value: result.value
 		});
 	}

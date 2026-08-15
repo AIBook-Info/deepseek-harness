@@ -8,7 +8,7 @@ import { accessSync, constants, statSync } from "node:fs";
 * @module @deepseek-ai/dsh-bash-sandbox/helpers
 */
 /** Node-local spawn codes proven to identify executable resolution or permission failure. */
-const EXECUTABLE_SPAWN_CODES = new Set(["EACCES", "ENOENT"]);
+const EXECUTABLE_SPAWN_CODES = /* @__PURE__ */ new Set(["EACCES", "ENOENT"]);
 /** Whether the caller-owned spawn cwd can be entered. */
 function isUsableWorkdir(path) {
 	try {

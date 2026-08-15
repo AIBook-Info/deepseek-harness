@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
 			}
 			return to;
 		};
-		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
 			value: mod,
 			enumerable: true
 		}) : target, mod));
@@ -202,7 +202,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 		* as trusted as the host process that accepted its definition.
 		*/
 		/** Facade verbs beyond declared services (host CTX_VERBS twin). */
-		const CTX_VERBS = new Set([
+		const CTX_VERBS = /* @__PURE__ */ new Set([
 			"effect",
 			"on",
 			"once",
@@ -214,7 +214,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			"throttle",
 			"debounce"
 		]);
-		const TIMER_VERBS = new Set([
+		const TIMER_VERBS = /* @__PURE__ */ new Set([
 			"timeout",
 			"interval",
 			"setTimeout",
@@ -3667,7 +3667,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			return typeof value === "string" ? value : void 0;
 		}
 		const SLOT_CATALOG = new Map(CLIENT_SLOT_API.map((entry) => [entry.key, entry]));
-		const GUARDED_SLOT_KEYS = new Map([["tool.view.cordis", {
+		const GUARDED_SLOT_KEYS = /* @__PURE__ */ new Map([["tool.view.cordis", {
 			description: "fixed by the dynamic Client Guard",
 			values: [{
 				value: "self",

@@ -189,10 +189,7 @@ var SessionTitleService = class extends Service {
 				case "user/message":
 					this.onUserMessage(session, event);
 					break;
-				case "request/header":
-					this.onRequestHeader(session, event);
-					break;
-				default: break;
+				case "request/header": this.onRequestHeader(session, event);
 			}
 		});
 		ctx.on("llm/stream", (options, next) => {

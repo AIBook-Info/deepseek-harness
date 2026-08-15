@@ -662,8 +662,8 @@ window.__ModuleLoader__.load({
 			return n;
 		}
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-input-trigger\src\client\MenuView.module.css.mjs
-		const css = ".kvxhLW_menu{z-index:100;--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border:1px solid var(--dsw-alias-border-inverted);background:var(--dsw-specific-menu);min-width:min(260px,100%);max-width:min(537px,100%);max-height:320px;box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;padding:4px;display:flex;position:absolute;bottom:calc(100% + 4px);left:0;overflow:hidden}.kvxhLW_viewport{flex-direction:column;min-height:0;display:flex;overflow-y:auto}.kvxhLW_item{cursor:pointer;width:100%;min-height:40px;color:var(--dsw-alias-label-primary);text-align:left;background:0 0;border:none;border-radius:10px;align-items:center;gap:8px;padding:8px 10px;font-size:14px;line-height:22px;display:flex}.kvxhLW_item:hover,.kvxhLW_item.kvxhLW_active{background:var(--dsw-alias-interactive-bg-hover)}.kvxhLW_itemIcon{width:16px;height:16px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;display:inline-flex}.kvxhLW_itemName{text-overflow:ellipsis;white-space:nowrap;flex:none;max-width:40%;overflow:hidden}.kvxhLW_itemDescription{text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dsw-alias-label-tertiary);flex:1;overflow:hidden}.kvxhLW_groupTitle{color:var(--dsw-alias-label-tertiary);padding:8px 10px;font-size:12px;line-height:16px}.kvxhLW_loading{min-height:40px;color:var(--dsw-alias-label-dimmed);align-items:center;padding:8px 10px;font-size:14px;line-height:22px;display:flex}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-input-trigger\src\client\MenuView.module.css.mjs
+		const css = ".V-RcIG_menu{z-index:100;--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border:1px solid var(--dsw-alias-border-inverted);background:var(--dsw-specific-menu);min-width:min(260px,100%);max-width:min(537px,100%);max-height:320px;box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;padding:4px;display:flex;position:absolute;bottom:calc(100% + 4px);left:0;overflow:hidden}.V-RcIG_viewport{flex-direction:column;min-height:0;display:flex;overflow-y:auto}.V-RcIG_item{cursor:pointer;width:100%;min-height:40px;color:var(--dsw-alias-label-primary);text-align:left;background:0 0;border:none;border-radius:10px;align-items:center;gap:8px;padding:8px 10px;font-size:14px;line-height:22px;display:flex}.V-RcIG_item:hover,.V-RcIG_item.V-RcIG_active{background:var(--dsw-alias-interactive-bg-hover)}.V-RcIG_itemIcon{width:16px;height:16px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;display:inline-flex}.V-RcIG_itemName{text-overflow:ellipsis;white-space:nowrap;flex:none;max-width:40%;overflow:hidden}.V-RcIG_itemDescription{text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dsw-alias-label-tertiary);flex:1;overflow:hidden}.V-RcIG_groupTitle{color:var(--dsw-alias-label-tertiary);padding:8px 10px;font-size:12px;line-height:16px}.V-RcIG_loading{min-height:40px;color:var(--dsw-alias-label-dimmed);align-items:center;padding:8px 10px;font-size:14px;line-height:22px;display:flex}";
 		const tagId = "@deepseek-ai/dsh-client-ui-input-trigger/MenuView.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -673,15 +673,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MenuView_module_css_default = {
-			"menu": "kvxhLW_menu",
-			"viewport": "kvxhLW_viewport",
-			"item": "kvxhLW_item",
-			"itemIcon": "kvxhLW_itemIcon",
-			"active": "kvxhLW_active",
-			"itemName": "kvxhLW_itemName",
-			"itemDescription": "kvxhLW_itemDescription",
-			"groupTitle": "kvxhLW_groupTitle",
-			"loading": "kvxhLW_loading"
+			"itemDescription": "V-RcIG_itemDescription",
+			"menu": "V-RcIG_menu",
+			"loading": "V-RcIG_loading",
+			"active": "V-RcIG_active",
+			"groupTitle": "V-RcIG_groupTitle",
+			"itemName": "V-RcIG_itemName",
+			"viewport": "V-RcIG_viewport",
+			"item": "V-RcIG_item",
+			"itemIcon": "V-RcIG_itemIcon"
 		};
 		//#endregion
 		//#region lib/types/client/MenuView.js

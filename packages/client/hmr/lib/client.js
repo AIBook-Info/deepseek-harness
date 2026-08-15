@@ -57,14 +57,10 @@ window.__ModuleLoader__.load({
 			let queue = Promise.resolve();
 			const handle = (frame) => {
 				switch (frame.type) {
-					case "rebuilt":
-						queue = queue.then(() => reload(frame.id)).catch((error) => {
-							ctx.logger.error(`client-hmr: reload of "${frame.id}" failed`);
-							ctx.logger.error(error);
-						});
-						break;
-					case "graph": break;
-					default: break;
+					case "rebuilt": queue = queue.then(() => reload(frame.id)).catch((error) => {
+						ctx.logger.error(`client-hmr: reload of "${frame.id}" failed`);
+						ctx.logger.error(error);
+					});
 				}
 			};
 			ctx.effect(() => {

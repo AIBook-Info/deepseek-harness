@@ -59,7 +59,7 @@ function difference(array1, array2) {
 }
 /** Return the set-union of two arrays while preserving first occurrence order. */
 function union(array1, array2) {
-	return Array.from(new Set([...array1, ...array2]));
+	return Array.from(/* @__PURE__ */ new Set([...array1, ...array2]));
 }
 /** Remove duplicate values while preserving first occurrence order. */
 function deduplicate(array) {

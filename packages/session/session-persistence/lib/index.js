@@ -734,7 +734,8 @@ function snapshotStoredEvents(events, id) {
 	assertSupportedEvents(events, id);
 	const messageIds = /* @__PURE__ */ new Map();
 	return events.map((event) => {
-		const snapshot = snapshotSessionEvent(migrateLegacyMessageEvent(migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id), id, messageIds));
+		const migratedSteering = migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id);
+		const snapshot = snapshotSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds));
 		const messageId = eventMessageId(snapshot);
 		if (messageId !== void 0) messageIds.set(snapshot.seq, messageId);
 		return snapshot;
@@ -745,7 +746,8 @@ function adoptStoredEvents(events, id) {
 	assertSupportedEvents(events, id);
 	const messageIds = /* @__PURE__ */ new Map();
 	for (const [index, event] of events.entries()) {
-		const adopted = adoptSessionEvent(migrateLegacyMessageEvent(migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id), id, messageIds));
+		const migratedSteering = migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id);
+		const adopted = adoptSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds));
 		events[index] = adopted;
 		const messageId = eventMessageId(adopted);
 		if (messageId !== void 0) messageIds.set(adopted.seq, messageId);

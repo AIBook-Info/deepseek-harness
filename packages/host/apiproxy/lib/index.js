@@ -196,7 +196,7 @@ async function* sessionLogZipEntries(deps, root, sessionId, includeDescendants, 
 		content: root.content
 	};
 	if (includeDescendants) {
-		const seen = new Set([sessionId]);
+		const seen = /* @__PURE__ */ new Set([sessionId]);
 		const collect = async function* (nodes) {
 			for (const node of nodes) {
 				signal?.throwIfAborted();
@@ -727,7 +727,7 @@ function RpcId(id) {
 * GUI. The text-editor intent never consults the browser.
 */
 /** Documents a browser renders, as opposed to ones an editor merely edits. */
-const BROWSER_DOCUMENTS = new Set([
+const BROWSER_DOCUMENTS = /* @__PURE__ */ new Set([
 	".html",
 	".htm",
 	".xhtml",
@@ -901,7 +901,7 @@ const COLD_SUMMARY_BATCH_SIZE = 16;
 /** Default maximum artifact size eligible for one cold blankness read. */
 const DEFAULT_COLD_BLANK_PROBE_MAX_BYTES = 1024;
 /** Conversation message event types (the pagination counting unit). */
-const MESSAGE_TYPES = new Set(["user/message", "assistant/message"]);
+const MESSAGE_TYPES = /* @__PURE__ */ new Set(["user/message", "assistant/message"]);
 /** Decode the browser payload while rejecting non-canonical base64 forms. */
 function decodeBase64(data) {
 	const decoded = Buffer.from(data, "base64");
@@ -998,7 +998,7 @@ function referencedImage(events, attachmentId) {
 * that choice write it through `settings.update`, so it has to cross the
 * configuration boundary or the pickers silently fail to persist.
 */
-const PRODUCT_SETTINGS_NAMESPACES = new Set(["ui-onboarding", SETTINGS_NAMESPACE]);
+const PRODUCT_SETTINGS_NAMESPACES = /* @__PURE__ */ new Set(["ui-onboarding", SETTINGS_NAMESPACE]);
 /** Strict browser-zone profile: UTC or an IANA Area/Location-style identifier. */
 const IANA_TIME_ZONE = /^[A-Za-z][A-Za-z0-9_+.-]*(?:\/[A-Za-z0-9_+.-]+)+$/;
 /** Validate and canonicalize one browser-supplied IANA zone at the wire boundary. */
@@ -1528,7 +1528,6 @@ function subagentPromptError(request, error, signal) {
 			message: "subagent follow-up is temporarily unavailable",
 			details: { childSessionId }
 		});
-		default: break;
 	}
 	return err(request, {
 		code: "internal",
@@ -2847,8 +2846,9 @@ function createApiProxy(ctx, defaults) {
 								details: { reason: "MODEL_DOES_NOT_SUPPORT_IMAGES" }
 							});
 						}
+						const durable = await durablePromptContent(ctx, content);
 						const message = createUserMessage({
-							content: await durablePromptContent(ctx, content),
+							content: durable,
 							source
 						});
 						if (mode === "steer") agent.steer(message);

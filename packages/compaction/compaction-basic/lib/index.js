@@ -25,13 +25,13 @@ const POLICY_CONFIG_KEYS = [
 	"maxOverflowRetries"
 ];
 /** Complete public top-level configuration key set. */
-const BASIC_COMPACT_CONFIG_KEYS = new Set([
+const BASIC_COMPACT_CONFIG_KEYS = /* @__PURE__ */ new Set([
 	...POLICY_CONFIG_KEYS,
 	"modelPolicies",
 	"auto"
 ]);
 /** Complete exact-target override key set. */
-const MODEL_POLICY_KEYS = new Set([
+const MODEL_POLICY_KEYS = /* @__PURE__ */ new Set([
 	"provider",
 	"model",
 	...POLICY_CONFIG_KEYS
@@ -562,7 +562,8 @@ async function summarizeCompaction(dependencies, prepared, agent, compactionId, 
 }
 /** Reject a summary prepared against any earlier surface generation. */
 function assertWholeSurfaceUnchanged(dependencies, session, prepared) {
-	if (!isDeepStrictEqual(dependencies.meter.measure(session).nodes, prepared.measurement.nodes)) throw new SurfaceChangedError("compaction: session surface changed during summarization");
+	const current = dependencies.meter.measure(session);
+	if (!isDeepStrictEqual(current.nodes, prepared.measurement.nodes)) throw new SurfaceChangedError("compaction: session surface changed during summarization");
 }
 /**
 * Require only that the selected span remain the same present, contiguous,
@@ -577,7 +578,8 @@ function assertSelectedSpanStable(dependencies, session, prepared) {
 		throw new SurfaceChangedError("compaction: the selected span is no longer a valid replacement target", { cause: error });
 	}
 	if (!isDeepStrictEqual([...current.shadowedSeqs], [...prepared.shadowedSeqs])) throw new SurfaceChangedError("compaction: the selected span changed during summarization");
-	if (!isDeepStrictEqual(dependencies.meter.measure(session).nodes.slice(current.startIdx, current.endIdx + 1), prepared.selectedNodes)) throw new SurfaceChangedError("compaction: the selected span was rewritten during summarization");
+	const measured = dependencies.meter.measure(session).nodes.slice(current.startIdx, current.endIdx + 1);
+	if (!isDeepStrictEqual(measured, prepared.selectedNodes)) throw new SurfaceChangedError("compaction: the selected span was rewritten during summarization");
 }
 /** Append one completed summary record and replacement body without yielding. */
 function commitCompactionBody(session, startEvent, summarized) {

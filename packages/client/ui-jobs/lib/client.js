@@ -7,8 +7,8 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-jobs\src\client\JobListAction.module.css.mjs
-		const css = ".eKNrrG_root{position:relative}.eKNrrG_trigger{min-height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;border-radius:6px;align-items:center;gap:3px;padding:3px 2px;font-size:12px;line-height:18px;display:inline-flex}.eKNrrG_trigger:hover,.eKNrrG_trigger:focus-visible{color:var(--dsw-alias-label-secondary)}.eKNrrG_trigger svg{transition:transform .12s}.eKNrrG_triggerOpen{transform:rotate(180deg)}.eKNrrG_triggerDot{flex:none}.eKNrrG_count{margin:0 5px}.eKNrrG_menu{z-index:100;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-specific-menu);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);width:336px;max-width:min(400px,100vw - 32px);max-height:min(420px,100vh - 140px);box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;gap:1px;margin:0;padding:4px;list-style:none;display:flex;position:absolute;top:calc(100% + 5px);left:0;overflow:auto}.eKNrrG_row{box-sizing:border-box;width:100%;min-height:32px;color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:8px;padding:6px 8px;font-size:13px;line-height:18px;display:flex}.eKNrrG_rowSettled{color:var(--dsw-alias-label-tertiary)}.eKNrrG_rowDot{flex:none}.eKNrrG_kind{background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-secondary);border-radius:5px;flex:none;padding:0 6px;font-size:11px;line-height:18px}.eKNrrG_label{min-width:0;font-family:var(--dsw-font-mono);white-space:nowrap;text-overflow:ellipsis;flex:1;overflow:hidden}.eKNrrG_status,.eKNrrG_duration{color:var(--dsw-alias-label-tertiary);flex:none;font-size:11px;line-height:18px}.eKNrrG_status{white-space:nowrap;text-overflow:ellipsis;max-width:40%;overflow:hidden}.eKNrrG_duration{font-variant-numeric:tabular-nums}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-jobs\src\client\JobListAction.module.css.mjs
+		const css = ".jBBRLa_root{position:relative}.jBBRLa_trigger{min-height:28px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;border-radius:6px;align-items:center;gap:3px;padding:3px 2px;font-size:12px;line-height:18px;display:inline-flex}.jBBRLa_trigger:hover,.jBBRLa_trigger:focus-visible{color:var(--dsw-alias-label-secondary)}.jBBRLa_trigger svg{transition:transform .12s}.jBBRLa_triggerOpen{transform:rotate(180deg)}.jBBRLa_triggerDot{flex:none}.jBBRLa_count{margin:0 5px}.jBBRLa_menu{z-index:100;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-specific-menu);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);width:336px;max-width:min(400px,100vw - 32px);max-height:min(420px,100vh - 140px);box-shadow:var(--dsw-shadow-lv3);border-radius:12px;flex-direction:column;gap:1px;margin:0;padding:4px;list-style:none;display:flex;position:absolute;top:calc(100% + 5px);left:0;overflow:auto}.jBBRLa_row{box-sizing:border-box;width:100%;min-height:32px;color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:8px;padding:6px 8px;font-size:13px;line-height:18px;display:flex}.jBBRLa_rowSettled{color:var(--dsw-alias-label-tertiary)}.jBBRLa_rowDot{flex:none}.jBBRLa_kind{background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-secondary);border-radius:5px;flex:none;padding:0 6px;font-size:11px;line-height:18px}.jBBRLa_label{min-width:0;font-family:var(--dsw-font-mono);white-space:nowrap;text-overflow:ellipsis;flex:1;overflow:hidden}.jBBRLa_status,.jBBRLa_duration{color:var(--dsw-alias-label-tertiary);flex:none;font-size:11px;line-height:18px}.jBBRLa_status{white-space:nowrap;text-overflow:ellipsis;max-width:40%;overflow:hidden}.jBBRLa_duration{font-variant-numeric:tabular-nums}";
 		const tagId = "@deepseek-ai/dsh-client-ui-jobs/JobListAction.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -18,19 +18,19 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var JobListAction_module_css_default = {
-			"rowSettled": "eKNrrG_rowSettled",
-			"status": "eKNrrG_status",
-			"triggerOpen": "eKNrrG_triggerOpen",
-			"trigger": "eKNrrG_trigger",
-			"count": "eKNrrG_count",
-			"menu": "eKNrrG_menu",
-			"kind": "eKNrrG_kind",
-			"root": "eKNrrG_root",
-			"duration": "eKNrrG_duration",
-			"triggerDot": "eKNrrG_triggerDot",
-			"row": "eKNrrG_row",
-			"rowDot": "eKNrrG_rowDot",
-			"label": "eKNrrG_label"
+			"count": "jBBRLa_count",
+			"menu": "jBBRLa_menu",
+			"kind": "jBBRLa_kind",
+			"triggerOpen": "jBBRLa_triggerOpen",
+			"row": "jBBRLa_row",
+			"root": "jBBRLa_root",
+			"trigger": "jBBRLa_trigger",
+			"rowDot": "jBBRLa_rowDot",
+			"rowSettled": "jBBRLa_rowSettled",
+			"label": "jBBRLa_label",
+			"status": "jBBRLa_status",
+			"duration": "jBBRLa_duration",
+			"triggerDot": "jBBRLa_triggerDot"
 		};
 		//#endregion
 		//#region lib/types/client/JobListAction.js

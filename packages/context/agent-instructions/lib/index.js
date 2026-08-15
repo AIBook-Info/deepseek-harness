@@ -16,7 +16,7 @@ const DEFAULT_PROJECT_ROOT_MARKERS = [".git"];
 const DEFAULT_INSTRUCTION_FILE_CANDIDATES = ["AGENTS.md", "CLAUDE.md"];
 const DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES = ["AGENTS.local.md", "CLAUDE.local.md"];
 const DEFAULT_MAX_SOURCE_BYTES = 1048576;
-const RESERVED_PATH_SEGMENTS = new Set([
+const RESERVED_PATH_SEGMENTS = /* @__PURE__ */ new Set([
 	"",
 	".",
 	".."
@@ -253,13 +253,14 @@ function markerText(maxBytes, omitted, truncated) {
 	return `Workspace instruction budget ${maxBytes} bytes: ${parts.join("; ")}`;
 }
 function buildInstructionText(files, maxBytes, omitted, truncated, style) {
+	const body = [
+		markerText(maxBytes, omitted, truncated),
+		style.intro,
+		...files.map((file) => style.section(file))
+	].filter((block) => block.length > 0);
 	return [
 		SYSTEM_REMINDER_OPEN,
-		escapeInstructionFrameBody([
-			markerText(maxBytes, omitted, truncated),
-			style.intro,
-			...files.map((file) => style.section(file))
-		].filter((block) => block.length > 0).join("\n\n")),
+		escapeInstructionFrameBody(body.join("\n\n")),
 		SYSTEM_REMINDER_CLOSE
 	].join("\n");
 }
@@ -507,7 +508,8 @@ function ancestorChain(root, cwd) {
 */
 function descendantDirsBetween(root, touchedPath) {
 	const resolvedRoot = resolve(root);
-	const targetDir = dirname(isAbsolute(touchedPath) ? resolve(touchedPath) : resolve(resolvedRoot, touchedPath));
+	const targetPath = isAbsolute(touchedPath) ? resolve(touchedPath) : resolve(resolvedRoot, touchedPath);
+	const targetDir = dirname(targetPath);
 	const rel = relative(resolvedRoot, targetDir);
 	if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel)) return [];
 	return ancestorChain(resolvedRoot, targetDir).slice(1);
@@ -701,7 +703,8 @@ async function loadBaselineInstructionSet(options, fileSystem) {
 */
 async function probeScopeInstruction(scope, projectRoot, resolved, fileSystem, signal) {
 	const { directory, candidateName } = decodeScopeKey(scope);
-	const absolutePath = join(directory === "user-global" ? resolved.dshHome : directory === "." ? projectRoot : join(projectRoot, directory), candidateName);
+	const dir = directory === "user-global" ? resolved.dshHome : directory === "." ? projectRoot : join(projectRoot, directory);
+	const absolutePath = join(dir, candidateName);
 	let target;
 	let info;
 	try {
@@ -1070,7 +1073,7 @@ function isWorkspaceContext(message) {
 function sameContextPayload(left, right) {
 	return isDeepStrictEqual(left.content, right.content) && isDeepStrictEqual(left.source, right.source);
 }
-const FILE_TOUCH_TOOL_NAMES = new Set([
+const FILE_TOUCH_TOOL_NAMES = /* @__PURE__ */ new Set([
 	"read",
 	"write",
 	"edit"
@@ -1216,7 +1219,8 @@ function apply(ctx, config) {
 		for (const message of pending.slice(1)) agent.inbox.remove(message.id);
 	};
 	const composeAndSync = async (agent, signal, claimed, touchedPaths = []) => {
-		const desired = await compose(agent, signal, claimed, agent.inbox.nextStep.filter(isWorkspaceContext), touchedPaths);
+		const pending = agent.inbox.nextStep.filter(isWorkspaceContext);
+		const desired = await compose(agent, signal, claimed, pending, touchedPaths);
 		signal.throwIfAborted();
 		syncInbox(agent, claimed, desired);
 	};

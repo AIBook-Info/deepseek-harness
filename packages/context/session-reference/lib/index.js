@@ -161,10 +161,12 @@ function truncateWithNotice(text, maxOutputBytes) {
 	};
 	while (low <= high) {
 		const retainedBytes = Math.floor((low + high) / 2);
+		const headBytes = Math.ceil(retainedBytes / 2);
+		const tailBytes = Math.floor(retainedBytes / 2);
 		const retainer = new TextRetainer({
 			kind: "headTail",
-			headBytes: Math.ceil(retainedBytes / 2),
-			tailBytes: Math.floor(retainedBytes / 2)
+			headBytes,
+			tailBytes
 		});
 		retainer.push(text);
 		const result = retainer.finish();
@@ -193,7 +195,8 @@ const SESSION_REFERENCE_SCHEME = "dsh-session:";
 * @returns canonical `dsh-session:` URI.
 */
 function encodeSessionReferenceUri(sessionId) {
-	return `${SESSION_REFERENCE_SCHEME}${Buffer.from(JSON.stringify(sessionId), "utf8").toString("base64url")}`;
+	const payload = Buffer.from(JSON.stringify(sessionId), "utf8").toString("base64url");
+	return `${SESSION_REFERENCE_SCHEME}${payload}`;
 }
 /**
 * Decode and canonicalize one session-reference URI.
@@ -356,21 +359,22 @@ var SessionReferenceResolver = class extends Service {
 		assertNotCancelled(signal);
 		const rendered = this.renderSources(prepared);
 		const prompt = renderPrompt(rendered.map((source) => source.data));
+		const source = {
+			kind: "session-reference",
+			form: "recall",
+			version: 1,
+			references: rendered.map((source, index) => ({
+				sessionId: source.data.sessionId,
+				label: source.data.label,
+				capturedThroughSeq: source.data.capturedThroughSeq,
+				...source.stats,
+				inputIndex: index
+			}))
+		};
 		return {
 			content: acceptedContent,
 			additionalContext: createUserMessage({
-				source: {
-					kind: "session-reference",
-					form: "recall",
-					version: 1,
-					references: rendered.map((source, index) => ({
-						sessionId: source.data.sessionId,
-						label: source.data.label,
-						capturedThroughSeq: source.data.capturedThroughSeq,
-						...source.stats,
-						inputIndex: index
-					}))
-				},
+				source,
 				content: [{
 					type: "text",
 					text: prompt

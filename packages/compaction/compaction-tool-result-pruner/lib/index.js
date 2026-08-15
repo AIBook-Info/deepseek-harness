@@ -11,7 +11,7 @@ const DEFAULTS = deepFreeze({
 	headChars: 4096,
 	tailChars: 1024
 });
-const CONFIG_KEYS = new Set([
+const CONFIG_KEYS = /* @__PURE__ */ new Set([
 	"thresholdChars",
 	"headChars",
 	"tailChars"

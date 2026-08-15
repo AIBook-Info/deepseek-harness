@@ -338,7 +338,7 @@ function parseHeaderMeta(firstLine) {
 * Node-private synchronous Zstandard frame decoder optimization.
 * @module dsh-session-persistence-jsonl/zstd-private-decoder
 */
-const DECODE_CHUNK_SIZE = 1024 * 1024;
+const DECODE_CHUNK_SIZE = 1048576;
 /** Return the stream with its observed private Node contract, or reject that optimization. */
 function privateZstdStream(stream) {
 	const candidate = stream;
@@ -666,7 +666,8 @@ function isEEXIST(error) {
 }
 async function assertDirectory(path) {
 	try {
-		if ((await stat(path === parse(path).root ? path : toNamespacedPath(path))).isDirectory()) return true;
+		const probe = path === parse(path).root ? path : toNamespacedPath(path);
+		if ((await stat(probe)).isDirectory()) return true;
 		const error = /* @__PURE__ */ new Error(`path exists but is not a directory: ${path}`);
 		error.code = "ENOTDIR";
 		error.path = path;

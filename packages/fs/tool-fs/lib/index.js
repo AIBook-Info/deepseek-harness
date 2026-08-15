@@ -16,7 +16,7 @@ import { createUserMessage } from "@deepseek-ai/dsh-llm";
 /** Default maximum characters returned for a single line (the `readMaxLineLength` config). */
 const READ_MAX_LINE_LENGTH = 2e3;
 /** Default maximum bytes returned for selected file lines (the `readMaxBytes` config). */
-const READ_MAX_BYTES = 50 * 1024;
+const READ_MAX_BYTES = 51200;
 function newAccumulator() {
 	return {
 		lines: [],
@@ -297,7 +297,7 @@ const READ_LIMIT = 2e3;
 * Default streaming threshold (the `readStreamMinSize` config): files at or
 * above this size stream; smaller files read whole into memory.
 */
-const STREAM_MIN_SIZE = 10 * 1024 * 1024;
+const STREAM_MIN_SIZE = 10485760;
 function parsePositiveInteger(value, name) {
 	if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`);
 	return value;

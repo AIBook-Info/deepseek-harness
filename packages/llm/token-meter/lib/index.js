@@ -299,13 +299,15 @@ const contextPressureProjectionDefinition = {
 		let next = state;
 		if (event.type === "request/context") {
 			const contextWindow = event.data.contextWindow;
-			if (contextWindow !== state.contextWindow) if (contextWindow !== void 0) next = {
-				...next,
-				contextWindow
-			};
-			else {
-				const { contextWindow: _removed, ...withoutContextWindow } = next;
-				next = withoutContextWindow;
+			if (contextWindow !== state.contextWindow) {
+				if (contextWindow !== void 0) next = {
+					...next,
+					contextWindow
+				};
+				else {
+					const { contextWindow: _removed, ...withoutContextWindow } = next;
+					next = withoutContextWindow;
+				}
 			}
 		}
 		const usage = usageOf(event);
@@ -525,8 +527,6 @@ var TokenMeter = class extends Service {
 			case "step/end":
 				if (state.stepStart === void 0 || state.stepStart.turn !== event.data.turn || state.stepStart.step !== event.data.step) throw new Error(`token meter: step/end at seq ${event.seq} has no matching step/start event`);
 				nextStepStart = void 0;
-				break;
-			default: break;
 		}
 		const surface = isSurfaceEvent(event) ? foldSurfaceTokens(state.surface, event) : void 0;
 		if (event.type === "assistant/message") {

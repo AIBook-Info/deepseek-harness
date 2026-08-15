@@ -207,11 +207,12 @@ function apply(ctx, config) {
 	/** Build additional model context from hook output, or return undefined when empty. */
 	function contextFrom(merged) {
 		if (merged.additionalContext.length === 0) return void 0;
+		const content = merged.additionalContext.map((text) => ({
+			type: "text",
+			text
+		}));
 		return createUserMessage({
-			content: merged.additionalContext.map((text) => ({
-				type: "text",
-				text
-			})),
+			content,
 			source: PLUGIN_SOURCE
 		});
 	}

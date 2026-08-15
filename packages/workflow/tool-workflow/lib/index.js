@@ -49,22 +49,24 @@ function createWorkflowRecorder(ctx) {
 	ctx.on("workflow/agent-start", (info, agent) => {
 		const session = active.get(info.id);
 		if (session === void 0) return;
-		if (!append(session, "tool-workflow/agent-start", {
+		const data = {
 			runId: info.id,
 			seq: agent.seq,
 			label: agent.label,
 			...agent.phase === void 0 ? {} : { phase: agent.phase },
 			childId: agent.childId
-		})) active.delete(info.id);
+		};
+		if (!append(session, "tool-workflow/agent-start", data)) active.delete(info.id);
 	});
 	ctx.on("workflow/agent-end", (info, agent) => {
 		const session = active.get(info.id);
 		if (session === void 0) return;
-		if (!append(session, "tool-workflow/agent-end", {
+		const data = {
 			runId: info.id,
 			seq: agent.seq,
 			outcome: agent.outcome
-		})) active.delete(info.id);
+		};
+		if (!append(session, "tool-workflow/agent-end", data)) active.delete(info.id);
 	});
 	return {
 		start(session, run) {

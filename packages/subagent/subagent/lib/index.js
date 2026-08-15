@@ -333,14 +333,14 @@ const DESCRIPTOR_BASE_KEYS = [
 	"label"
 ];
 const ONE_SHOT_DESCRIPTOR_KEYS = new Set(DESCRIPTOR_BASE_KEYS);
-const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
+const CONTINUABLE_DESCRIPTOR_KEYS = /* @__PURE__ */ new Set([
 	...DESCRIPTOR_BASE_KEYS,
 	"agentProvider",
 	"agentModel",
 	"persona",
 	"toolFilter"
 ]);
-const TOOL_FILTER_KEYS = new Set(["allow", "deny"]);
+const TOOL_FILTER_KEYS = /* @__PURE__ */ new Set(["allow", "deny"]);
 /** Whether a persisted JSON value is an object record. */
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -416,7 +416,7 @@ function parseSubagentDescriptor(value) {
 	};
 }
 function snapshotSubagentDescriptor(input) {
-	const snapshot = snapshotJsonValue(input.mode === "one-shot" ? {
+	const candidate = input.mode === "one-shot" ? {
 		version: 2,
 		mode: input.mode,
 		provider: input.provider,
@@ -430,7 +430,8 @@ function snapshotSubagentDescriptor(input) {
 		...input.agentModel !== void 0 ? { agentModel: input.agentModel } : {},
 		...input.persona !== void 0 ? { persona: input.persona } : {},
 		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {}
-	});
+	};
+	const snapshot = snapshotJsonValue(candidate);
 	if (snapshot === void 0) throw new Error("subagent descriptor is not losslessly JSON-serializable");
 	return snapshot;
 }
@@ -1054,7 +1055,7 @@ var SubagentContinuationManager = class {
 	*/
 	liveLineage(agent) {
 		const lineage = [agent];
-		const seen = new Set([agent.id]);
+		const seen = /* @__PURE__ */ new Set([agent.id]);
 		let parentSession = agent.session.header.parentSession;
 		while (parentSession !== void 0) {
 			const parent = this.ctx.agents.get(parentSession);
@@ -1799,7 +1800,7 @@ function descendantCandidates(corpus, rootSessionId) {
 		parentId: rootSessionId,
 		depth: 1
 	})).reverse();
-	const visited = new Set([rootSessionId]);
+	const visited = /* @__PURE__ */ new Set([rootSessionId]);
 	while (stack.length > 0) {
 		const position = stack.pop();
 		const id = position.record.header.id;

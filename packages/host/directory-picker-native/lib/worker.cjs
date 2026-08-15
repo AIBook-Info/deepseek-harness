@@ -214,19 +214,21 @@ const post = (message) => {
 process.on("disconnect", () => process.exit(0));
 (async () => {
 	try {
+		const path = runFolderDialog(await loadWin32DialogBindings(), title, (threadId) => {
+			post({
+				kind: "showing",
+				threadId
+			});
+		});
 		post({
 			kind: "done",
-			path: runFolderDialog(await loadWin32DialogBindings(), title, (threadId) => {
-				post({
-					kind: "showing",
-					threadId
-				});
-			})
+			path
 		});
 	} catch (error) {
+		const message = error instanceof Error ? error.stack ?? error.message : String(error);
 		post({
 			kind: "error",
-			message: error instanceof Error ? error.stack ?? error.message : String(error)
+			message
 		});
 	}
 })();

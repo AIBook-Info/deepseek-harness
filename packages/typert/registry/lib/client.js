@@ -276,8 +276,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					defs[seen.defId] = seen.def;
 				}
 			}
-			if (ctx.external) {} else if (Object.keys(defs).length > 0) if (ctx.target === "draft-2020-12") result.$defs = defs;
-			else result.definitions = defs;
+			if (ctx.external) {} else if (Object.keys(defs).length > 0) {
+				if (ctx.target === "draft-2020-12") result.$defs = defs;
+				else result.definitions = defs;
+			}
 			try {
 				const finalized = JSON.parse(JSON.stringify(result));
 				Object.defineProperty(finalized, "~standard", {
@@ -377,16 +379,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 			const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 			const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
-			if (exMin) if (legacy) {
-				json.minimum = exclusiveMinimum;
-				json.exclusiveMinimum = true;
-			} else json.exclusiveMinimum = exclusiveMinimum;
-			else if (typeof minimum === "number") json.minimum = minimum;
-			if (exMax) if (legacy) {
-				json.maximum = exclusiveMaximum;
-				json.exclusiveMaximum = true;
-			} else json.exclusiveMaximum = exclusiveMaximum;
-			else if (typeof maximum === "number") json.maximum = maximum;
+			if (exMin) {
+				if (legacy) {
+					json.minimum = exclusiveMinimum;
+					json.exclusiveMinimum = true;
+				} else json.exclusiveMinimum = exclusiveMinimum;
+			} else if (typeof minimum === "number") json.minimum = minimum;
+			if (exMax) {
+				if (legacy) {
+					json.maximum = exclusiveMaximum;
+					json.exclusiveMaximum = true;
+				} else json.exclusiveMaximum = exclusiveMaximum;
+			} else if (typeof maximum === "number") json.maximum = maximum;
 			if (typeof multipleOf === "number") json.multipleOf = multipleOf;
 		};
 		const booleanProcessor = (_schema, _ctx, json, _params) => {
@@ -431,9 +435,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const vals = [];
 			for (const val of def.values) if (val === void 0) {
 				if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
-			} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
-			else vals.push(Number(val));
-			else vals.push(val);
+			} else if (typeof val === "bigint") {
+				if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+				else vals.push(Number(val));
+			} else vals.push(val);
 			if (vals.length === 0) {} else if (vals.length === 1) {
 				const val = vals[0];
 				json.type = val === null ? "null" : typeof val;
@@ -467,14 +472,15 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const { minimum, maximum, mime } = schema._zod.bag;
 			if (minimum !== void 0) file.minLength = minimum;
 			if (maximum !== void 0) file.maxLength = maximum;
-			if (mime) if (mime.length === 1) {
-				file.contentMediaType = mime[0];
-				Object.assign(_json, file);
-			} else {
-				Object.assign(_json, file);
-				_json.anyOf = mime.map((m) => ({ contentMediaType: m }));
-			}
-			else Object.assign(_json, file);
+			if (mime) {
+				if (mime.length === 1) {
+					file.contentMediaType = mime[0];
+					Object.assign(_json, file);
+				} else {
+					Object.assign(_json, file);
+					_json.anyOf = mime.map((m) => ({ contentMediaType: m }));
+				}
+			} else Object.assign(_json, file);
 		};
 		const successProcessor = (_schema, _ctx, json, _params) => {
 			json.type = "boolean";

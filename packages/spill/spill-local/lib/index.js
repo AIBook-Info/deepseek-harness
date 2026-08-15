@@ -62,7 +62,8 @@ function encodeSegment(raw) {
 * @returns The absolute session-scoped spill directory path.
 */
 function sessionDir(root, sessionId) {
-	return join(root, `session-${createHash("sha256").update(sessionId).digest("hex").slice(0, 12)}`);
+	const hash = createHash("sha256").update(sessionId).digest("hex").slice(0, 12);
+	return join(root, `session-${hash}`);
 }
 /**
 * Write `content` to a fresh file under the session-scoped directory and return

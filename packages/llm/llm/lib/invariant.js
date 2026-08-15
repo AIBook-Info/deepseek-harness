@@ -52,7 +52,6 @@ async function* validateStream(source, fail) {
 			case "finish":
 				if (open.size > 0 && chunk.reason.kind !== "error" && chunk.reason.kind !== "aborted") fail(`LLM stream finished with ${open.size} open block(s)`);
 				finished = true;
-				break;
 		}
 		yield chunk;
 	}

@@ -3223,7 +3223,7 @@ function remoteImports(invocations) {
 	return [...imports.values()].sort((left, right) => left.specifier.localeCompare(right.specifier) || left.name.localeCompare(right.name));
 }
 function allocateRemoteImportNames(imports) {
-	const used = new Set(["TypertRemoteContribution", "TYPERT_REMOTE"]);
+	const used = /* @__PURE__ */ new Set(["TypertRemoteContribution", "TYPERT_REMOTE"]);
 	const names = /* @__PURE__ */ new Map();
 	for (const imported of imports) {
 		const base = safeIdentifier(imported.name);

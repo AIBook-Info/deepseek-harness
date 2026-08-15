@@ -26,7 +26,7 @@ const HOST_EVENTS_PATH = `${API_PATH}/events.host`;
 * aggregate image limit (100 MiB) after base64 expansion plus envelope
 * headroom (~134.3 MiB required), rounded up for slack. The bridge buffers
 * each body in memory, so this cap is also the per-request resident bound. */
-const DEFAULT_MAX_REQUEST_BODY_BYTES = 160 * 1024 * 1024;
+const DEFAULT_MAX_REQUEST_BODY_BYTES = 167772160;
 /**
 * Bridge one node:http request to the fetch-shaped handler (client close
 * aborts; SSE bodies stream out chunk by chunk).
@@ -468,7 +468,7 @@ function rejectWebSocketUpgrade(socket) {
 /** Stable Cordis plugin name. */
 const name = "client-connection";
 /** Headroom for RPC JSON fields around aggregate base64 image payloads. */
-const REQUEST_ENVELOPE_HEADROOM_BYTES = 1024 * 1024;
+const REQUEST_ENVELOPE_HEADROOM_BYTES = 1048576;
 function assertImageBodyCapacity(ctx, maxRequestBodyBytes) {
 	const attachments = ctx.get("attachments");
 	if (attachments === void 0) return;
@@ -501,7 +501,7 @@ const Config = z.object({
 * it carries provider ids, display names, and model lists — no endpoints,
 * keys, or key state — and a LAN client's model picker legitimately needs it.
 */
-const PRIVILEGED_METHODS = new Set([
+const PRIVILEGED_METHODS = /* @__PURE__ */ new Set([
 	"agentPreset.read",
 	"agentPreset.copy",
 	"agentPreset.openDocument",

@@ -22,8 +22,8 @@ window.__ModuleLoader__.load({
 			return n;
 		}
 		//#endregion
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-sidebar\src\client\SidebarRoot.module.css.mjs
-		const css = ".zYrqXG_root{--dsh-sidebar-inline-padding:12px;height:100%;padding:6px var(--dsh-sidebar-inline-padding);box-sizing:border-box;background:var(--dsw-specific-sidebar-fill);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);flex-direction:column;font-size:14px;display:flex}.zYrqXG_root.zYrqXG_collapsed{padding:18px 10px 6px}.zYrqXG_root.zYrqXG_quietBars{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:transparent}.zYrqXG_fading>*{opacity:0;transition:opacity .15s var(--ds-ease-in-out)}.zYrqXG_wide{animation:zYrqXG_wide-in .2s var(--ds-ease-in-out)}@keyframes zYrqXG_wide-in{0%{opacity:0}}.zYrqXG_railIn .zYrqXG_iconButton,.zYrqXG_railIn .zYrqXG_newSession,.zYrqXG_railIn .zYrqXG_regionArea{animation:zYrqXG_rail-in .15s var(--ds-ease-in-out) backwards}.zYrqXG_railIn .zYrqXG_footArea{animation:zYrqXG_rail-fade-in .15s var(--ds-ease-in-out) backwards}@keyframes zYrqXG_rail-in{0%{opacity:0;transform:translate(49px)}}@keyframes zYrqXG_rail-fade-in{0%{opacity:0}}.zYrqXG_logoRow{box-sizing:border-box;flex:none;justify-content:flex-end;align-items:center;gap:8px;height:60px;margin-bottom:8px;padding:8px 0 8px 4px;display:flex;overflow:hidden}.zYrqXG_collapsed .zYrqXG_logoRow{justify-content:flex-start;height:36px;margin-bottom:12px;padding:0}.zYrqXG_brand{min-width:0;color:inherit;cursor:pointer;background:0 0;border:none;flex:1;align-items:center;padding:0;display:inline-flex;overflow:hidden}.zYrqXG_iconButton{cursor:pointer;width:28px;height:28px;color:var(--dsw-alias-label-secondary);background:0 0;border:none;border-radius:50%;flex:none;justify-content:center;align-items:center;padding:0;display:inline-flex}.zYrqXG_iconButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.zYrqXG_collapsed .zYrqXG_iconButton{width:36px;height:36px}.zYrqXG_collapsed .zYrqXG_toggle .zYrqXG_panelIcon{display:none}.zYrqXG_collapsed .zYrqXG_toggle:hover .zYrqXG_panelIcon{display:inline}.zYrqXG_collapsed .zYrqXG_toggle:hover .zYrqXG_railFish{display:none}.zYrqXG_collapsed .zYrqXG_iconButton{color:var(--dsw-alias-label-primary)}.zYrqXG_newSession{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-button-elevated-fill);height:38px;color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:12px;flex:none;justify-content:center;align-items:center;gap:6px;margin:0 2px 8px;padding:8px 16px;font-size:14px;font-weight:500;line-height:22px;display:flex;overflow:hidden}.zYrqXG_newSession:hover{background:var(--dsw-alias-button-floating-hover)}.zYrqXG_collapsed .zYrqXG_newSession{background:0 0;border-color:#0000;align-self:flex-start;gap:0;width:36px;height:36px;margin:0 0 12px;padding:0}.zYrqXG_collapsed .zYrqXG_newSession:hover{background:var(--dsw-alias-interactive-bg-hover)}.zYrqXG_newSessionLabel{white-space:nowrap;max-width:200px;overflow:hidden}.zYrqXG_collapsed .zYrqXG_newSessionLabel{max-width:0}.zYrqXG_regionArea{min-height:0;margin-left:-4px;margin-right:calc(-1 * var(--dsh-sidebar-inline-padding));flex-direction:column;flex:1;padding-left:4px;display:flex;overflow:hidden}.zYrqXG_collapsed .zYrqXG_regionArea{margin-left:0;margin-right:0;padding-left:0}.zYrqXG_footArea{flex-direction:column;flex:none;display:flex}.zYrqXG_settingsArea,.zYrqXG_footerActions{flex:none;width:100%;min-width:0}.zYrqXG_footerActions{display:flex}.zYrqXG_collapsed .zYrqXG_footArea{align-items:center}.zYrqXG_collapsed .zYrqXG_settingsArea,.zYrqXG_collapsed .zYrqXG_footerActions{justify-content:center;width:auto;display:flex}@media (prefers-reduced-motion:reduce){.zYrqXG_wide,.zYrqXG_fading>*,.zYrqXG_railIn .zYrqXG_iconButton,.zYrqXG_railIn .zYrqXG_newSession,.zYrqXG_railIn .zYrqXG_footArea,.zYrqXG_railIn .zYrqXG_regionArea{transition:none;animation:none}}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-sidebar\src\client\SidebarRoot.module.css.mjs
+		const css = ".f-XTJG_root{--dsh-sidebar-inline-padding:12px;height:100%;padding:6px var(--dsh-sidebar-inline-padding);box-sizing:border-box;background:var(--dsw-specific-sidebar-fill);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);flex-direction:column;font-size:14px;display:flex}.f-XTJG_root.f-XTJG_collapsed{padding:18px 10px 6px}.f-XTJG_root.f-XTJG_quietBars{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:transparent}.f-XTJG_fading>*{opacity:0;transition:opacity .15s var(--ds-ease-in-out)}.f-XTJG_wide{animation:f-XTJG_wide-in .2s var(--ds-ease-in-out)}@keyframes f-XTJG_wide-in{0%{opacity:0}}.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_regionArea{animation:f-XTJG_rail-in .15s var(--ds-ease-in-out) backwards}.f-XTJG_railIn .f-XTJG_footArea{animation:f-XTJG_rail-fade-in .15s var(--ds-ease-in-out) backwards}@keyframes f-XTJG_rail-in{0%{opacity:0;transform:translate(49px)}}@keyframes f-XTJG_rail-fade-in{0%{opacity:0}}.f-XTJG_logoRow{box-sizing:border-box;flex:none;justify-content:flex-end;align-items:center;gap:8px;height:60px;margin-bottom:8px;padding:8px 0 8px 4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_logoRow{justify-content:flex-start;height:36px;margin-bottom:12px;padding:0}.f-XTJG_brand{min-width:0;color:inherit;cursor:pointer;background:0 0;border:none;flex:1;align-items:center;padding:0;display:inline-flex;overflow:hidden}.f-XTJG_iconButton{cursor:pointer;width:28px;height:28px;color:var(--dsw-alias-label-secondary);background:0 0;border:none;border-radius:50%;flex:none;justify-content:center;align-items:center;padding:0;display:inline-flex}.f-XTJG_iconButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_collapsed .f-XTJG_iconButton{width:36px;height:36px}.f-XTJG_collapsed .f-XTJG_toggle .f-XTJG_panelIcon{display:none}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_panelIcon{display:inline}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_railFish{display:none}.f-XTJG_collapsed .f-XTJG_iconButton{color:var(--dsw-alias-label-primary)}.f-XTJG_newSession{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-button-elevated-fill);height:38px;color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:12px;flex:none;justify-content:center;align-items:center;gap:6px;margin:0 2px 8px;padding:8px 16px;font-size:14px;font-weight:500;line-height:22px;display:flex;overflow:hidden}.f-XTJG_newSession:hover{background:var(--dsw-alias-button-floating-hover)}.f-XTJG_collapsed .f-XTJG_newSession{background:0 0;border-color:#0000;align-self:flex-start;gap:0;width:36px;height:36px;margin:0 0 12px;padding:0}.f-XTJG_collapsed .f-XTJG_newSession:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_newSessionLabel{white-space:nowrap;max-width:200px;overflow:hidden}.f-XTJG_collapsed .f-XTJG_newSessionLabel{max-width:0}.f-XTJG_regionArea{min-height:0;margin-left:-4px;margin-right:calc(-1 * var(--dsh-sidebar-inline-padding));flex-direction:column;flex:1;padding-left:4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_regionArea{margin-left:0;margin-right:0;padding-left:0}.f-XTJG_footArea{flex-direction:column;flex:none;display:flex}.f-XTJG_settingsArea,.f-XTJG_footerActions{flex:none;width:100%;min-width:0}.f-XTJG_footerActions{display:flex}.f-XTJG_collapsed .f-XTJG_footArea{align-items:center}.f-XTJG_collapsed .f-XTJG_settingsArea,.f-XTJG_collapsed .f-XTJG_footerActions{justify-content:center;width:auto;display:flex}@media (prefers-reduced-motion:reduce){.f-XTJG_wide,.f-XTJG_fading>*,.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_footArea,.f-XTJG_railIn .f-XTJG_regionArea{transition:none;animation:none}}";
 		const tagId = "@deepseek-ai/dsh-client-ui-sidebar/SidebarRoot.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -33,27 +33,27 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SidebarRoot_module_css_default = {
-			"wide-in": "zYrqXG_wide-in",
-			"newSessionLabel": "zYrqXG_newSessionLabel",
-			"quietBars": "zYrqXG_quietBars",
-			"wide": "zYrqXG_wide",
-			"fading": "zYrqXG_fading",
-			"newSession": "zYrqXG_newSession",
-			"regionArea": "zYrqXG_regionArea",
-			"footArea": "zYrqXG_footArea",
-			"brand": "zYrqXG_brand",
-			"root": "zYrqXG_root",
-			"rail-fade-in": "zYrqXG_rail-fade-in",
-			"railIn": "zYrqXG_railIn",
-			"toggle": "zYrqXG_toggle",
-			"settingsArea": "zYrqXG_settingsArea",
-			"iconButton": "zYrqXG_iconButton",
-			"panelIcon": "zYrqXG_panelIcon",
-			"logoRow": "zYrqXG_logoRow",
-			"rail-in": "zYrqXG_rail-in",
-			"footerActions": "zYrqXG_footerActions",
-			"collapsed": "zYrqXG_collapsed",
-			"railFish": "zYrqXG_railFish"
+			"panelIcon": "f-XTJG_panelIcon",
+			"logoRow": "f-XTJG_logoRow",
+			"footerActions": "f-XTJG_footerActions",
+			"iconButton": "f-XTJG_iconButton",
+			"railFish": "f-XTJG_railFish",
+			"regionArea": "f-XTJG_regionArea",
+			"rail-fade-in": "f-XTJG_rail-fade-in",
+			"settingsArea": "f-XTJG_settingsArea",
+			"toggle": "f-XTJG_toggle",
+			"quietBars": "f-XTJG_quietBars",
+			"fading": "f-XTJG_fading",
+			"brand": "f-XTJG_brand",
+			"newSessionLabel": "f-XTJG_newSessionLabel",
+			"railIn": "f-XTJG_railIn",
+			"root": "f-XTJG_root",
+			"wide-in": "f-XTJG_wide-in",
+			"wide": "f-XTJG_wide",
+			"collapsed": "f-XTJG_collapsed",
+			"footArea": "f-XTJG_footArea",
+			"rail-in": "f-XTJG_rail-in",
+			"newSession": "f-XTJG_newSession"
 		};
 		//#endregion
 		//#region lib/types/client/SidebarRoot.js

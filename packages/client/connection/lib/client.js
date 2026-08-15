@@ -315,7 +315,7 @@ window.__ModuleLoader__.load({
 		* @module @deepseek-ai/dsh-session/surface
 		*/
 		/** Runtime counterpart of the message-producing event union. */
-		const SURFACE_EVENT_TYPES = new Set([
+		const SURFACE_EVENT_TYPES = /* @__PURE__ */ new Set([
 			"user/message",
 			"assistant/message",
 			"tool/result"
@@ -630,7 +630,6 @@ window.__ModuleLoader__.load({
 					Object.defineProperty(this, "value", { value });
 					return value;
 				}
-				throw new Error("cached value already set");
 			} };
 		}
 		function nullish(input) {
@@ -676,7 +675,10 @@ window.__ModuleLoader__.load({
 		}
 		function mergeDefs(...defs) {
 			const mergedDescriptors = {};
-			for (const def of defs) Object.assign(mergedDescriptors, Object.getOwnPropertyDescriptors(def));
+			for (const def of defs) {
+				const descriptors = Object.getOwnPropertyDescriptors(def);
+				Object.assign(mergedDescriptors, descriptors);
+			}
 			return Object.defineProperties({}, mergedDescriptors);
 		}
 		function esc(str) {
@@ -1182,8 +1184,10 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
-				if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
-				else bag.exclusiveMaximum = def.value;
+				if (def.value < curr) {
+					if (def.inclusive) bag.maximum = def.value;
+					else bag.exclusiveMaximum = def.value;
+				}
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
@@ -1204,8 +1208,10 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
-				if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
-				else bag.exclusiveMinimum = def.value;
+				if (def.value > curr) {
+					if (def.inclusive) bag.minimum = def.value;
+					else bag.exclusiveMinimum = def.value;
+				}
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
@@ -2646,7 +2652,7 @@ window.__ModuleLoader__.load({
 			inst._zod.optin = "optional";
 			inst._zod.optout = "optional";
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, void 0]) : void 0;
+				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, void 0]) : void 0;
 			});
 			defineLazy(inst._zod, "pattern", () => {
 				const pattern = def.innerType._zod.pattern;
@@ -2680,7 +2686,7 @@ window.__ModuleLoader__.load({
 				return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
 			});
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, null]) : void 0;
+				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, null]) : void 0;
 			});
 			inst._zod.parse = (payload, ctx) => {
 				if (payload.value === null) return payload;
@@ -3640,8 +3646,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					defs[seen.defId] = seen.def;
 				}
 			}
-			if (ctx.external) {} else if (Object.keys(defs).length > 0) if (ctx.target === "draft-2020-12") result.$defs = defs;
-			else result.definitions = defs;
+			if (ctx.external) {} else if (Object.keys(defs).length > 0) {
+				if (ctx.target === "draft-2020-12") result.$defs = defs;
+				else result.definitions = defs;
+			}
 			try {
 				const finalized = JSON.parse(JSON.stringify(result));
 				Object.defineProperty(finalized, "~standard", {
@@ -3754,16 +3762,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 			const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 			const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
-			if (exMin) if (legacy) {
-				json.minimum = exclusiveMinimum;
-				json.exclusiveMinimum = true;
-			} else json.exclusiveMinimum = exclusiveMinimum;
-			else if (typeof minimum === "number") json.minimum = minimum;
-			if (exMax) if (legacy) {
-				json.maximum = exclusiveMaximum;
-				json.exclusiveMaximum = true;
-			} else json.exclusiveMaximum = exclusiveMaximum;
-			else if (typeof maximum === "number") json.maximum = maximum;
+			if (exMin) {
+				if (legacy) {
+					json.minimum = exclusiveMinimum;
+					json.exclusiveMinimum = true;
+				} else json.exclusiveMinimum = exclusiveMinimum;
+			} else if (typeof minimum === "number") json.minimum = minimum;
+			if (exMax) {
+				if (legacy) {
+					json.maximum = exclusiveMaximum;
+					json.exclusiveMaximum = true;
+				} else json.exclusiveMaximum = exclusiveMaximum;
+			} else if (typeof maximum === "number") json.maximum = maximum;
 			if (typeof multipleOf === "number") json.multipleOf = multipleOf;
 		};
 		const booleanProcessor = (_schema, _ctx, json, _params) => {
@@ -3784,9 +3794,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const vals = [];
 			for (const val of def.values) if (val === void 0) {
 				if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
-			} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
-			else vals.push(Number(val));
-			else vals.push(val);
+			} else if (typeof val === "bigint") {
+				if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+				else vals.push(Number(val));
+			} else vals.push(val);
 			if (vals.length === 0) {} else if (vals.length === 1) {
 				const val = vals[0];
 				json.type = val === null ? "null" : typeof val;
@@ -4572,11 +4583,12 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			});
 		});
 		function object(shape, params) {
-			return new ZodObject({
+			const def = {
 				type: "object",
 				shape: shape ?? {},
 				...normalizeParams(params)
-			});
+			};
+			return new ZodObject(def);
 		}
 		function looseObject(shape, params) {
 			return new ZodObject({
@@ -4675,9 +4687,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			};
 		});
 		function _enum(values, params) {
+			const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
 			return new ZodEnum({
 				type: "enum",
-				entries: Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values,
+				entries,
 				...normalizeParams(params)
 			});
 		}
@@ -6369,7 +6382,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		* @returns a UUID backed by `crypto.getRandomValues()`, which browsers expose on insecure origins.
 		*/
 		function randomUuid() {
-			const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+			const bytes = globalThis.crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(16));
 			const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 			view.setUint8(6, view.getUint8(6) & 15 | 64);
 			view.setUint8(8, view.getUint8(8) & 63 | 128);
@@ -7542,10 +7555,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					value.steps += 1;
 					openStep = null;
 					break;
-				case "turn/end":
-					pendingCalls.clear();
-					break;
-				default: break;
+				case "turn/end": pendingCalls.clear();
 			}
 			return value;
 		}
@@ -7620,9 +7630,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			values["contextBreakdown"] = contextBreakdownOf(log);
 			values["sessionStats"] = sessionStatsOf(log);
 			values["imageLimits"] = {
-				maxImageBytes: 5 * 1024 * 1024,
+				maxImageBytes: 5242880,
 				maxImagesPerMessage: 20,
-				maxMessageImageBytes: 100 * 1024 * 1024,
+				maxMessageImageBytes: 104857600,
 				maxImagePixels: 4e7,
 				mediaTypes: [
 					"image/png",
@@ -7845,7 +7855,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const boundedStart = Math.min(Math.max(0, matchStart), characters.length - 1);
 			const boundedEnd = Math.min(characters.length, Math.max(boundedStart + 1, matchEnd));
 			const center = Math.floor((boundedStart + boundedEnd) / 2);
-			let start = Math.min(characters.length - 118, Math.max(0, center - Math.floor(118 / 2)));
+			let start = Math.min(characters.length - 118, Math.max(0, center - Math.floor(59)));
 			let end = start + 118;
 			if (start === 0) end = 119;
 			else if (end === characters.length) start = characters.length - 119;
@@ -7953,23 +7963,23 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					cwd: "/tmp/fixture"
 				}
 			];
-			const logs = new Map([[sid("fx-alpha"), buildAlphaLog()]]);
+			const logs = /* @__PURE__ */ new Map([[sid("fx-alpha"), buildAlphaLog()]]);
 			const modelSelections = new Map(sessions.map((session) => [session.sessionId, {
 				provider: "deepseek-official",
 				model: "deepseek-v4-flash"
 			}]));
-			const attachments = new Map([[String(FIXTURE_IMAGE_REF.attachmentId), {
+			const attachments = /* @__PURE__ */ new Map([[String(FIXTURE_IMAGE_REF.attachmentId), {
 				attachment: FIXTURE_IMAGE_REF,
 				data: FIXTURE_IMAGE_DATA
 			}]]);
 			/** Credential store double: set/unset flip the describe badge, values never read back. */
-			const fixtureCredentials = new Map([["DEEPSEEK_API_KEY", true]]);
+			const fixtureCredentials = /* @__PURE__ */ new Map([["DEEPSEEK_API_KEY", true]]);
 			/**
 			* Preset compositions the fixture serves. Held as state rather than
 			* constants so the settings editor's save and delete are exercisable: the
 			* roster a GUI journey sees after writing is the text it wrote.
 			*/
-			const fixturePresets = new Map([
+			const fixturePresets = /* @__PURE__ */ new Map([
 				["standard", {
 					trust: "system",
 					content: "- id: tool-bash\n  name: '@deepseek-ai/dsh-tool-bash'\n"
@@ -7984,7 +7994,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				}]
 			]);
 			let fixtureDefaultPreset = "standard";
-			const nextTurn = new Map([[sid("fx-alpha"), 75]]);
+			const nextTurn = /* @__PURE__ */ new Map([[sid("fx-alpha"), 75]]);
 			let nextSession = 1;
 			let nextRpc = 1;
 			let attachedSessions = options.empty ? 0 : 1;
@@ -8005,7 +8015,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			let nextWorkspace = 1;
 			const archivedSessionIds = [];
 			const FIXTURE_HOME = "/home/fixture";
-			const directoryTree = new Map([
+			const directoryTree = /* @__PURE__ */ new Map([
 				["/", ["home"]],
 				["/home", ["fixture"]],
 				[FIXTURE_HOME, [
@@ -8512,17 +8522,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				const current = resolved.value;
 				const goal = next(current);
 				if (goal === void 0) return goalFailure(`invalid goal transition from "${current.goal.phase}"`);
+				const projection = appendGoalChange(id, {
+					kind: "goal/change",
+					version: 1,
+					operation: goal.phase === current.goal.phase ? "edit" : goal.phase === "paused" ? "pause" : goal.phase === "active" ? "resume" : "complete",
+					goal,
+					roundsStarted: current.roundsStarted,
+					createdAt: current.createdAt,
+					updatedAt: Date.now()
+				});
 				return {
 					ok: true,
-					value: goalView(appendGoalChange(id, {
-						kind: "goal/change",
-						version: 1,
-						operation: goal.phase === current.goal.phase ? "edit" : goal.phase === "paused" ? "pause" : goal.phase === "active" ? "resume" : "complete",
-						goal,
-						roundsStarted: current.roundsStarted,
-						createdAt: current.createdAt,
-						updatedAt: Date.now()
-					}))
+					value: goalView(projection)
 				};
 			}
 			const mapGoalResult = (result, map) => result.ok ? {

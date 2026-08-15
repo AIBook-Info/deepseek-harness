@@ -25,7 +25,8 @@ function handleError(ctx, e) {
 		}
 		try {
 			const { file, line, column } = error.location;
-			const formatted = codeFrameColumns(readFileSync(file, "utf8"), { start: {
+			const source = readFileSync(file, "utf8");
+			const formatted = codeFrameColumns(source, { start: {
 				line,
 				column
 			} }, {

@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { Readable, Writable } from "node:stream";
-import Schema from "@deepseek-ai/schemastery";
+import z from "@deepseek-ai/schemastery";
 import "@deepseek-ai/cordis";
 import { AgentSideConnection, PROTOCOL_VERSION, RequestError, ndJsonStream } from "@agentclientprotocol/sdk";
 import { SessionId } from "@deepseek-ai/dsh-session";
@@ -172,22 +172,22 @@ const DEFAULT_RETRYABLE_CODES = Object.freeze([
 	"TIMEOUT",
 	"TRANSPORT"
 ]);
-const backoffSchema = Schema.object({
-	initialDelayMs: Schema.number().max(MAX_TIMER_DELAY_MS).default(DEFAULT_INITIAL_DELAY_MS),
-	maxDelayMs: Schema.number().max(MAX_TIMER_DELAY_MS).default(DEFAULT_MAX_DELAY_MS),
-	jitterRatio: Schema.number().min(0).max(1).default(DEFAULT_JITTER_RATIO)
+const backoffSchema = z.object({
+	initialDelayMs: z.number().max(MAX_TIMER_DELAY_MS).default(DEFAULT_INITIAL_DELAY_MS),
+	maxDelayMs: z.number().max(MAX_TIMER_DELAY_MS).default(DEFAULT_MAX_DELAY_MS),
+	jitterRatio: z.number().min(0).max(1).default(DEFAULT_JITTER_RATIO)
 });
-const normalPolicySchema = Schema.object({
-	mode: Schema.const("normal").required(),
-	maxRetries: Schema.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_RETRIES),
-	retryableCodes: Schema.array(Schema.string()).default([...DEFAULT_RETRYABLE_CODES]),
+const normalPolicySchema = z.object({
+	mode: z.const("normal").required(),
+	maxRetries: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_RETRIES),
+	retryableCodes: z.array(z.string()).default([...DEFAULT_RETRYABLE_CODES]),
 	backoff: backoffSchema
 });
-const alwaysPolicySchema = Schema.object({
-	mode: Schema.const("always").required(),
+const alwaysPolicySchema = z.object({
+	mode: z.const("always").required(),
 	backoff: backoffSchema
 });
-Schema.union([normalPolicySchema, alwaysPolicySchema]);
+z.union([normalPolicySchema, alwaysPolicySchema]);
 //#endregion
 //#region ../../llm/llm/src/attribution.ts
 /**
@@ -272,9 +272,9 @@ function invalidParams(detail) {
 function internalError(detail) {
 	return RequestError.internalError(void 0, detail);
 }
-const Config = Schema.object({
-	provider: Schema.string(),
-	model: Schema.string()
+const Config = z.object({
+	provider: z.string(),
+	model: z.string()
 });
 /**
 * Mount the automation-only ACP server.
@@ -344,10 +344,12 @@ function apply(ctx, config) {
 			}
 		} finally {
 			const inflight = record.inflight;
-			if (inflight !== void 0 && event.type === "turn/end" && inflight.turn === event.data.turn) if (event.data.reason.kind === "error") {
-				record.inflight = void 0;
-				rejectFromError(inflight, event.data.reason);
-			} else inflight.endReason = event.data.reason;
+			if (inflight !== void 0 && event.type === "turn/end" && inflight.turn === event.data.turn) {
+				if (event.data.reason.kind === "error") {
+					record.inflight = void 0;
+					rejectFromError(inflight, event.data.reason);
+				} else inflight.endReason = event.data.reason;
+			}
 		}
 	});
 	ctx.on("agent/inbox/claimed", ({ agent, message, turn }) => {
@@ -472,7 +474,9 @@ function apply(ctx, config) {
 			}
 		};
 	};
-	conn = new AgentSideConnection(makeAgent, config.stream ?? ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)));
+	/* v8 ignore next 4 -- production stdio wiring; tests inject config.stream. */
+	const stream = config.stream ?? ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin));
+	conn = new AgentSideConnection(makeAgent, stream);
 	let quiescing;
 	const quiesce = () => {
 		if (quiescing !== void 0) return quiescing;

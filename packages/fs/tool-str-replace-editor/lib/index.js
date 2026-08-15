@@ -165,7 +165,10 @@ async function replaceInFile(ctx, policy, path, oldStr, newStr, exec) {
 	const offsets = matchOffsets(before, oldValue);
 	const offset = offsets[0];
 	if (offset === void 0) throw new FsError(`No replacement was performed, old_str \`${oldValue}\` did not appear verbatim in ${target.displayPath}.`, "FS_EDIT_NOT_FOUND");
-	if (offsets.length > 1) throw new FsError(`No replacement was performed. Multiple occurrences of old_str \`${oldValue}\` in lines [${lineNumbersAt(before, offsets).join(", ")}]. Please ensure it is unique`, "FS_AMBIGUOUS_EDIT");
+	if (offsets.length > 1) {
+		const lines = lineNumbersAt(before, offsets);
+		throw new FsError(`No replacement was performed. Multiple occurrences of old_str \`${oldValue}\` in lines [${lines.join(", ")}]. Please ensure it is unique`, "FS_AMBIGUOUS_EDIT");
+	}
 	let outcome;
 	try {
 		outcome = await ctx.fs.writeText(target, before.slice(0, offset) + newValue + before.slice(offset + oldValue.length), intent === void 0 ? {

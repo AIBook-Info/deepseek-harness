@@ -93,7 +93,7 @@ async function replaceFileWin32(replaced, replacement) {
 * @module @deepseek-ai/dsh-fs-local/fsio
 */
 const BINARY_SAMPLE_BYTES = 8192;
-const DIFF_BASIS_READ_CHUNK_BYTES = 64 * 1024;
+const DIFF_BASIS_READ_CHUNK_BYTES = 65536;
 function isENOENT(error) {
 	return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
@@ -463,8 +463,10 @@ async function writeFileAtomic(absolutePath, content, mode, signal, internals = 
 	const directory = dirname(absolutePath);
 	await mkdir(directory, { recursive: true });
 	throwIfAborted(signal, "write");
-	const stagingDir = join(directory, internals.tempDirName?.(absolutePath) ?? `.${basename(absolutePath)}.${process.pid}.${randomUUID()}.tmpdir`);
-	const tempPath = join(stagingDir, internals.tempName?.(absolutePath) ?? `${basename(absolutePath)}.tmp`);
+	const stagingDirName = internals.tempDirName?.(absolutePath) ?? `.${basename(absolutePath)}.${process.pid}.${randomUUID()}.tmpdir`;
+	const stagingDir = join(directory, stagingDirName);
+	const tempName = internals.tempName?.(absolutePath) ?? `${basename(absolutePath)}.tmp`;
+	const tempPath = join(stagingDir, tempName);
 	const platform = internals.platform ?? process.platform;
 	const copyFileDacl = internals.copyFileDacl ?? copyFileDaclWin32;
 	const replaceFile = internals.replaceFile ?? replaceFileWin32;
@@ -663,7 +665,7 @@ function applyLiteralEdit(content, oldString, newString, replaceAll, displayPath
 * share stale guards, and writes through a symlink update its target without replacing the link.
 * @module @deepseek-ai/dsh-fs-local
 */
-const DEFAULT_DIFF_BASIS_MAX_BYTES = 10 * 1024 * 1024;
+const DEFAULT_DIFF_BASIS_MAX_BYTES = 10485760;
 const MAX_DIFF_BASIS_BYTES = Math.min(constants.MAX_LENGTH, constants.MAX_STRING_LENGTH);
 /**
 * The host-filesystem backend. Reads resolve relative paths from {@link Config.cwd}

@@ -7,8 +7,8 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region \0dsh-css:D:\Github\Deepseek\deepseek-harness\packages\client\ui-plan\src\client\PlanModeControl.module.css.mjs
-		const css = ".-qFtiG_wrap{align-items:center;gap:6px;display:inline-flex}.-qFtiG_chip{background:var(--dsw-alias-state-warn-tertiary);min-width:34px;color:var(--dsw-alias-state-warn-label);cursor:pointer;border:none;border-radius:999px;align-items:center;gap:4px;padding:2px 8px;font-size:13px;font-weight:500;line-height:20px;display:inline-flex}.-qFtiG_chip:hover:not(:disabled){color:var(--dsw-alias-state-warn-primary)}.-qFtiG_chip:focus-visible{outline:2px solid var(--dsw-alias-state-warn-label);outline-offset:2px}.-qFtiG_chip:disabled{opacity:.6;cursor:default}.-qFtiG_close{color:currentColor;align-items:center;display:inline-flex}.-qFtiG_error{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}";
+		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-plan\src\client\PlanModeControl.module.css.mjs
+		const css = ".iNpjFa_wrap{align-items:center;gap:6px;display:inline-flex}.iNpjFa_chip{background:var(--dsw-alias-state-warn-tertiary);min-width:34px;color:var(--dsw-alias-state-warn-label);cursor:pointer;border:none;border-radius:999px;align-items:center;gap:4px;padding:2px 8px;font-size:13px;font-weight:500;line-height:20px;display:inline-flex}.iNpjFa_chip:hover:not(:disabled){color:var(--dsw-alias-state-warn-primary)}.iNpjFa_chip:focus-visible{outline:2px solid var(--dsw-alias-state-warn-label);outline-offset:2px}.iNpjFa_chip:disabled{opacity:.6;cursor:default}.iNpjFa_close{color:currentColor;align-items:center;display:inline-flex}.iNpjFa_error{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}";
 		const tagId = "@deepseek-ai/dsh-client-ui-plan/PlanModeControl.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -18,10 +18,10 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PlanModeControl_module_css_default = {
-			"chip": "-qFtiG_chip",
-			"error": "-qFtiG_error",
-			"close": "-qFtiG_close",
-			"wrap": "-qFtiG_wrap"
+			"wrap": "iNpjFa_wrap",
+			"close": "iNpjFa_close",
+			"chip": "iNpjFa_chip",
+			"error": "iNpjFa_error"
 		};
 		//#endregion
 		//#region lib/types/client/PlanModeControl.js
