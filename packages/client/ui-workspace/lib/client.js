@@ -341,40 +341,40 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var Rows_module_css_default = {
-			"searchResultHeading": "rEHY0q_searchResultHeading",
-			"searchResultTitle": "rEHY0q_searchResultTitle",
+			"arrow": "rEHY0q_arrow",
+			"arrowOpen": "rEHY0q_arrowOpen",
+			"chevron": "rEHY0q_chevron",
 			"dot": "rEHY0q_dot",
-			"projectRow": "rEHY0q_projectRow",
-			"hoverContent": "rEHY0q_hoverContent",
 			"dropAfter": "rEHY0q_dropAfter",
 			"dropBefore": "rEHY0q_dropBefore",
-			"rowActions": "rEHY0q_rowActions",
-			"row-in": "rEHY0q_row-in",
-			"time": "rEHY0q_time",
-			"searchResultMeta": "rEHY0q_searchResultMeta",
-			"menuOpen": "rEHY0q_menuOpen",
-			"folderActive": "rEHY0q_folderActive",
-			"arrowOpen": "rEHY0q_arrowOpen",
-			"renameInput": "rEHY0q_renameInput",
-			"hoverStatus": "rEHY0q_hoverStatus",
-			"slot": "rEHY0q_slot",
-			"selected": "rEHY0q_selected",
-			"searchResultRow": "rEHY0q_searchResultRow",
-			"folder": "rEHY0q_folder",
-			"title": "rEHY0q_title",
 			"flatSessionRowWithoutStatus": "rEHY0q_flatSessionRowWithoutStatus",
-			"searchResultWorkspace": "rEHY0q_searchResultWorkspace",
+			"folder": "rEHY0q_folder",
+			"folderActive": "rEHY0q_folderActive",
+			"hoverContent": "rEHY0q_hoverContent",
+			"hoverPath": "rEHY0q_hoverPath",
+			"hoverStatus": "rEHY0q_hoverStatus",
+			"hoverTime": "rEHY0q_hoverTime",
 			"hoverTitle": "rEHY0q_hoverTitle",
 			"iconButton": "rEHY0q_iconButton",
-			"arrow": "rEHY0q_arrow",
-			"searchResultSnippet": "rEHY0q_searchResultSnippet",
-			"sessionRow": "rEHY0q_sessionRow",
-			"chevron": "rEHY0q_chevron",
-			"projectText": "rEHY0q_projectText",
+			"menuOpen": "rEHY0q_menuOpen",
 			"meta": "rEHY0q_meta",
-			"visuallyHidden": "rEHY0q_visuallyHidden",
-			"hoverTime": "rEHY0q_hoverTime",
-			"hoverPath": "rEHY0q_hoverPath"
+			"projectRow": "rEHY0q_projectRow",
+			"projectText": "rEHY0q_projectText",
+			"renameInput": "rEHY0q_renameInput",
+			"row-in": "rEHY0q_row-in",
+			"rowActions": "rEHY0q_rowActions",
+			"searchResultHeading": "rEHY0q_searchResultHeading",
+			"searchResultMeta": "rEHY0q_searchResultMeta",
+			"searchResultRow": "rEHY0q_searchResultRow",
+			"searchResultSnippet": "rEHY0q_searchResultSnippet",
+			"searchResultTitle": "rEHY0q_searchResultTitle",
+			"searchResultWorkspace": "rEHY0q_searchResultWorkspace",
+			"selected": "rEHY0q_selected",
+			"sessionRow": "rEHY0q_sessionRow",
+			"slot": "rEHY0q_slot",
+			"time": "rEHY0q_time",
+			"title": "rEHY0q_title",
+			"visuallyHidden": "rEHY0q_visuallyHidden"
 		};
 		//#endregion
 		//#region lib/types/client/rows/Rows.js
@@ -413,7 +413,7 @@ window.__ModuleLoader__.load({
 				d: d.getDate()
 			})} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` });
 		}
-		/** Hover-card body: workspace title, full directory path, absolute creation time. */
+		/** Hover-card body: workspace title, display directory path, absolute creation time. */
 		function WorkspaceHoverContent({ label, cwd, createdAt, t }) {
 			return (0, react_jsx_runtime.jsxs)("div", {
 				className: Rows_module_css_default.hoverContent,
@@ -447,10 +447,11 @@ window.__ModuleLoader__.load({
 		* @param props.onToggle - expand/collapse the group.
 		* @param props.onCreate - start a frontend Session inside this Workspace.
 		* @param props.drag - optional workspace-row drag wiring.
+		* @param props.home - host account home for POSIX hover-path abbreviation.
 		* @param props.t - the browser root's locale seat.
 		* @returns the row element.
 		*/
-		function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }) {
+		function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t }) {
 			const row = group;
 			const label = row.workspaceId === void 0 ? t("group.ungrouped") : row.label;
 			const active = group.expanded && group.containsCurrent;
@@ -538,7 +539,7 @@ window.__ModuleLoader__.load({
 				anchor: ownRow,
 				content: (0, react_jsx_runtime.jsx)(WorkspaceHoverContent, {
 					label: row.label,
-					cwd: row.cwd,
+					cwd: row.cwd === void 0 ? void 0 : (0, _deepseek_ai_dsh_client_runtime_client.abbreviateHomePath)(row.cwd, home),
 					createdAt: row.createdAt,
 					t
 				}),
@@ -713,76 +714,75 @@ window.__ModuleLoader__.load({
 					icon: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconArchiveOutline20, { size: 16 })
 				}
 			];
-			const ownRow = (0, react_jsx_runtime.jsxs)("div", {
-				className: clsx(Rows_module_css_default.sessionRow, selected && Rows_module_css_default.selected, menuOpen && Rows_module_css_default.menuOpen, flat && !showStatus && Rows_module_css_default.flatSessionRowWithoutStatus, drag?.marker === "before" && Rows_module_css_default.dropBefore, drag?.marker === "after" && Rows_module_css_default.dropAfter),
-				role: "treeitem",
-				"aria-selected": selected,
-				onClick: () => {
-					onOpen(node.id);
-				},
-				draggable: drag !== void 0,
-				onDragStart: drag === void 0 ? void 0 : (e) => {
-					e.dataTransfer.effectAllowed = "move";
-					e.dataTransfer.setData("text/plain", node.id);
-					drag.start();
-				},
-				onDragEnd: drag?.end,
-				onDragOver: drag === void 0 ? void 0 : (e) => {
-					if (!drag.active) return;
-					e.preventDefault();
-					e.dataTransfer.dropEffect = "move";
-					drag.hover(rowHalf(e));
-				},
-				onDrop: drag === void 0 ? void 0 : (e) => {
-					if (!drag.active) return;
-					e.preventDefault();
-					drag.drop(rowHalf(e));
-				},
-				children: [
-					(!flat || showStatus) && (0, react_jsx_runtime.jsx)("span", {
-						className: Rows_module_css_default.slot,
-						children: showStatus && (0, react_jsx_runtime.jsx)(SessionStatusDots, { statuses })
-					}),
-					(0, react_jsx_runtime.jsx)("span", {
-						className: Rows_module_css_default.title,
-						children: title
-					}),
-					!row.blank && (0, react_jsx_runtime.jsx)("span", {
-						className: Rows_module_css_default.time,
-						children: timeLabel(row.updatedAt, now, t)
-					}),
-					!row.blank && (0, react_jsx_runtime.jsx)("span", {
-						className: Rows_module_css_default.rowActions,
-						children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
-							open: menuOpen,
-							onClose: () => {
-								setMenuOpen(false);
-							},
-							items: sessionMenuItems,
-							onSelect: (id) => {
-								setMenuOpen(false);
-								if (id === "rename") onRename(node.id, row.title);
-								if (id === "fork") onFork(node.id);
-								if (id === "archive") onArchive(node.id);
-							},
-							portal: true,
-							closeOnPointerLeave: true,
-							anchor: (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: Rows_module_css_default.iconButton,
-								"aria-label": t("actions.session.aria", { name: title }),
-								onClick: (e) => {
-									e.stopPropagation();
-									setMenuOpen((v) => !v);
+			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.HoverCard, {
+				anchor: (0, react_jsx_runtime.jsxs)("div", {
+					className: clsx(Rows_module_css_default.sessionRow, selected && Rows_module_css_default.selected, menuOpen && Rows_module_css_default.menuOpen, flat && !showStatus && Rows_module_css_default.flatSessionRowWithoutStatus, drag?.marker === "before" && Rows_module_css_default.dropBefore, drag?.marker === "after" && Rows_module_css_default.dropAfter),
+					role: "treeitem",
+					"aria-selected": selected,
+					onClick: () => {
+						onOpen(node.id);
+					},
+					draggable: drag !== void 0,
+					onDragStart: drag === void 0 ? void 0 : (e) => {
+						e.dataTransfer.effectAllowed = "move";
+						e.dataTransfer.setData("text/plain", node.id);
+						drag.start();
+					},
+					onDragEnd: drag?.end,
+					onDragOver: drag === void 0 ? void 0 : (e) => {
+						if (!drag.active) return;
+						e.preventDefault();
+						e.dataTransfer.dropEffect = "move";
+						drag.hover(rowHalf(e));
+					},
+					onDrop: drag === void 0 ? void 0 : (e) => {
+						if (!drag.active) return;
+						e.preventDefault();
+						drag.drop(rowHalf(e));
+					},
+					children: [
+						(!flat || showStatus) && (0, react_jsx_runtime.jsx)("span", {
+							className: Rows_module_css_default.slot,
+							children: showStatus && (0, react_jsx_runtime.jsx)(SessionStatusDots, { statuses })
+						}),
+						(0, react_jsx_runtime.jsx)("span", {
+							className: Rows_module_css_default.title,
+							children: title
+						}),
+						!row.blank && (0, react_jsx_runtime.jsx)("span", {
+							className: Rows_module_css_default.time,
+							children: timeLabel(row.updatedAt, now, t)
+						}),
+						!row.blank && (0, react_jsx_runtime.jsx)("span", {
+							className: Rows_module_css_default.rowActions,
+							children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+								open: menuOpen,
+								onClose: () => {
+									setMenuOpen(false);
 								},
-								children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEllipsisOutline16, {})
+								items: sessionMenuItems,
+								onSelect: (id) => {
+									setMenuOpen(false);
+									if (id === "rename") onRename(node.id, row.title);
+									if (id === "fork") onFork(node.id);
+									if (id === "archive") onArchive(node.id);
+								},
+								portal: true,
+								closeOnPointerLeave: true,
+								anchor: (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: Rows_module_css_default.iconButton,
+									"aria-label": t("actions.session.aria", { name: title }),
+									onClick: (e) => {
+										e.stopPropagation();
+										setMenuOpen((v) => !v);
+									},
+									children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEllipsisOutline16, {})
+								})
 							})
 						})
-					})
-				]
-			});
-			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.HoverCard, {
-				anchor: ownRow,
+					]
+				}),
 				content: (0, react_jsx_runtime.jsx)(SessionHoverContent, {
 					node,
 					now,
@@ -806,9 +806,9 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var WorkspacePicker_module_css_default = {
-			"modalError": "TePqaq_modalError",
+			"menuStatus": "TePqaq_menuStatus",
 			"modalAction": "TePqaq_modalAction",
-			"menuStatus": "TePqaq_menuStatus"
+			"modalError": "TePqaq_modalError"
 		};
 		//#endregion
 		//#region lib/types/client/WorkspacePicker.js
@@ -976,42 +976,42 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var WorkspaceBrowser_module_css_default = {
-			"listTopDropIndicator": "XGW-nG_listTopDropIndicator",
-			"wide-in": "XGW-nG_wide-in",
-			"sectionLabel": "XGW-nG_sectionLabel",
-			"searchStatus": "XGW-nG_searchStatus",
-			"search": "XGW-nG_search",
-			"headerActionsHidden": "XGW-nG_headerActionsHidden",
-			"root": "XGW-nG_root",
-			"listArea": "XGW-nG_listArea",
-			"fade": "XGW-nG_fade",
-			"deleteStatus": "XGW-nG_deleteStatus",
-			"searchWarning": "XGW-nG_searchWarning",
-			"groupSection": "XGW-nG_groupSection",
-			"searchTree": "XGW-nG_searchTree",
-			"workspaceDropBefore": "XGW-nG_workspaceDropBefore",
-			"rail": "XGW-nG_rail",
-			"searchSlot": "XGW-nG_searchSlot",
-			"flatList": "XGW-nG_flatList",
-			"sectionLabelHidden": "XGW-nG_sectionLabelHidden",
-			"wide": "XGW-nG_wide",
-			"searchExpanded": "XGW-nG_searchExpanded",
-			"searchSlotExpanded": "XGW-nG_searchSlotExpanded",
-			"renameInput": "XGW-nG_renameInput",
-			"sectionHeader": "XGW-nG_sectionHeader",
-			"treeBody": "XGW-nG_treeBody",
-			"headerActions": "XGW-nG_headerActions",
-			"searchButton": "XGW-nG_searchButton",
-			"searchInput": "XGW-nG_searchInput",
 			"clearButton": "XGW-nG_clearButton",
-			"list": "XGW-nG_list",
-			"renameError": "XGW-nG_renameError",
 			"deleteAction": "XGW-nG_deleteAction",
+			"deleteStatus": "XGW-nG_deleteStatus",
+			"empty": "XGW-nG_empty",
+			"fade": "XGW-nG_fade",
+			"flatList": "XGW-nG_flatList",
+			"groupSection": "XGW-nG_groupSection",
+			"headerActions": "XGW-nG_headerActions",
+			"headerActionsHidden": "XGW-nG_headerActionsHidden",
 			"iconButton": "XGW-nG_iconButton",
+			"list": "XGW-nG_list",
+			"listArea": "XGW-nG_listArea",
 			"listTopDropActive": "XGW-nG_listTopDropActive",
-			"workspaceDropAfter": "XGW-nG_workspaceDropAfter",
+			"listTopDropIndicator": "XGW-nG_listTopDropIndicator",
+			"rail": "XGW-nG_rail",
+			"renameError": "XGW-nG_renameError",
+			"renameInput": "XGW-nG_renameInput",
+			"root": "XGW-nG_root",
+			"search": "XGW-nG_search",
+			"searchButton": "XGW-nG_searchButton",
+			"searchExpanded": "XGW-nG_searchExpanded",
+			"searchInput": "XGW-nG_searchInput",
+			"searchSlot": "XGW-nG_searchSlot",
+			"searchSlotExpanded": "XGW-nG_searchSlotExpanded",
+			"searchStatus": "XGW-nG_searchStatus",
+			"searchTree": "XGW-nG_searchTree",
+			"searchWarning": "XGW-nG_searchWarning",
+			"sectionHeader": "XGW-nG_sectionHeader",
+			"sectionLabel": "XGW-nG_sectionLabel",
+			"sectionLabelHidden": "XGW-nG_sectionLabelHidden",
 			"sessionOverflowButton": "XGW-nG_sessionOverflowButton",
-			"empty": "XGW-nG_empty"
+			"treeBody": "XGW-nG_treeBody",
+			"wide": "XGW-nG_wide",
+			"wide-in": "XGW-nG_wide-in",
+			"workspaceDropAfter": "XGW-nG_workspaceDropAfter",
+			"workspaceDropBefore": "XGW-nG_workspaceDropBefore"
 		};
 		//#endregion
 		//#region lib/types/client/WorkspaceBrowser.js
@@ -1197,7 +1197,7 @@ window.__ModuleLoader__.load({
 			return e.clientY < rect.top + rect.height / 2 ? "before" : "after";
 		}
 		/** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
-		function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t }) {
+		function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t }) {
 			const list = useSessions((s) => s);
 			const current = list.current;
 			const [expandedSessionGroups, setExpandedSessionGroups] = (0, react.useState)([]);
@@ -1377,6 +1377,7 @@ window.__ModuleLoader__.load({
 								children: [
 									(0, react_jsx_runtime.jsx)(ProjectRowItem, {
 										group,
+										home,
 										t,
 										onToggle: () => {
 											if (group.expanded) setExpandedSessionGroups((keys) => keys.filter((key) => key !== group.key));
@@ -1402,41 +1403,6 @@ window.__ModuleLoader__.load({
 									}),
 									(expandedSessionGroups.includes(group.key) ? group.sessions : group.sessions.slice(0, COLLAPSED_SESSION_LIMIT)).map((node) => {
 										const sameGroupDrag = drag !== null && drag.accountKey === group.key;
-										const dragProps = {
-											start: () => {
-												sessionDropCommitted.current = false;
-												setDrag({
-													accountKey: group.key,
-													sessionId: node.id,
-													over: null
-												});
-											},
-											active: sameGroupDrag,
-											marker: sameGroupDrag && drag.over?.id === node.id ? drag.over.half : null,
-											hover: (half) => {
-												/* v8 ignore next -- narrowing guard: Rows gates hover on `active`, which is false while the drag state is null. */
-												setDrag((d) => d === null ? d : {
-													...d,
-													over: {
-														id: node.id,
-														half
-													}
-												});
-											},
-											drop: (half) => {
-												/* v8 ignore next -- narrowing guard: Rows gates drop on `active`, which is false while the drag state is null. */
-												if (drag === null) return;
-												commitSessionDrag(drag, {
-													id: node.id,
-													half
-												});
-											},
-											end: () => {
-												if (drag?.over !== null && drag?.over !== void 0) commitSessionDrag(drag, drag.over);
-												else setDrag(null);
-												sessionDropCommitted.current = false;
-											}
-										};
 										return (0, react_jsx_runtime.jsx)(SessionNodeItem, {
 											node,
 											currentId: current,
@@ -1445,7 +1411,41 @@ window.__ModuleLoader__.load({
 											onRename: onSessionRename,
 											onFork: forkSession,
 											onArchive: onSessionArchive,
-											drag: dragProps,
+											drag: {
+												start: () => {
+													sessionDropCommitted.current = false;
+													setDrag({
+														accountKey: group.key,
+														sessionId: node.id,
+														over: null
+													});
+												},
+												active: sameGroupDrag,
+												marker: sameGroupDrag && drag.over?.id === node.id ? drag.over.half : null,
+												hover: (half) => {
+													/* v8 ignore next -- narrowing guard: Rows gates hover on `active`, which is false while the drag state is null. */
+													setDrag((d) => d === null ? d : {
+														...d,
+														over: {
+															id: node.id,
+															half
+														}
+													});
+												},
+												drop: (half) => {
+													/* v8 ignore next -- narrowing guard: Rows gates drop on `active`, which is false while the drag state is null. */
+													if (drag === null) return;
+													commitSessionDrag(drag, {
+														id: node.id,
+														half
+													});
+												},
+												end: () => {
+													if (drag?.over !== null && drag?.over !== void 0) commitSessionDrag(drag, drag.over);
+													else setDrag(null);
+													sessionDropCommitted.current = false;
+												}
+											},
 											t
 										}, node.id);
 									}),
@@ -1646,7 +1646,8 @@ window.__ModuleLoader__.load({
 		* @param props - composed slot props (shell owner share + store + injected actions).
 		* @returns the region element tree.
 		*/
-		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, renderSlot, t }) {
+		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostDescription, renderSlot, t }) {
+			const home = useHostDescription((description) => description?.home);
 			const workspaces = useWorkspaces((state) => state.items);
 			const workspacePhase = useWorkspaces((state) => state.phase);
 			const archivedSessionIds = useWorkspaces((state) => state.archivedSessionIds);
@@ -1703,7 +1704,7 @@ window.__ModuleLoader__.load({
 				searchOnExpand
 			]);
 			(0, react.useEffect)(() => {
-				if (!wide || !searchExpanded) return;
+				if (!wide || !searchExpanded || searchOnExpand) return;
 				const onClick = (event) => {
 					if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) return;
 					searchInput.current?.blur();
@@ -1717,7 +1718,8 @@ window.__ModuleLoader__.load({
 			}, [
 				normalizedQuery,
 				wide,
-				searchExpanded
+				searchExpanded,
+				searchOnExpand
 			]);
 			(0, react.useEffect)(() => {
 				if (normalizedQuery === "") {
@@ -2024,6 +2026,7 @@ window.__ModuleLoader__.load({
 							insertWorkspaceBefore,
 							insertSessionBefore,
 							orderBy,
+							home,
 							t,
 							onRenameRequest: (workspaceId, currentTitle) => {
 								setRenameTarget({
@@ -2328,7 +2331,8 @@ window.__ModuleLoader__.load({
 			"slots",
 			"sessions",
 			"workspaces",
-			"locale"
+			"locale",
+			"connection"
 		];
 		/**
 		* Register the browser and picker once their slot declarations are on the
@@ -2337,6 +2341,7 @@ window.__ModuleLoader__.load({
 		* @param ctx - client root context.
 		*/
 		function apply(ctx) {
+			const hostDescription = ctx.get("connection").hostDescription;
 			ctx.effect(() => ctx.locale.register(NS, {
 				zh,
 				en
@@ -2391,7 +2396,10 @@ window.__ModuleLoader__.load({
 					await ctx.workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId);
 				},
 				createWorkspace: (input) => ctx.workspaces.create(input),
-				hooks: { directoryFlow: browserFlowSource }
+				hooks: {
+					directoryFlow: browserFlowSource,
+					hostDescription
+				}
 			});
 			const pickerInjected = () => ({
 				createWorkspace: (input) => ctx.workspaces.create(input),

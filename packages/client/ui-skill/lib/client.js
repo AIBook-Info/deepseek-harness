@@ -19,22 +19,22 @@ window.__ModuleLoader__.load({
 		}
 		var SkillRow_module_css_default = {
 			"bodyWrap": "LU-sNq_bodyWrap",
-			"row": "LU-sNq_row",
-			"visuallyHidden": "LU-sNq_visuallyHidden",
 			"card": "LU-sNq_card",
-			"instructionsHeader": "LU-sNq_instructionsHeader",
-			"instructions": "LU-sNq_instructions",
-			"chevronHover": "LU-sNq_chevronHover",
-			"inspectButton": "LU-sNq_inspectButton",
-			"leading": "LU-sNq_leading",
-			"separator": "LU-sNq_separator",
-			"title": "LU-sNq_title",
-			"iconIdle": "LU-sNq_iconIdle",
-			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
 			"chevron": "LU-sNq_chevron",
+			"chevronHover": "LU-sNq_chevronHover",
+			"dsh-skill-row-sweep": "LU-sNq_dsh-skill-row-sweep",
 			"errorSummary": "LU-sNq_errorSummary",
+			"iconIdle": "LU-sNq_iconIdle",
+			"inspectButton": "LU-sNq_inspectButton",
+			"instructions": "LU-sNq_instructions",
 			"instructionsCard": "LU-sNq_instructionsCard",
-			"summary": "LU-sNq_summary"
+			"instructionsHeader": "LU-sNq_instructionsHeader",
+			"leading": "LU-sNq_leading",
+			"row": "LU-sNq_row",
+			"separator": "LU-sNq_separator",
+			"summary": "LU-sNq_summary",
+			"title": "LU-sNq_title",
+			"visuallyHidden": "LU-sNq_visuallyHidden"
 		};
 		//#endregion
 		//#region lib/types/client/SkillRow.js

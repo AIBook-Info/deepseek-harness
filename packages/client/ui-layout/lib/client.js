@@ -63,11 +63,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AppFrame_module_css_default = {
+			"centerCol": "eOCkAG_centerCol",
+			"detailsCol": "eOCkAG_detailsCol",
+			"frame": "eOCkAG_frame",
 			"handle": "eOCkAG_handle",
 			"overlayLayer": "eOCkAG_overlayLayer",
-			"detailsCol": "eOCkAG_detailsCol",
-			"centerCol": "eOCkAG_centerCol",
-			"frame": "eOCkAG_frame",
 			"sidebarCol": "eOCkAG_sidebarCol"
 		};
 		//#endregion

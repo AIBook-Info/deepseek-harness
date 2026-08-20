@@ -150,15 +150,13 @@ window.__ModuleLoader__.load({
 			const status = entry?.status;
 			const open = entry?.open === true;
 			const error = status === "error" ? entry?.error || t("dialog.commandFailed") : null;
-			const title = status === "downloading" ? t("dialog.preparingTitle") : status === "success" ? t("dialog.successTitle") : t("dialog.errorTitle");
-			const description = status === "downloading" ? t("dialog.preparingDescription") : status === "success" ? t("dialog.successDescription") : error ?? t("dialog.commandFailed");
 			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Modal, {
 				open,
 				onClose: () => {
 					dismiss(sessionId);
 				},
-				title,
-				description,
+				title: status === "downloading" ? t("dialog.preparingTitle") : status === "success" ? t("dialog.successTitle") : t("dialog.errorTitle"),
+				description: status === "downloading" ? t("dialog.preparingDescription") : status === "success" ? t("dialog.successDescription") : error ?? t("dialog.commandFailed"),
 				closeLabel: t("dialog.close"),
 				footer: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 					variant: "primary",

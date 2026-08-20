@@ -20,17 +20,17 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var fields_module_css_default = {
-			"label": "xdk53a_label",
-			"input": "xdk53a_input",
-			"badgeMuted": "xdk53a_badgeMuted",
-			"invalid": "xdk53a_invalid",
-			"hint": "xdk53a_hint",
-			"head": "xdk53a_head",
 			"badge": "xdk53a_badge",
+			"badgeMuted": "xdk53a_badgeMuted",
+			"badges": "xdk53a_badges",
 			"field": "xdk53a_field",
-			"reset": "xdk53a_reset",
+			"head": "xdk53a_head",
+			"hint": "xdk53a_hint",
+			"input": "xdk53a_input",
 			"inputInvalid": "xdk53a_inputInvalid",
-			"badges": "xdk53a_badges"
+			"invalid": "xdk53a_invalid",
+			"label": "xdk53a_label",
+			"reset": "xdk53a_reset"
 		};
 		//#endregion
 		//#region lib/types/client/fields.js
@@ -162,21 +162,21 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PluginCard_module_css_default = {
-			"header": "pZRj2G_header",
-			"footer": "pZRj2G_footer",
-			"save": "pZRj2G_save",
-			"cardOpen": "pZRj2G_cardOpen",
 			"body": "pZRj2G_body",
+			"card": "pZRj2G_card",
+			"cardOpen": "pZRj2G_cardOpen",
+			"chevron": "pZRj2G_chevron",
 			"chevronOpen": "pZRj2G_chevronOpen",
 			"description": "pZRj2G_description",
-			"chevron": "pZRj2G_chevron",
-			"pending": "pZRj2G_pending",
 			"discard": "pZRj2G_discard",
-			"readOnly": "pZRj2G_readOnly",
 			"failed": "pZRj2G_failed",
-			"name": "pZRj2G_name",
+			"footer": "pZRj2G_footer",
 			"headText": "pZRj2G_headText",
-			"card": "pZRj2G_card"
+			"header": "pZRj2G_header",
+			"name": "pZRj2G_name",
+			"pending": "pZRj2G_pending",
+			"readOnly": "pZRj2G_readOnly",
+			"save": "pZRj2G_save"
 		};
 		//#endregion
 		//#region lib/types/client/PluginCard.js
@@ -371,26 +371,41 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PluginsSettingsSection_module_css_default = {
-			"section": "N4_Vbq_section",
-			"panel": "N4_Vbq_panel",
-			"intro": "N4_Vbq_intro",
-			"tabs": "N4_Vbq_tabs",
-			"heading": "N4_Vbq_heading",
 			"cards": "N4_Vbq_cards",
+			"empty": "N4_Vbq_empty",
+			"heading": "N4_Vbq_heading",
+			"intro": "N4_Vbq_intro",
+			"panel": "N4_Vbq_panel",
+			"section": "N4_Vbq_section",
 			"tab": "N4_Vbq_tab",
-			"empty": "N4_Vbq_empty"
+			"tabs": "N4_Vbq_tabs"
 		};
 		//#endregion
 		//#region lib/types/client/ConfigurablePluginsTab.js
-		/** Render cards registered by plugins that expose editable settings. */
-		function ConfigurablePluginsTab({ t, renderSlot, cardCount }) {
-			return cardCount === 0 ? (0, react_jsx_runtime.jsx)("p", {
+		/**
+		* Configurable Host plugins contributed to the shared Plugins section.
+		*
+		* The tab enumerates settings namespaces but never interprets one — a card
+		* arrives through `settings.plugin.item` keyed by the namespace it edits, so a
+		* plugin that ships a browser half owns its own card and this tab only decides
+		* which keys to dispatch.
+		*/
+		/**
+		* Render cards registered by plugins that expose editable settings.
+		* @param props - locale copy, slot rendering, and the namespaces to dispatch.
+		* @returns the card list, or the empty line once the Host has answered.
+		*/
+		function ConfigurablePluginsTab(props) {
+			const { t, renderSlot } = props;
+			const { loaded, namespaces } = props.useConfigurablePlugins((snapshot) => snapshot);
+			if (namespaces.length > 0) return (0, react_jsx_runtime.jsx)("ul", {
+				className: PluginsSettingsSection_module_css_default.cards,
+				children: namespaces.map((ns) => (0, react_jsx_runtime.jsx)(react.Fragment, { children: renderSlot("settings.plugin.item", {}, { entryKey: ns }) }, ns))
+			});
+			return loaded ? (0, react_jsx_runtime.jsx)("p", {
 				className: PluginsSettingsSection_module_css_default.empty,
 				children: t("empty")
-			}) : (0, react_jsx_runtime.jsx)("ul", {
-				className: PluginsSettingsSection_module_css_default.cards,
-				children: renderSlot("settings.plugin.item", {})
-			});
+			}) : null;
 		}
 		//#endregion
 		//#region lib/types/client/PluginsSettingsSection.js
@@ -407,7 +422,7 @@ window.__ModuleLoader__.load({
 				if (active === void 0) return;
 				setVisitedIds((previous) => {
 					if (previous.has(active)) return previous;
-					return /* @__PURE__ */ new Set([...previous, active]);
+					return new Set([...previous, active]);
 				});
 			}, [active]);
 			return (0, react_jsx_runtime.jsxs)("div", {
@@ -893,6 +908,74 @@ window.__ModuleLoader__.load({
 			}
 		};
 		//#endregion
+		//#region lib/types/client/tab-store.js
+		/**
+		* The configurable-plugins tab's card list.
+		*
+		* The tab dispatches its slot by settings namespace, so what it renders is
+		* the intersection of two ledgers: the namespaces the Host serves and the
+		* cards registered into `settings.plugin.item`. A served namespace no card
+		* claims renders nothing — another surface owns it, or this deployment ships
+		* no browser half for it — and a card whose namespace the Host does not serve
+		* is never dispatched, so a plugin this deployment did not compose leaves no
+		* trace and does not count toward the empty line.
+		*/
+		/** Derives the served namespaces from the shared describe mirror and pairs them with the cards that claim them. */
+		var ConfigurablePluginsTabController = class {
+			describeFace;
+			entries;
+			store = (0, _deepseek_ai_dsh_client_runtime_client.createSnapshotStore)({
+				loaded: false,
+				namespaces: []
+			});
+			disposed = false;
+			unsubscribe;
+			/**
+			* @param describeFace - the shared mirror's describe face; its refreshes
+			* (document commits, reconnects) are what keep the served set current.
+			* @param entries - reads the cards currently registered into the section's slot.
+			*/
+			constructor(describeFace, entries) {
+				this.describeFace = describeFace;
+				this.entries = entries;
+				this.unsubscribe = describeFace.subscribe(() => {
+					this.publish();
+				});
+				describeFace.ensure();
+				this.publish();
+			}
+			/** Republish after the slot ledger changed; a card registered late joins here. */
+			refresh() {
+				if (this.disposed) return;
+				this.publish();
+			}
+			/** Stop publishing and stop following the mirror. */
+			dispose() {
+				this.disposed = true;
+				this.unsubscribe();
+			}
+			/**
+			* Build the face the tab's slot registration injects.
+			* @returns the tab's snapshot source.
+			*/
+			inject() {
+				return { hooks: { configurablePlugins: this.store } };
+			}
+			publish() {
+				if (this.disposed) return;
+				const mirrored = this.describeFace.getSnapshot();
+				const loaded = mirrored.view !== void 0;
+				const served = new Set(mirrored.view?.namespaces.map((view) => view.ns) ?? []);
+				const namespaces = this.entries().flatMap((entry) => entry.options.key !== void 0 && served.has(entry.options.key) ? [entry.options.key] : []);
+				const previous = this.store.getSnapshot();
+				if (previous.loaded === loaded && previous.namespaces.length === namespaces.length && previous.namespaces.every((ns, index) => ns === namespaces[index])) return;
+				this.store.set({
+					loaded,
+					namespaces
+				});
+			}
+		};
+		//#endregion
 		//#region lib/types/client/web-search-card-controller.js
 		/**
 		* The web-search card's staged form over the `web-search-deepseek` settings
@@ -1155,6 +1238,13 @@ window.__ModuleLoader__.load({
 			ctx.effect(() => ctx.remote.$on("credentials/updated", (ref) => {
 				webSearch.refreshCredential(ref);
 			}), "ui-settings-plugins: credential invalidations");
+			const configurable = new ConfigurablePluginsTabController(ctx.settingsScope.describe(), () => ctx.slots.entries("settings.plugin.item"));
+			ctx.effect(() => () => {
+				configurable.dispose();
+			}, "ui-settings-plugins: tab directory");
+			ctx.effect(() => ctx.slots.subscribe("settings.plugin.item", () => {
+				configurable.refresh();
+			}), "ui-settings-plugins: card ledger");
 			let tabsVersion = -1;
 			let tabsRevision = -1;
 			let tabs = [];
@@ -1201,31 +1291,28 @@ window.__ModuleLoader__.load({
 				order: 0,
 				label: () => t("configurableTab"),
 				locale: NS,
-				inject: () => ({ cardCount: ctx.slots.entries("settings.plugin.item").length }),
+				inject: () => configurable.inject(),
 				children: { "settings.plugin.item": {
-					kind: "list",
+					kind: "keyed",
 					scope: "root"
 				} }
 			}, ConfigurablePluginsTab));
 			ctx.slots.inject("settings.plugin.item", function* () {
 				yield ctx.slots.register({
 					name: "settings.plugin.item",
-					id: "bash",
-					order: 0,
+					key: SHELL_NS,
 					locale: NS,
 					inject: () => bash.inject()
 				}, BashCard);
 				yield ctx.slots.register({
 					name: "settings.plugin.item",
-					id: "agent-loop",
-					order: 10,
+					key: AGENT_LOOP_NS,
 					locale: NS,
 					inject: () => agentLoop.inject()
 				}, AgentLoopCard);
 				yield ctx.slots.register({
 					name: "settings.plugin.item",
-					id: "web-search",
-					order: 20,
+					key: WEB_SEARCH_NS,
 					locale: NS,
 					inject: () => webSearch.inject()
 				}, WebSearchCard);

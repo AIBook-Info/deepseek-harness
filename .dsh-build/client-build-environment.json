@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "environment": {
+    "DSH_CLIENT_COMMIT_HASH": "d873e35"
+  },
+  "artifacts": {
+    "fileCount": 200,
+    "sha256": "0100fce95c93f88404b466bb29e921eb3371a72ba8aac500692f25ed8589d36d"
+  }
+}

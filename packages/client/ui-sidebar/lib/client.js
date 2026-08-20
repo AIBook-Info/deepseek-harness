@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-sidebar\src\client\SidebarRoot.module.css.mjs
-		const css = ".f-XTJG_root{--dsh-sidebar-inline-padding:12px;height:100%;padding:6px var(--dsh-sidebar-inline-padding);box-sizing:border-box;background:var(--dsw-specific-sidebar-fill);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);flex-direction:column;font-size:14px;display:flex}.f-XTJG_root.f-XTJG_collapsed{padding:18px 10px 6px}.f-XTJG_root.f-XTJG_quietBars{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:transparent}.f-XTJG_fading>*{opacity:0;transition:opacity .15s var(--ds-ease-in-out)}.f-XTJG_wide{animation:f-XTJG_wide-in .2s var(--ds-ease-in-out)}@keyframes f-XTJG_wide-in{0%{opacity:0}}.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_regionArea{animation:f-XTJG_rail-in .15s var(--ds-ease-in-out) backwards}.f-XTJG_railIn .f-XTJG_footArea{animation:f-XTJG_rail-fade-in .15s var(--ds-ease-in-out) backwards}@keyframes f-XTJG_rail-in{0%{opacity:0;transform:translate(49px)}}@keyframes f-XTJG_rail-fade-in{0%{opacity:0}}.f-XTJG_logoRow{box-sizing:border-box;flex:none;justify-content:flex-end;align-items:center;gap:8px;height:60px;margin-bottom:8px;padding:8px 0 8px 4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_logoRow{justify-content:flex-start;height:36px;margin-bottom:12px;padding:0}.f-XTJG_brand{min-width:0;color:inherit;cursor:pointer;background:0 0;border:none;flex:1;align-items:center;padding:0;display:inline-flex;overflow:hidden}.f-XTJG_iconButton{cursor:pointer;width:28px;height:28px;color:var(--dsw-alias-label-secondary);background:0 0;border:none;border-radius:50%;flex:none;justify-content:center;align-items:center;padding:0;display:inline-flex}.f-XTJG_iconButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_collapsed .f-XTJG_iconButton{width:36px;height:36px}.f-XTJG_collapsed .f-XTJG_toggle .f-XTJG_panelIcon{display:none}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_panelIcon{display:inline}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_railFish{display:none}.f-XTJG_collapsed .f-XTJG_iconButton{color:var(--dsw-alias-label-primary)}.f-XTJG_newSession{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-button-elevated-fill);height:38px;color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:12px;flex:none;justify-content:center;align-items:center;gap:6px;margin:0 2px 8px;padding:8px 16px;font-size:14px;font-weight:500;line-height:22px;display:flex;overflow:hidden}.f-XTJG_newSession:hover{background:var(--dsw-alias-button-floating-hover)}.f-XTJG_collapsed .f-XTJG_newSession{background:0 0;border-color:#0000;align-self:flex-start;gap:0;width:36px;height:36px;margin:0 0 12px;padding:0}.f-XTJG_collapsed .f-XTJG_newSession:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_newSessionLabel{white-space:nowrap;max-width:200px;overflow:hidden}.f-XTJG_collapsed .f-XTJG_newSessionLabel{max-width:0}.f-XTJG_regionArea{min-height:0;margin-left:-4px;margin-right:calc(-1 * var(--dsh-sidebar-inline-padding));flex-direction:column;flex:1;padding-left:4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_regionArea{margin-left:0;margin-right:0;padding-left:0}.f-XTJG_footArea{flex-direction:column;flex:none;display:flex}.f-XTJG_settingsArea,.f-XTJG_footerActions{flex:none;width:100%;min-width:0}.f-XTJG_footerActions{display:flex}.f-XTJG_collapsed .f-XTJG_footArea{align-items:center}.f-XTJG_collapsed .f-XTJG_settingsArea,.f-XTJG_collapsed .f-XTJG_footerActions{justify-content:center;width:auto;display:flex}@media (prefers-reduced-motion:reduce){.f-XTJG_wide,.f-XTJG_fading>*,.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_footArea,.f-XTJG_railIn .f-XTJG_regionArea{transition:none;animation:none}}";
+		const css = ".f-XTJG_root{--dsh-sidebar-inline-padding:12px;height:100%;padding:6px var(--dsh-sidebar-inline-padding);box-sizing:border-box;background:var(--dsw-specific-sidebar-fill);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);flex-direction:column;font-size:14px;display:flex}.f-XTJG_root.f-XTJG_collapsed{padding:18px 10px 6px}.f-XTJG_root.f-XTJG_quietBars{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:transparent}.f-XTJG_fading>*{opacity:0;transition:opacity .15s var(--ds-ease-in-out)}.f-XTJG_wide{animation:f-XTJG_wide-in .2s var(--ds-ease-in-out)}@keyframes f-XTJG_wide-in{0%{opacity:0}}.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_regionArea{animation:f-XTJG_rail-in .15s var(--ds-ease-in-out) backwards}.f-XTJG_railIn .f-XTJG_footArea{animation:f-XTJG_rail-fade-in .15s var(--ds-ease-in-out) backwards}@keyframes f-XTJG_rail-in{0%{opacity:0;transform:translate(49px)}}@keyframes f-XTJG_rail-fade-in{0%{opacity:0}}.f-XTJG_logoRow{box-sizing:border-box;flex:none;justify-content:flex-end;align-items:center;gap:8px;height:60px;margin-bottom:8px;padding:8px 0 8px 4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_logoRow{justify-content:flex-start;height:36px;margin-bottom:12px;padding:0}.f-XTJG_brand{min-width:0;color:inherit;cursor:pointer;background:0 0;border:none;flex:1;align-items:center;padding:0;display:inline-flex;overflow:hidden}.f-XTJG_brandIdentity{align-items:center;gap:8px;min-width:0;height:24px;display:inline-flex}.f-XTJG_brandMark{flex:none;justify-content:center;align-items:center;display:inline-flex}.f-XTJG_brandName{letter-spacing:.04em;align-items:center;gap:6px;min-width:0;height:24px;font-size:18px;font-weight:600;line-height:24px;display:inline-flex}.f-XTJG_fallbackBrandName{letter-spacing:0;white-space:nowrap;font-size:17px}.f-XTJG_iconButton{cursor:pointer;width:28px;height:28px;color:var(--dsw-alias-label-secondary);background:0 0;border:none;border-radius:50%;flex:none;justify-content:center;align-items:center;padding:0;display:inline-flex}.f-XTJG_iconButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_collapsed .f-XTJG_iconButton{width:36px;height:36px}.f-XTJG_collapsed .f-XTJG_toggle .f-XTJG_panelIcon{display:none}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_panelIcon{display:inline}.f-XTJG_collapsed .f-XTJG_toggle:hover .f-XTJG_railMark{display:none}.f-XTJG_railMark{justify-content:center;align-items:center;display:inline-flex}.f-XTJG_collapsed .f-XTJG_iconButton{color:var(--dsw-alias-label-primary)}.f-XTJG_buildRevision{height:16px;color:var(--dsw-alias-label-primary-inverted);background:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code);border-radius:3px;align-items:center;padding:0 4px;font-size:8px;font-weight:500;line-height:16px;display:inline-flex}.f-XTJG_newSession{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-button-elevated-fill);height:38px;color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:12px;flex:none;justify-content:center;align-items:center;gap:6px;margin:0 2px 8px;padding:8px 16px;font-size:14px;font-weight:500;line-height:22px;display:flex;overflow:hidden}.f-XTJG_newSession:hover{background:var(--dsw-alias-button-floating-hover)}.f-XTJG_collapsed .f-XTJG_newSession{background:0 0;border-color:#0000;align-self:flex-start;gap:0;width:36px;height:36px;margin:0 0 12px;padding:0}.f-XTJG_collapsed .f-XTJG_newSession:hover{background:var(--dsw-alias-interactive-bg-hover)}.f-XTJG_newSessionLabel{white-space:nowrap;max-width:200px;overflow:hidden}.f-XTJG_collapsed .f-XTJG_newSessionLabel{max-width:0}.f-XTJG_regionArea{min-height:0;margin-left:-4px;margin-right:calc(-1 * var(--dsh-sidebar-inline-padding));flex-direction:column;flex:1;padding-left:4px;display:flex;overflow:hidden}.f-XTJG_collapsed .f-XTJG_regionArea{margin-left:0;margin-right:0;padding-left:0}.f-XTJG_footArea{flex-direction:column;flex:none;display:flex}.f-XTJG_settingsArea,.f-XTJG_footerActions{flex:none;width:100%;min-width:0}.f-XTJG_footerActions{display:flex}.f-XTJG_collapsed .f-XTJG_footArea{align-items:center}.f-XTJG_collapsed .f-XTJG_settingsArea,.f-XTJG_collapsed .f-XTJG_footerActions{justify-content:center;width:auto;display:flex}@media (prefers-reduced-motion:reduce){.f-XTJG_wide,.f-XTJG_fading>*,.f-XTJG_railIn .f-XTJG_iconButton,.f-XTJG_railIn .f-XTJG_newSession,.f-XTJG_railIn .f-XTJG_footArea,.f-XTJG_railIn .f-XTJG_regionArea{transition:none;animation:none}}";
 		const tagId = "@deepseek-ai/dsh-client-ui-sidebar/SidebarRoot.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -33,27 +33,32 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SidebarRoot_module_css_default = {
-			"quietBars": "f-XTJG_quietBars",
+			"brand": "f-XTJG_brand",
+			"brandIdentity": "f-XTJG_brandIdentity",
+			"brandMark": "f-XTJG_brandMark",
+			"brandName": "f-XTJG_brandName",
+			"buildRevision": "f-XTJG_buildRevision",
+			"collapsed": "f-XTJG_collapsed",
 			"fading": "f-XTJG_fading",
+			"fallbackBrandName": "f-XTJG_fallbackBrandName",
+			"footArea": "f-XTJG_footArea",
+			"footerActions": "f-XTJG_footerActions",
 			"iconButton": "f-XTJG_iconButton",
-			"settingsArea": "f-XTJG_settingsArea",
+			"logoRow": "f-XTJG_logoRow",
+			"newSession": "f-XTJG_newSession",
 			"newSessionLabel": "f-XTJG_newSessionLabel",
 			"panelIcon": "f-XTJG_panelIcon",
-			"railFish": "f-XTJG_railFish",
-			"footerActions": "f-XTJG_footerActions",
-			"collapsed": "f-XTJG_collapsed",
-			"rail-in": "f-XTJG_rail-in",
-			"wide-in": "f-XTJG_wide-in",
-			"newSession": "f-XTJG_newSession",
-			"railIn": "f-XTJG_railIn",
-			"logoRow": "f-XTJG_logoRow",
-			"toggle": "f-XTJG_toggle",
+			"quietBars": "f-XTJG_quietBars",
 			"rail-fade-in": "f-XTJG_rail-fade-in",
-			"footArea": "f-XTJG_footArea",
-			"root": "f-XTJG_root",
+			"rail-in": "f-XTJG_rail-in",
+			"railIn": "f-XTJG_railIn",
+			"railMark": "f-XTJG_railMark",
 			"regionArea": "f-XTJG_regionArea",
+			"root": "f-XTJG_root",
+			"settingsArea": "f-XTJG_settingsArea",
+			"toggle": "f-XTJG_toggle",
 			"wide": "f-XTJG_wide",
-			"brand": "f-XTJG_brand"
+			"wide-in": "f-XTJG_wide-in"
 		};
 		//#endregion
 		//#region lib/types/client/SidebarRoot.js
@@ -157,7 +162,23 @@ window.__ModuleLoader__.load({
 							onClick: () => {
 								startSession();
 							},
-							children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.BrandWordmark, {})
+							children: (0, react_jsx_runtime.jsxs)("span", {
+								className: SidebarRoot_module_css_default.brandIdentity,
+								"aria-hidden": "true",
+								children: [(0, react_jsx_runtime.jsx)("span", {
+									className: SidebarRoot_module_css_default.brandMark,
+									children: renderSlot("sidebar.brand.mark", { size: 24 }, { fallback: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.FishLogo, { size: 24 }) })
+								}), (0, react_jsx_runtime.jsx)("span", {
+									className: SidebarRoot_module_css_default.brandName,
+									children: renderSlot("sidebar.brand.name", {}, { fallback: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [(0, react_jsx_runtime.jsx)("span", {
+										className: SidebarRoot_module_css_default.fallbackBrandName,
+										children: "DSH Local Build"
+									}), (0, react_jsx_runtime.jsx)("span", {
+										className: SidebarRoot_module_css_default.buildRevision,
+										children: "d873e35"
+									})] }) })
+								})]
+							})
 						}), (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
 							label: collapsed ? t("toggle.open") : t("toggle.collapse"),
 							delayMs: 500,
@@ -168,9 +189,10 @@ window.__ModuleLoader__.load({
 								onClick: () => {
 									toggleSidebar();
 								},
-								children: [!wide && (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.FishLogo, {
-									className: SidebarRoot_module_css_default.railFish,
-									size: 24
+								children: [!wide && (0, react_jsx_runtime.jsx)("span", {
+									className: SidebarRoot_module_css_default.railMark,
+									"aria-hidden": "true",
+									children: renderSlot("sidebar.brand.mark", { size: 24 }, { fallback: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.FishLogo, { size: 24 }) })
 								}), (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPanelLeftOutline16, {
 									className: SidebarRoot_module_css_default.panelIcon,
 									size: wide ? 16 : 18
@@ -266,6 +288,14 @@ window.__ModuleLoader__.load({
 				name: "sidebar",
 				locale: NS,
 				children: {
+					"sidebar.brand.mark": {
+						kind: "single",
+						scope: "root"
+					},
+					"sidebar.brand.name": {
+						kind: "single",
+						scope: "root"
+					},
 					"sidebar.workspaces": {
 						kind: "single",
 						scope: "root"

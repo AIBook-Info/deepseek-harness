@@ -123,7 +123,7 @@ window.__ModuleLoader__.load({
 					if (descriptor.invocation.kind === "direct") add(direct, descriptor, "direct");
 					if (scopedProjection(descriptor) !== void 0) add(scoped, descriptor, "scoped");
 				}
-				const namespaces = /* @__PURE__ */ new Set([...direct.keys(), ...scoped.keys()]);
+				const namespaces = new Set([...direct.keys(), ...scoped.keys()]);
 				for (const namespace of namespaces) {
 					const service = this.namespaces.get(namespace)?.service;
 					if (service === void 0) {
@@ -131,7 +131,7 @@ window.__ModuleLoader__.load({
 						const serviceKey = remoteServiceKey(namespace);
 						if (this.ownerCtx.reflect.props[serviceKey]?.type === "accessor" || this.ownerCtx.get(serviceKey) !== void 0) throw new Error(`client api: namespace ${JSON.stringify(namespace)} conflicts with an existing Remote namespace`);
 					}
-					for (const method of /* @__PURE__ */ new Set([...direct.get(namespace) ?? [], ...scoped.get(namespace) ?? []])) if (service === void 0) RemoteNamespaceService.assertMethodAvailable(namespace, method);
+					for (const method of new Set([...direct.get(namespace) ?? [], ...scoped.get(namespace) ?? []])) if (service === void 0) RemoteNamespaceService.assertMethodAvailable(namespace, method);
 					else service.assertMethodAvailable(method);
 				}
 			}
@@ -339,7 +339,7 @@ window.__ModuleLoader__.load({
 				Reflect.deleteProperty(this, method);
 			}
 		};
-		const REMOTE_NAMESPACE_FIELDS = /* @__PURE__ */ new Set([
+		const REMOTE_NAMESPACE_FIELDS = new Set([
 			"ctx",
 			"empty",
 			"invokeRemote",

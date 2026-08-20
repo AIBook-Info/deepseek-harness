@@ -1,13 +1,31 @@
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import clsx from "clsx";
+import css from "./StateDot.module.css";
+import css$1 from "./DisclosureRow.module.css";
+import css$2 from "./Button.module.css";
+import css$3 from "./Pill.module.css";
+import css$4 from "./Input.module.css";
 import { Fragment as Fragment$1, cloneElement, createElement, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import css$5 from "./Menu.module.css";
+import css$6 from "./HoverCard.module.css";
+import css$7 from "./Modal.module.css";
+import css$8 from "./OnboardingSurface.module.css";
+import css$9 from "./RiskConfirmation.module.css";
+import css$10 from "./ConnectionBanner.module.css";
+import css$11 from "./Tooltip.module.css";
+import css$12 from "./Toast.module.css";
+import css$13 from "./JsonTree.module.css";
 import Anser from "anser";
+import css$14 from "./TerminalBlock.module.css";
 import { createCssVariablesTheme, createHighlighterCoreSync } from "shiki/core";
 import { createJavaScriptRegexEngine, defaultJavaScriptRegexConstructor } from "shiki/engine/javascript";
 import langTs from "@shikijs/langs/typescript";
 import langBash from "@shikijs/langs/shellscript";
 import langJson from "@shikijs/langs/json";
+import css$15 from "./ReadBlock.module.css";
+import css$16 from "./DiffBlock.module.css";
+import css$17 from "./SearchBlock.module.css";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
 import { mathFromMarkdown } from "mdast-util-math";
@@ -19,11 +37,13 @@ import { classifyCharacter } from "micromark-util-classify-character";
 import { codes, constants, types } from "micromark-util-symbol";
 import { factorySpace } from "micromark-factory-space";
 import { normalizeUri } from "micromark-util-sanitize-uri";
+import css$18 from "./markdown/CodeBlock.module.css";
 import katex from "katex";
+import css$19 from "./markdown/MarkdownText.module.css";
 import "katex/dist/katex.min.css";
-//#region \0dsh-css-stub:./StateDot.module.css.mjs
-var StateDot_module_css_default = {};
-//#endregion
+import css$20 from "./WebBlock.module.css";
+import css$21 from "./markdown/JsonBlock.module.css";
+import css$22 from "./markdown/MessageText.module.css";
 //#region lib/types/StateDot.js
 /** Outer 3x3 matrix cells (2px pixels on a 10px grid), clockwise from top-left. */
 const MATRIX_CELLS = [
@@ -45,7 +65,7 @@ const MATRIX_CELLS = [
 */
 function StateDot({ state, size = 10, className }) {
 	if (state === "ongoing") return jsx("svg", {
-		className: clsx(StateDot_module_css_default.matrix, className),
+		className: clsx(css.matrix, className),
 		"data-state": "ongoing",
 		width: size,
 		height: size,
@@ -53,7 +73,7 @@ function StateDot({ state, size = 10, className }) {
 		shapeRendering: "crispEdges",
 		"aria-hidden": "true",
 		children: MATRIX_CELLS.map(([x, y], index) => jsx("rect", {
-			className: StateDot_module_css_default.cell,
+			className: css.cell,
 			x,
 			y,
 			width: "2",
@@ -62,7 +82,7 @@ function StateDot({ state, size = 10, className }) {
 		}, `${x}-${y}`))
 	});
 	return jsx("span", {
-		className: clsx(StateDot_module_css_default.dot, className),
+		className: clsx(css.dot, className),
 		"data-state": state,
 		style: {
 			width: size,
@@ -1319,9 +1339,6 @@ const IconArchiveOutline20 = ({ size = 20, className }) => jsxs("svg", {
 	})]
 });
 //#endregion
-//#region \0dsh-css-stub:./DisclosureRow.module.css.mjs
-var DisclosureRow_module_css_default = {};
-//#endregion
 //#region lib/types/DisclosureRow.js
 /**
 * Render one disclosure header and its controlled expanded content.
@@ -1340,15 +1357,15 @@ function DisclosureRow({ icon, title, open, expandable, onToggle, expandOnRowCli
 		onToggle();
 	};
 	const collapsedLeading = previewChevron ? jsxs(Fragment, { children: [jsx("span", {
-		className: DisclosureRow_module_css_default.iconIdle,
+		className: css$1.iconIdle,
 		children: icon
-	}), jsx(IconChevronDownOutline14, { className: clsx(chevronClassName, DisclosureRow_module_css_default.chevronHover) })] }) : icon;
+	}), jsx(IconChevronDownOutline14, { className: clsx(chevronClassName, css$1.chevronHover) })] }) : icon;
 	const leading = open ? jsx(IconChevronDownOutline14, { className: chevronClassName }) : collapsedLeading;
 	return jsxs("div", {
-		className: clsx(DisclosureRow_module_css_default.root, className),
+		className: clsx(css$1.root, className),
 		"data-open": open || void 0,
 		children: [jsxs("div", {
-			className: clsx(DisclosureRow_module_css_default.row, rowClassName),
+			className: clsx(css$1.row, rowClassName),
 			"data-disclosure-row": true,
 			"data-expandable": rowExpands || void 0,
 			role: rowExpands ? "button" : void 0,
@@ -1359,16 +1376,16 @@ function DisclosureRow({ icon, title, open, expandable, onToggle, expandOnRowCli
 			children: [
 				expandable && !rowExpands ? jsx("button", {
 					type: "button",
-					className: clsx(DisclosureRow_module_css_default.leading, leadingClassName),
+					className: clsx(css$1.leading, leadingClassName),
 					"aria-expanded": open,
 					onClick: toggleFromLeading,
 					children: leading
 				}) : jsx("span", {
-					className: clsx(DisclosureRow_module_css_default.leading, leadingClassName),
+					className: clsx(css$1.leading, leadingClassName),
 					children: leading
 				}),
 				jsx("span", {
-					className: clsx(DisclosureRow_module_css_default.title, titleClassName),
+					className: clsx(css$1.title, titleClassName),
 					children: title
 				}),
 				(keepContentWhenOpen || !open) && collapsedContent
@@ -1376,9 +1393,6 @@ function DisclosureRow({ icon, title, open, expandable, onToggle, expandOnRowCli
 		}), open && children]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./Button.module.css.mjs
-var Button_module_css_default = {};
 //#endregion
 //#region lib/types/Button.js
 /**
@@ -1391,17 +1405,14 @@ var Button_module_css_default = {};
 function Button({ variant = "ghost", size = "md", icon, className, children, ...rest }) {
 	return jsxs("button", {
 		type: "button",
-		className: clsx(Button_module_css_default.button, Button_module_css_default[variant], Button_module_css_default[size], className),
+		className: clsx(css$2.button, css$2[variant], css$2[size], className),
 		...rest,
 		children: [icon != null && jsx("span", {
-			className: Button_module_css_default.icon,
+			className: css$2.icon,
 			children: icon
 		}), children]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./Pill.module.css.mjs
-var Pill_module_css_default = {};
 //#endregion
 //#region lib/types/Pill.js
 /**
@@ -1412,20 +1423,17 @@ var Pill_module_css_default = {};
 */
 function Pill({ active = false, className, children, onClick, ...rest }) {
 	if (!onClick) return jsx("span", {
-		className: clsx(Pill_module_css_default.pill, active && Pill_module_css_default.active, className),
+		className: clsx(css$3.pill, active && css$3.active, className),
 		children
 	});
 	return jsx("button", {
 		type: "button",
-		className: clsx(Pill_module_css_default.pill, Pill_module_css_default.interactive, active && Pill_module_css_default.active, className),
+		className: clsx(css$3.pill, css$3.interactive, active && css$3.active, className),
 		onClick,
 		...rest,
 		children
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./Input.module.css.mjs
-var Input_module_css_default = {};
 //#endregion
 //#region lib/types/Input.js
 /**
@@ -1435,12 +1443,12 @@ var Input_module_css_default = {};
 */
 function Input({ icon, className, ...rest }) {
 	return jsxs("span", {
-		className: clsx(Input_module_css_default.wrap, className),
+		className: clsx(css$4.wrap, className),
 		children: [icon != null && jsx("span", {
-			className: Input_module_css_default.icon,
+			className: css$4.icon,
 			children: icon
 		}), jsx("input", {
-			className: Input_module_css_default.input,
+			className: css$4.input,
 			...rest
 		})]
 	});
@@ -1474,9 +1482,6 @@ function usePointerGrace(close) {
 		cancel
 	};
 }
-//#endregion
-//#region \0dsh-css-stub:./Menu.module.css.mjs
-var Menu_module_css_default = {};
 //#endregion
 //#region lib/types/Menu.js
 function isSeparator(entry) {
@@ -1606,11 +1611,11 @@ function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose,
 	const scrollable = !items.some((entry) => !isSeparator(entry) && !isLabel(entry) && entry.submenu !== void 0 && entry.submenu.length > 0);
 	const renderEntry = (entry) => {
 		if (isSeparator(entry)) return jsx("div", {
-			className: Menu_module_css_default.separator,
+			className: css$5.separator,
 			role: "separator"
 		}, entry.id);
 		if (isLabel(entry)) return jsx("div", {
-			className: Menu_module_css_default.label,
+			className: css$5.label,
 			role: "presentation",
 			children: entry.text
 		}, entry.id);
@@ -1618,7 +1623,7 @@ function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose,
 		const subOpen = hasSub && openSubmenuId === entry.id;
 		const selected = entry.id === selectedId || selectedIds?.includes(entry.id) === true;
 		return jsxs("div", {
-			className: Menu_module_css_default.itemWrap,
+			className: css$5.itemWrap,
 			onMouseEnter: () => {
 				setOpenSubmenuId(hasSub ? entry.id : null);
 			},
@@ -1628,7 +1633,7 @@ function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose,
 			children: [jsxs("button", {
 				type: "button",
 				role: "menuitem",
-				className: clsx(Menu_module_css_default.item, selected && Menu_module_css_default.selected, entry.danger === true && Menu_module_css_default.danger),
+				className: clsx(css$5.item, selected && css$5.selected, entry.danger === true && css$5.danger),
 				disabled: entry.disabled,
 				"aria-haspopup": hasSub ? "menu" : void 0,
 				"aria-expanded": hasSub ? subOpen : void 0,
@@ -1644,31 +1649,31 @@ function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose,
 				},
 				children: [
 					entry.icon !== void 0 && jsx("span", {
-						className: Menu_module_css_default.itemIcon,
+						className: css$5.itemIcon,
 						children: entry.icon
 					}),
 					jsx("span", {
-						className: Menu_module_css_default.itemLabel,
+						className: css$5.itemLabel,
 						children: entry.label
 					}),
-					selected && jsx(IconCheckOutline16, { className: Menu_module_css_default.check })
+					selected && jsx(IconCheckOutline16, { className: css$5.check })
 				]
 			}), subOpen && entry.submenu !== void 0 && jsx("div", {
-				className: clsx(Menu_module_css_default.submenu, compact && Menu_module_css_default.compactList),
+				className: clsx(css$5.submenu, compact && css$5.compactList),
 				role: "menu",
 				children: entry.submenu.map((sub) => jsxs("button", {
 					type: "button",
 					role: "menuitem",
-					className: Menu_module_css_default.item,
+					className: css$5.item,
 					disabled: sub.disabled,
 					onClick: () => {
 						onSelect(sub.id);
 					},
 					children: [sub.icon !== void 0 && jsx("span", {
-						className: Menu_module_css_default.itemIcon,
+						className: css$5.itemIcon,
 						children: sub.icon
 					}), jsx("span", {
-						className: Menu_module_css_default.itemLabel,
+						className: css$5.itemLabel,
 						children: sub.label
 					})]
 				}, sub.id))
@@ -1677,25 +1682,25 @@ function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose,
 	};
 	const list = open && jsxs("div", {
 		ref: listRef,
-		className: clsx(Menu_module_css_default.list, dense && Menu_module_css_default.denseList, compact && Menu_module_css_default.compactList, scrollable && Menu_module_css_default.scrollable, portal && Menu_module_css_default.portal, side === "top" && !portal && Menu_module_css_default.sideTop, align === "end" && !portal && Menu_module_css_default.alignEnd),
+		className: clsx(css$5.list, dense && css$5.denseList, compact && css$5.compactList, scrollable && css$5.scrollable, portal && css$5.portal, side === "top" && !portal && css$5.sideTop, align === "end" && !portal && css$5.alignEnd),
 		style: portal ? fixedPos ?? MEASURE_STYLE : void 0,
 		role: "menu",
 		onClick: (e) => {
 			e.stopPropagation();
 		},
 		children: [jsx("div", {
-			className: Menu_module_css_default.viewport,
+			className: css$5.viewport,
 			role: "presentation",
 			children: items.map(renderEntry)
 		}), footer !== void 0 && footer.length > 0 && jsx("div", {
-			className: Menu_module_css_default.footer,
+			className: css$5.footer,
 			role: "presentation",
 			children: footer.map(renderEntry)
 		})]
 	});
 	return jsxs("span", {
 		ref: rootRef,
-		className: clsx(Menu_module_css_default.root, className),
+		className: clsx(css$5.root, className),
 		onPointerEnter: closeOnPointerLeave ? cancelClose : void 0,
 		onPointerLeave: closeOnPointerLeave ? () => {
 			if (open) armClose();
@@ -1744,6 +1749,102 @@ function useAnchoredMaxHeight(ref, cap, signal) {
 	return maxHeight;
 }
 //#endregion
+//#region lib/types/useAnchoredPosition.js
+/**
+* Keep a fixed-position floating element anchored to a trigger.
+*
+* A portaled panel is positioned from its anchor's viewport rect, which stops
+* being true the moment anything scrolls or the window resizes. This owns that
+* one concern: measure the anchor, offset the panel below it, clamp the result
+* inside the viewport, and re-run on scroll (capture phase, so scrollers nested
+* inside the page are caught too), on resize, and on the panel's own size
+* changes while the element is open.
+* @module @deepseek-ai/dsh-client-ui-primitives/useAnchoredPosition
+*/
+/**
+* Track an anchor and return the panel's fixed coordinates.
+* @param options - the open state, the two refs, and the gap/margin distances.
+* @returns `left`/`top` for the panel, or `null` before the first measurement.
+*/
+function useAnchoredPosition(options) {
+	const { open, anchorRef, panelRef, gap, margin } = options;
+	const [position, setPosition] = useState(null);
+	useLayoutEffect(() => {
+		if (!open) {
+			setPosition(null);
+			return;
+		}
+		const place = () => {
+			/* v8 ignore start -- geometry read from real layout: jsdom reports zero
+			offset sizes, so the positive-size clamp arms are exercised by browser
+			scenarios rather than unit tests. */
+			const rect = anchorRef.current?.getBoundingClientRect();
+			if (rect === void 0) return;
+			const panel = panelRef.current;
+			const width = panel?.offsetWidth ?? 0;
+			const height = panel?.offsetHeight ?? 0;
+			let left = rect.left;
+			let top = rect.bottom + gap;
+			if (width > 0) left = Math.min(Math.max(left, margin), window.innerWidth - width - margin);
+			if (height > 0) top = Math.min(Math.max(top, margin), window.innerHeight - height - margin);
+			/* v8 ignore stop */
+			setPosition({
+				left,
+				top
+			});
+		};
+		place();
+		window.addEventListener("scroll", place, true);
+		window.addEventListener("resize", place);
+		const panel = panelRef.current;
+		let observer = null;
+		if (typeof ResizeObserver !== "undefined" && panel !== null) {
+			observer = new ResizeObserver(place);
+			observer.observe(panel);
+		}
+		return () => {
+			observer?.disconnect();
+			window.removeEventListener("scroll", place, true);
+			window.removeEventListener("resize", place);
+		};
+	}, [
+		open,
+		anchorRef,
+		panelRef,
+		gap,
+		margin
+	]);
+	return position;
+}
+//#endregion
+//#region lib/types/useDismissOnOutsidePointer.js
+/**
+* Outside-pointer dismissal for trigger-owned popovers (jobs list, Cordis
+* panel): while the surface is open, a pointerdown outside the root closes it.
+*/
+/**
+* Close an open popover when a pointerdown lands outside its root element.
+* @param root - element containing both the trigger and the open surface.
+* @param open - whether the surface is showing; false detaches the listener.
+* @param setOpen - state setter invoked with false on an outside pointerdown.
+*/
+function useDismissOnOutsidePointer(root, open, setOpen) {
+	useEffect(() => {
+		if (!open) return;
+		const closeOutside = (event) => {
+			if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
+		};
+		document.addEventListener("pointerdown", closeOutside);
+		return () => {
+			document.removeEventListener("pointerdown", closeOutside);
+		};
+	}, [
+		root,
+		open,
+		setOpen
+	]);
+}
+//#endregion
 //#region lib/types/clipboard.js
 /**
 * Write text to the host clipboard, preferring the async Clipboard API and
@@ -1776,9 +1877,6 @@ async function writeClipboard(text) {
 		el.remove();
 	}
 }
-//#endregion
-//#region \0dsh-css-stub:./HoverCard.module.css.mjs
-var HoverCard_module_css_default = {};
 //#endregion
 //#region lib/types/HoverCard.js
 /**
@@ -1898,7 +1996,7 @@ function HoverCard({ anchor, content, openDelayMs = 500, disabled = false, copyT
 	const copyable = copyText !== void 0;
 	const card = open && pos !== null && jsx("div", {
 		ref: cardRef,
-		className: `${HoverCard_module_css_default.card}${copyable ? ` ${HoverCard_module_css_default.copyable}` : ""}${copied ? ` ${HoverCard_module_css_default.feedback}` : ""}`,
+		className: `${css$6.card}${copyable ? ` ${css$6.copyable}` : ""}${copied ? ` ${css$6.feedback}` : ""}`,
 		style: {
 			...pos,
 			minHeight: copied && copyHeightRef.current !== null ? copyHeightRef.current : void 0
@@ -1919,14 +2017,14 @@ function HoverCard({ anchor, content, openDelayMs = 500, disabled = false, copyT
 			copy(copyText);
 		} : void 0,
 		children: copied ? jsx("span", {
-			className: HoverCard_module_css_default.copied,
+			className: css$6.copied,
 			"aria-hidden": "true",
 			children: copiedLabel
 		}) : content
 	});
 	return jsxs("span", {
 		ref: rootRef,
-		className: HoverCard_module_css_default.root,
+		className: css$6.root,
 		onPointerEnter: () => {
 			if (disabled) return;
 			cancelClose();
@@ -1949,7 +2047,7 @@ function HoverCard({ anchor, content, openDelayMs = 500, disabled = false, copyT
 		children: [
 			anchor,
 			open && copyable && jsx("span", {
-				className: HoverCard_module_css_default.status,
+				className: css$6.status,
 				role: "status",
 				children: copied ? copiedLabel : ""
 			}),
@@ -1957,9 +2055,6 @@ function HoverCard({ anchor, content, openDelayMs = 500, disabled = false, copyT
 		]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./Modal.module.css.mjs
-var Modal_module_css_default = {};
 //#endregion
 //#region lib/types/Modal.js
 /**
@@ -1992,52 +2087,49 @@ function Modal({ open, onClose, title, closeLabel = "Close", description, childr
 	}, [open, onClose]);
 	if (!open) return null;
 	return createPortal(jsxs("div", {
-		className: Modal_module_css_default.root,
+		className: css$7.root,
 		role: "presentation",
 		children: [jsx("div", {
-			className: Modal_module_css_default.mask,
+			className: css$7.mask,
 			"aria-hidden": "true",
 			onClick: onClose
 		}), jsx("div", {
-			className: clsx(Modal_module_css_default.dialog, className),
+			className: clsx(css$7.dialog, className),
 			role: "dialog",
 			"aria-modal": "true",
 			"aria-label": title,
 			children: headless ? children : jsxs(Fragment, { children: [jsxs("div", {
-				className: clsx(Modal_module_css_default.content, contentClassName),
+				className: clsx(css$7.content, contentClassName),
 				children: [
 					jsxs("div", {
-						className: Modal_module_css_default.header,
+						className: css$7.header,
 						children: [jsx("h2", {
-							className: Modal_module_css_default.title,
+							className: css$7.title,
 							children: title
 						}), jsx("button", {
 							type: "button",
-							className: Modal_module_css_default.close,
+							className: css$7.close,
 							"aria-label": closeLabel,
 							onClick: onClose,
 							children: jsx(IconCloseOutline16, { size: 14 })
 						})]
 					}),
 					description !== void 0 && description !== "" && jsx("p", {
-						className: Modal_module_css_default.description,
+						className: css$7.description,
 						children: description
 					}),
 					children !== void 0 && jsx("div", {
-						className: Modal_module_css_default.body,
+						className: css$7.body,
 						children
 					})
 				]
 			}), footer !== void 0 && jsx("div", {
-				className: Modal_module_css_default.footer,
+				className: css$7.footer,
 				children: footer
 			})] })
 		})]
 	}), document.body);
 }
-//#endregion
-//#region \0dsh-css-stub:./OnboardingSurface.module.css.mjs
-var OnboardingSurface_module_css_default = {};
 //#endregion
 //#region lib/types/OnboardingSurface.js
 /**
@@ -2056,20 +2148,17 @@ function OnboardingSurface({ children }) {
 		};
 	}, []);
 	return createPortal(jsxs("div", {
-		className: OnboardingSurface_module_css_default.onboardingOverlay,
+		className: css$8.onboardingOverlay,
 		role: "presentation",
 		children: [jsx("div", {
-			className: OnboardingSurface_module_css_default.onboardingMask,
+			className: css$8.onboardingMask,
 			"aria-hidden": "true"
 		}), jsx("div", {
-			className: OnboardingSurface_module_css_default.onboardingStage,
+			className: css$8.onboardingStage,
 			children
 		})]
 	}), document.body);
 }
-//#endregion
-//#region \0dsh-css-stub:./RiskConfirmation.module.css.mjs
-var RiskConfirmation_module_css_default = {};
 //#endregion
 //#region lib/types/RiskConfirmation.js
 /**
@@ -2085,28 +2174,28 @@ function RiskConfirmation({ open, title, description, acknowledgeLabel, cancelLa
 		open,
 		onClose: onCancel,
 		title,
-		className: RiskConfirmation_module_css_default.confirmation ?? "",
-		contentClassName: RiskConfirmation_module_css_default.confirmationContent ?? "",
+		className: css$9.confirmation ?? "",
+		contentClassName: css$9.confirmationContent ?? "",
 		footer: jsxs(Fragment, { children: [jsx(Button, {
 			variant: "outline",
-			className: RiskConfirmation_module_css_default.modalAction,
+			className: css$9.modalAction,
 			onClick: onCancel,
 			children: cancelLabel
 		}), jsx(Button, {
 			variant: "primary",
-			className: RiskConfirmation_module_css_default.confirmAction,
+			className: css$9.confirmAction,
 			disabled: disabled || !acknowledged,
 			onClick: onConfirm,
 			children: confirmLabel
 		})] }),
 		children: [jsxs("div", {
-			className: RiskConfirmation_module_css_default.warning,
+			className: css$9.warning,
 			children: [jsx(IconWarningOutline16, {
 				size: 18,
-				className: RiskConfirmation_module_css_default.warningIcon
+				className: css$9.warningIcon
 			}), jsx("p", { children: description })]
 		}), jsxs("label", {
-			className: RiskConfirmation_module_css_default.acknowledgement,
+			className: css$9.acknowledgement,
 			children: [jsx("input", {
 				type: "checkbox",
 				checked: acknowledged,
@@ -2120,9 +2209,6 @@ function RiskConfirmation({ open, title, description, acknowledgeLabel, cancelLa
 	});
 }
 //#endregion
-//#region \0dsh-css-stub:./ConnectionBanner.module.css.mjs
-var ConnectionBanner_module_css_default = {};
-//#endregion
 //#region lib/types/ConnectionBanner.js
 /**
 * Render the reconnecting banner.
@@ -2134,7 +2220,7 @@ var ConnectionBanner_module_css_default = {};
 function ConnectionBanner({ reconnecting, label = "连接已断开，正在重连…" }) {
 	if (!reconnecting) return null;
 	return jsx("div", {
-		className: ConnectionBanner_module_css_default.banner,
+		className: css$10.banner,
 		children: label
 	});
 }
@@ -2164,16 +2250,17 @@ function FishLogo({ size = 24, className }) {
 //#region lib/types/BrandWordmark.js
 /**
 * Render the full brand wordmark.
-* @param props.size - height in px (default 24; width keeps the 182:24 ratio).
+* @param props.size - height in px (default 24; width follows the selected artwork).
 * @param props.className - extra class for layout placement.
+* @param props.includeMark - whether to include the leading whale mark.
 * @returns the wordmark svg (aria-hidden decorative brand art).
 */
-function BrandWordmark({ size = 24, className }) {
+function BrandWordmark({ size = 24, className, includeMark = true }) {
 	return jsxs("svg", {
-		width: size * 182 / 24,
+		width: size * (includeMark ? 182 : 156) / 24,
 		height: size,
 		className,
-		viewBox: "0 0 182 24",
+		viewBox: includeMark ? "0 0 182 24" : "26 0 156 24",
 		fill: "none",
 		"aria-hidden": "true",
 		children: [
@@ -2281,9 +2368,6 @@ function BrandWordmark({ size = 24, className }) {
 		]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./Tooltip.module.css.mjs
-var Tooltip_module_css_default = {};
 //#endregion
 //#region lib/types/Tooltip.js
 /**
@@ -2416,7 +2500,7 @@ function Tooltip({ label, side = "right", delayMs = 0, disabled = false, maxWidt
 		}
 	}), pos !== null && jsx("span", {
 		ref: bubble,
-		className: Tooltip_module_css_default.bubble,
+		className: css$11.bubble,
 		"data-side": placement,
 		style: {
 			left: pos.x,
@@ -2427,9 +2511,6 @@ function Tooltip({ label, side = "right", delayMs = 0, disabled = false, maxWidt
 		children: resolvedLabel
 	})] });
 }
-//#endregion
-//#region \0dsh-css-stub:./Toast.module.css.mjs
-var Toast_module_css_default = {};
 //#endregion
 //#region lib/types/Toast.js
 /**
@@ -2469,22 +2550,19 @@ function Toast({ text, icon, anchor, onDone }) {
 		};
 	}, [anchor]);
 	return createPortal(jsxs("div", {
-		className: Toast_module_css_default.toast,
+		className: css$12.toast,
 		role: "alert",
 		style: left === null ? void 0 : { left },
 		children: [icon !== void 0 && jsx("span", {
-			className: Toast_module_css_default.icon,
+			className: css$12.icon,
 			"aria-hidden": true,
 			children: icon
 		}), jsx("span", {
-			className: Toast_module_css_default.text,
+			className: css$12.text,
 			children: text
 		})]
 	}), document.body);
 }
-//#endregion
-//#region \0dsh-css-stub:./JsonTree.module.css.mjs
-var JsonTree_module_css_default = {};
 //#endregion
 //#region lib/types/JsonTree.js
 const OBJECT_PREVIEW_LIMIT = 4;
@@ -2546,35 +2624,35 @@ function bracketOf(value) {
 }
 function previewPrimitive(value) {
 	if (value === null) return jsx("span", {
-		className: JsonTree_module_css_default.keywordValue,
+		className: css$13.keywordValue,
 		children: "null"
 	});
 	if (typeof value === "string") return jsx("span", {
-		className: JsonTree_module_css_default.stringValue,
+		className: css$13.stringValue,
 		children: JSON.stringify(value)
 	});
 	if (typeof value === "number") return jsx("span", {
-		className: JsonTree_module_css_default.numberValue,
+		className: css$13.numberValue,
 		children: String(value)
 	});
 	if (typeof value === "boolean") return jsx("span", {
-		className: JsonTree_module_css_default.keywordValue,
+		className: css$13.keywordValue,
 		children: String(value)
 	});
 	if (typeof value === "bigint") return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: value.toString()
 	});
 	if (typeof value === "undefined") return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: "undefined"
 	});
 	if (typeof value === "symbol") return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: value.description ?? "Symbol"
 	});
 	if (typeof value === "function") return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: value.name || "Function"
 	});
 	return null;
@@ -2588,71 +2666,71 @@ function previewValue(value, depth) {
 	const [open, close] = bracketOf(value);
 	return jsxs(Fragment, { children: [
 		jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: open
 		}),
 		depth >= PREVIEW_DEPTH_LIMIT ? jsx("span", {
-			className: JsonTree_module_css_default.previewEllipsis,
+			className: css$13.previewEllipsis,
 			children: "…"
 		}) : visible.map(([key, item], index) => jsxs("span", { children: [
 			index > 0 && jsx("span", {
-				className: JsonTree_module_css_default.punctuation,
+				className: css$13.punctuation,
 				children: ", "
 			}),
 			!array && jsxs(Fragment, { children: [jsx("span", {
-				className: JsonTree_module_css_default.previewProperty,
+				className: css$13.previewProperty,
 				children: key
 			}), jsx("span", {
-				className: JsonTree_module_css_default.punctuation,
+				className: css$13.punctuation,
 				children: ": "
 			})] }),
 			previewValue(item, depth + 1)
 		] }, key)),
 		depth < PREVIEW_DEPTH_LIMIT && entries.length > limit && jsx("span", {
-			className: JsonTree_module_css_default.previewEllipsis,
+			className: css$13.previewEllipsis,
 			children: ", …"
 		}),
 		jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: close
 		})
 	] });
 }
 function primitiveValue(value) {
 	if (value === null) return jsx("span", {
-		className: JsonTree_module_css_default.keywordValue,
+		className: css$13.keywordValue,
 		children: "null"
 	});
 	if (typeof value === "string") return jsx("span", {
-		className: JsonTree_module_css_default.stringValue,
+		className: css$13.stringValue,
 		children: JSON.stringify(value)
 	});
 	if (typeof value === "boolean") return jsx("span", {
-		className: JsonTree_module_css_default.keywordValue,
+		className: css$13.keywordValue,
 		children: String(value)
 	});
 	if (typeof value === "number") return jsx("span", {
-		className: JsonTree_module_css_default.numberValue,
+		className: css$13.numberValue,
 		children: String(value)
 	});
 	if (typeof value === "bigint") return jsx("span", {
-		className: JsonTree_module_css_default.numberValue,
+		className: css$13.numberValue,
 		children: `${value.toString()}n`
 	});
 	if (value instanceof Date) return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: value.toISOString()
 	});
 	if (typeof value === "function") return jsxs("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: ["function() ", "{ }"]
 	});
 	if (typeof value === "undefined") return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: "undefined"
 	});
 	return jsx("span", {
-		className: JsonTree_module_css_default.otherValue,
+		className: css$13.otherValue,
 		children: value.toString()
 	});
 }
@@ -2680,7 +2758,7 @@ function moveFocus(button, direction) {
 function NodeField({ field, expandable, onToggle }) {
 	if (field === void 0) return null;
 	return jsxs("span", {
-		className: clsx(JsonTree_module_css_default.label, expandable && JsonTree_module_css_default.clickableLabel),
+		className: clsx(css$13.label, expandable && css$13.clickableLabel),
 		onClick: expandable ? onToggle : void 0,
 		children: [fieldText(field), ":"]
 	});
@@ -2709,7 +2787,7 @@ function JsonTreeNode({ field, initialExpanded, labels, lastElement, onClaimTabS
 		}
 	};
 	const row = (children, ariaExpanded) => jsx("div", {
-		className: JsonTree_module_css_default.row,
+		className: css$13.row,
 		role: "treeitem",
 		"aria-expanded": ariaExpanded,
 		onMouseOver: (event) => {
@@ -2729,7 +2807,7 @@ function JsonTreeNode({ field, initialExpanded, labels, lastElement, onClaimTabS
 		}),
 		primitiveValue(value),
 		!lastElement && jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: ","
 		})
 	] }));
@@ -2741,22 +2819,22 @@ function JsonTreeNode({ field, initialExpanded, labels, lastElement, onClaimTabS
 			onToggle: toggle
 		}),
 		jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: open
 		}),
 		jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: close
 		}),
 		!lastElement && jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: ","
 		})
 	] }));
 	return row(jsxs(Fragment, { children: [
 		jsx("span", {
 			ref: expanderRef,
-			className: clsx(JsonTree_module_css_default.expander, expanded ? JsonTree_module_css_default.collapseIcon : JsonTree_module_css_default.expandIcon),
+			className: clsx(css$13.expander, expanded ? css$13.collapseIcon : css$13.expandIcon),
 			"data-json-expander": true,
 			role: "button",
 			"aria-label": expanded ? labels.collapseNode : labels.expandNode,
@@ -2775,17 +2853,17 @@ function JsonTreeNode({ field, initialExpanded, labels, lastElement, onClaimTabS
 			onToggle: toggle
 		}),
 		jsx("span", {
-			className: JsonTree_module_css_default.preview,
+			className: css$13.preview,
 			children: previewValue(value, 0)
 		}),
 		!lastElement && jsx("span", {
-			className: JsonTree_module_css_default.punctuation,
+			className: css$13.punctuation,
 			children: ","
 		}),
 		expanded && jsx("ul", {
 			id: contentsId,
 			role: "group",
-			className: JsonTree_module_css_default.children,
+			className: css$13.children,
 			children: entries.map(([key, item], index) => jsx(JsonTreeNode, {
 				field: key,
 				value: item,
@@ -2950,17 +3028,17 @@ function JsonTree({ data, label = "JSON", className, copyable = true, expandTopL
 	const copyTitle = copyState === "copied" ? copyLabels.copied : copyState === "failed" ? copyLabels.copyFailed : copyTargetIsObject ? copyLabels.copyPrettyJson : copyLabels.copyValue;
 	return jsxs("div", {
 		ref: rootRef,
-		className: clsx(JsonTree_module_css_default.root, className),
+		className: clsx(css$13.root, className),
 		onMouseOver: handleRootMouseOver,
 		onMouseLeave: () => {
 			if (!copyMenuOpenRef.current) clearCopyTarget();
 		},
 		onScroll: handleScroll,
 		children: [expandTopLevel ? jsxs("div", {
-			className: JsonTree_module_css_default.expandedTopLevel,
+			className: css$13.expandedTopLevel,
 			children: [
 				jsx("div", {
-					className: clsx(JsonTree_module_css_default.row, JsonTree_module_css_default.topLevelBracket),
+					className: clsx(css$13.row, css$13.topLevelBracket),
 					"data-json-root-row": true,
 					onMouseOver: (event) => {
 						event.stopPropagation();
@@ -2970,13 +3048,13 @@ function JsonTree({ data, label = "JSON", className, copyable = true, expandTopL
 						});
 					},
 					children: jsx("span", {
-						className: JsonTree_module_css_default.punctuation,
+						className: css$13.punctuation,
 						children: rootOpen
 					})
 				}),
 				jsx("div", {
 					"aria-label": label,
-					className: clsx(JsonTree_module_css_default.container, JsonTree_module_css_default.expandedTopLevelContainer),
+					className: clsx(css$13.container, css$13.expandedTopLevelContainer),
 					role: "tree",
 					children: rootEntries.map(([key, value], index) => jsx(JsonTreeNode, {
 						field: key,
@@ -2991,16 +3069,16 @@ function JsonTree({ data, label = "JSON", className, copyable = true, expandTopL
 					}, key))
 				}),
 				jsx("div", {
-					className: clsx(JsonTree_module_css_default.row, JsonTree_module_css_default.topLevelBracket),
+					className: clsx(css$13.row, css$13.topLevelBracket),
 					children: jsx("span", {
-						className: JsonTree_module_css_default.punctuation,
+						className: css$13.punctuation,
 						children: rootClose
 					})
 				})
 			]
 		}) : jsx("div", {
 			"aria-label": label,
-			className: JsonTree_module_css_default.container,
+			className: css$13.container,
 			role: "tree",
 			children: jsx(JsonTreeNode, {
 				value: data,
@@ -3013,7 +3091,7 @@ function JsonTree({ data, label = "JSON", className, copyable = true, expandTopL
 				onRowHover: handleRowHover
 			})
 		}), copyTarget !== void 0 && jsx("span", {
-			className: JsonTree_module_css_default.copyAnchor,
+			className: css$13.copyAnchor,
 			style: {
 				left: copyTarget.left,
 				top: copyTarget.top
@@ -3027,7 +3105,7 @@ function JsonTree({ data, label = "JSON", className, copyable = true, expandTopL
 				anchor: jsx("button", {
 					ref: copyButtonRef,
 					type: "button",
-					className: JsonTree_module_css_default.copyButton,
+					className: css$13.copyButton,
 					"data-json-copy-button": true,
 					"data-state": copyState,
 					"aria-label": copyTitle,
@@ -3493,9 +3571,6 @@ function useCopyFeedback(text) {
 	};
 }
 //#endregion
-//#region \0dsh-css-stub:./TerminalBlock.module.css.mjs
-var TerminalBlock_module_css_default = {};
-//#endregion
 //#region lib/types/TerminalBlock.js
 /**
 * Output lines shown before the height cap collapses the middle. Matches the
@@ -3616,66 +3691,66 @@ function TerminalBlock({ command, cwd, home, output, exitCode, signal, running =
 	const empty = lines.every((line) => line.every((span) => span.text.trim() === ""));
 	const { hidden, capped, headLines, tailLines } = headTailCap(lines.length, maxLines, expanded);
 	return jsxs("div", {
-		className: clsx(TerminalBlock_module_css_default.block, className),
+		className: clsx(css$14.block, className),
 		"data-terminal": "",
 		"data-running": running ? "" : void 0,
 		children: [jsxs("div", {
-			className: TerminalBlock_module_css_default.header,
+			className: css$14.header,
 			children: [
 				jsxs("div", {
-					className: TerminalBlock_module_css_default.prompt,
+					className: css$14.prompt,
 					children: [jsx("span", {
-						className: TerminalBlock_module_css_default.runStateLabel,
+						className: css$14.runStateLabel,
 						children: state.label
 					}), commandLines.map((line, index) => jsxs("div", {
-						className: TerminalBlock_module_css_default.promptLine,
+						className: css$14.promptLine,
 						children: [
 							index === 0 && jsx(StateDot, {
 								state: state.state,
-								className: TerminalBlock_module_css_default.runState
+								className: css$14.runState
 							}),
 							jsx("span", {
-								className: TerminalBlock_module_css_default.cwd,
+								className: css$14.cwd,
 								children: index > 0 || cwd === void 0 ? "$" : promptLabel(cwd, home)
 							}),
 							jsx("span", {
-								className: TerminalBlock_module_css_default.command,
+								className: css$14.command,
 								children: line
 							})
 						]
 					}, index))]
 				}),
 				status !== void 0 && jsx(Pill, {
-					className: TerminalBlock_module_css_default.status,
+					className: css$14.status,
 					children: status
 				}),
 				!running && !empty && jsx("button", {
 					type: "button",
-					className: TerminalBlock_module_css_default.copyButton,
+					className: css$14.copyButton,
 					onClick: onCopy,
 					children: copied ? copy.copied : copy.copy
 				})
 			]
 		}), !running && (empty ? jsx("div", {
-			className: TerminalBlock_module_css_default.empty,
+			className: css$14.empty,
 			children: copy.noOutput
 		}) : jsxs("div", {
-			className: TerminalBlock_module_css_default.output,
+			className: css$14.output,
 			children: [
 				(capped ? lines.slice(0, headLines) : lines).map((line, index) => jsx("div", {
-					className: TerminalBlock_module_css_default.line,
+					className: css$14.line,
 					children: renderLine(line)
 				}, index)),
 				hidden > 0 && jsx("button", {
 					type: "button",
-					className: TerminalBlock_module_css_default.expand,
+					className: css$14.expand,
 					"aria-expanded": expanded,
 					"aria-label": expanded ? copy.collapseAria : copy.expandAria(hidden),
 					onClick: onToggle,
 					children: expanded ? copy.collapse : copy.expand(hidden)
 				}),
 				capped && lines.slice(lines.length - tailLines).map((line, index) => jsx("div", {
-					className: TerminalBlock_module_css_default.line,
+					className: css$14.line,
 					children: renderLine(line)
 				}, index))
 			]
@@ -3726,7 +3801,7 @@ const LANGS = [
 * (including embedded sub-grammars). The three boot grammars are absent —
 * already loaded, so no alias value ever points at a missing entry here.
 */
-const LAZY_GRAMMARS = /* @__PURE__ */ new Map([
+const LAZY_GRAMMARS = new Map([
 	["python", () => import("@shikijs/langs/python")],
 	["ruby", () => import("@shikijs/langs/ruby")],
 	["go", () => import("@shikijs/langs/go")],
@@ -3762,7 +3837,7 @@ const LAZY_GRAMMARS = /* @__PURE__ */ new Map([
 * the JSX/TSX approximation). A value not in {@link LANGS} names a
 * {@link LAZY_GRAMMARS} entry loaded on first use.
 */
-const LANG_ALIASES = /* @__PURE__ */ new Map([
+const LANG_ALIASES = new Map([
 	["typescript", "typescript"],
 	["ts", "typescript"],
 	["tsx", "typescript"],
@@ -3963,9 +4038,6 @@ function highlightLines(code, lang) {
 	})));
 }
 //#endregion
-//#region \0dsh-css-stub:./ReadBlock.module.css.mjs
-var ReadBlock_module_css_default = {};
-//#endregion
 //#region lib/types/ReadBlock.js
 /**
 * Content lines shown before the height cap collapses the middle. Matches
@@ -3994,11 +4066,10 @@ function renderSpans(spans) {
 */
 function ReadBlock({ label, lines, totalLines, lang, maxLines = 16, className }) {
 	const raw = useMemo(() => lines.map((line) => line.text).join("\n"), [lines]);
-	const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount);
 	const highlighted = useMemo(() => highlightLines(raw, lang), [
 		raw,
 		lang,
-		loaded
+		useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
 	]);
 	const [expanded, setExpanded] = useState(false);
 	const [copied, setCopied] = useState(false);
@@ -4026,51 +4097,51 @@ function ReadBlock({ label, lines, totalLines, lang, maxLines = 16, className })
 	* @returns the row elements.
 	*/
 	const rows = (slice) => slice.map(([line, spans]) => jsxs("div", {
-		className: ReadBlock_module_css_default.line,
+		className: css$15.line,
 		children: [jsx("span", {
-			className: ReadBlock_module_css_default.gutter,
+			className: css$15.gutter,
 			"aria-hidden": true,
 			children: line.number
 		}), jsx("span", {
-			className: ReadBlock_module_css_default.content,
+			className: css$15.content,
 			children: spans === void 0 ? line.text : renderSpans(spans)
 		})]
 	}, line.number));
 	const paired = lines.map((line, index) => [line, highlighted?.[index]]);
 	return jsxs("div", {
-		className: clsx(ReadBlock_module_css_default.block, className),
+		className: clsx(css$15.block, className),
 		"data-read": "",
 		children: [jsxs("div", {
-			className: ReadBlock_module_css_default.banner,
+			className: css$15.banner,
 			children: [jsx("div", {
-				className: ReadBlock_module_css_default.label,
+				className: css$15.label,
 				children: label ?? ""
 			}), jsxs("div", {
-				className: ReadBlock_module_css_default.action,
+				className: css$15.action,
 				children: [
 					windowed && jsx("span", {
-						className: ReadBlock_module_css_default.count,
+						className: css$15.count,
 						children: `显示 ${lines.length} / ${totalLines} 行`
 					}),
 					jsx("span", {
-						className: ReadBlock_module_css_default.lang,
+						className: css$15.lang,
 						children: lang ?? ""
 					}),
 					lines.length > 0 && jsx("button", {
 						type: "button",
-						className: ReadBlock_module_css_default.copyButton,
+						className: css$15.copyButton,
 						onClick: onCopy,
 						children: copied ? "复制成功" : "复制"
 					})
 				]
 			})]
 		}), jsxs("div", {
-			className: ReadBlock_module_css_default.body,
+			className: css$15.body,
 			children: [
 				rows(capped ? paired.slice(0, headLines) : paired),
 				hidden > 0 && jsx("button", {
 					type: "button",
-					className: ReadBlock_module_css_default.expand,
+					className: css$15.expand,
 					"aria-expanded": expanded,
 					"aria-label": expanded ? "收起内容" : `展开其余 ${hidden} 行`,
 					onClick: onToggle,
@@ -4081,9 +4152,6 @@ function ReadBlock({ label, lines, totalLines, lang, maxLines = 16, className })
 		})]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./DiffBlock.module.css.mjs
-var DiffBlock_module_css_default = {};
 //#endregion
 //#region lib/types/DiffBlock.js
 /**
@@ -4099,10 +4167,10 @@ function assertNever(value) {
 }
 /** The dim class per row kind (path/gap chrome vs the diff's own +/- colors). */
 const ROW_CLASS = {
-	path: DiffBlock_module_css_default.path,
-	del: DiffBlock_module_css_default.del,
-	add: DiffBlock_module_css_default.add,
-	gap: DiffBlock_module_css_default.gap
+	path: css$16.path,
+	del: css$16.del,
+	add: css$16.add,
+	gap: css$16.gap
 };
 /**
 * Flatten the hunks into the body's rows plus the footer counts. A path header
@@ -4215,38 +4283,38 @@ function DiffBlock({ diffs, maxLines = 16, className }) {
 	const head = capped ? rows.slice(0, headLines) : rows;
 	const tail = capped ? rows.slice(rows.length - tailLines) : [];
 	return jsxs("div", {
-		className: clsx(DiffBlock_module_css_default.block, className),
+		className: clsx(css$16.block, className),
 		"data-diff": "",
 		children: [
 			jsx("button", {
 				type: "button",
-				className: DiffBlock_module_css_default.copyButton,
+				className: css$16.copyButton,
 				onClick: onCopy,
 				children: copied ? "复制成功" : "复制"
 			}),
 			jsxs("div", {
-				className: DiffBlock_module_css_default.body,
+				className: css$16.body,
 				children: [
 					head.map((row, index) => jsx("div", {
-						className: clsx(DiffBlock_module_css_default.line, ROW_CLASS[row.kind]),
+						className: clsx(css$16.line, ROW_CLASS[row.kind]),
 						children: row.text
 					}, index)),
 					hidden > 0 && jsx("button", {
 						type: "button",
-						className: DiffBlock_module_css_default.expand,
+						className: css$16.expand,
 						"aria-expanded": expanded,
 						"aria-label": expanded ? "收起差异" : `展开其余 ${hidden} 行差异`,
 						onClick: onToggle,
 						children: expanded ? "收起" : `… 其余 ${hidden} 行`
 					}),
 					tail.map((row, index) => jsx("div", {
-						className: clsx(DiffBlock_module_css_default.line, ROW_CLASS[row.kind]),
+						className: clsx(css$16.line, ROW_CLASS[row.kind]),
 						children: row.text
 					}, index))
 				]
 			}),
 			jsxs("div", {
-				className: DiffBlock_module_css_default.footer,
+				className: css$16.footer,
 				children: [
 					"└ +",
 					added,
@@ -4261,9 +4329,6 @@ function DiffBlock({ diffs, maxLines = 16, className }) {
 		]
 	});
 }
-//#endregion
-//#region \0dsh-css-stub:./SearchBlock.module.css.mjs
-var SearchBlock_module_css_default = {};
 //#endregion
 //#region lib/types/SearchBlock.js
 /**
@@ -4388,56 +4453,56 @@ function SearchBlock(props) {
 	const tail = tailHeader === void 0 ? naturalTail : naturalTail.slice(1);
 	const renderRow = (row) => {
 		if (row.type === "path") return jsx("div", {
-			className: SearchBlock_module_css_default.line,
+			className: css$17.line,
 			children: row.path
 		});
 		if (row.type === "match") return jsxs("div", {
-			className: SearchBlock_module_css_default.line,
+			className: css$17.line,
 			children: [jsxs("span", {
-				className: SearchBlock_module_css_default.lineNumber,
+				className: css$17.lineNumber,
 				children: [row.lineNumber, ": "]
 			}), row.line]
 		});
 		return jsxs("button", {
 			type: "button",
-			className: SearchBlock_module_css_default.fileHeader,
+			className: css$17.fileHeader,
 			"aria-expanded": !row.collapsed,
 			onClick: () => {
 				toggleFile(row.index);
 			},
 			children: [jsx("span", {
-				className: SearchBlock_module_css_default.filePath,
+				className: css$17.filePath,
 				children: row.path
 			}), jsx("span", {
-				className: SearchBlock_module_css_default.fileCount,
+				className: css$17.fileCount,
 				children: row.count
 			})]
 		});
 	};
 	return jsxs("div", {
-		className: clsx(SearchBlock_module_css_default.block, className),
+		className: clsx(css$17.block, className),
 		"data-search": props.kind,
 		children: [jsxs("div", {
-			className: SearchBlock_module_css_default.header,
+			className: css$17.header,
 			children: [jsx("span", {
-				className: SearchBlock_module_css_default.summary,
+				className: css$17.summary,
 				children: summaryText(props, shown, truncated, total)
 			}), !empty && jsx("button", {
 				type: "button",
-				className: SearchBlock_module_css_default.copyButton,
+				className: css$17.copyButton,
 				onClick: onCopy,
 				children: copied ? "复制成功" : "复制"
 			})]
 		}), empty ? jsx("div", {
-			className: SearchBlock_module_css_default.empty,
+			className: css$17.empty,
 			children: "无结果"
 		}) : jsxs("div", {
-			className: SearchBlock_module_css_default.body,
+			className: css$17.body,
 			children: [
 				head.map((row) => jsx("div", { children: renderRow(row) }, rowKey(row))),
 				hidden > 0 && jsx("button", {
 					type: "button",
-					className: SearchBlock_module_css_default.expand,
+					className: css$17.expand,
 					"aria-expanded": expanded,
 					"aria-label": expanded ? "收起结果" : `展开其余 ${hidden} 行结果`,
 					onClick: onToggle,
@@ -4921,17 +4986,13 @@ function parseGfmWithMath(text) {
 	});
 }
 //#endregion
-//#region \0dsh-css-stub:./CodeBlock.module.css.mjs
-var CodeBlock_module_css_default = {};
-//#endregion
 //#region lib/types/markdown/CodeBlock.js
 function CodeBlock({ code, lang, className, copyLabel = "复制", copiedLabel = "复制成功" }) {
 	const trimmed = code.endsWith("\n") ? code.slice(0, -1) : code;
-	const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount);
 	const html = useMemo(() => highlightToHtml(trimmed, lang), [
 		trimmed,
 		lang,
-		loaded
+		useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
 	]);
 	const rootRef = useRef(null);
 	const [copied, setCopied] = useState(false);
@@ -4946,24 +5007,24 @@ function CodeBlock({ code, lang, className, copyLabel = "复制", copiedLabel = 
 		});
 	}, [copied, trimmed]);
 	const body = html === void 0 ? jsx("pre", {
-		className: CodeBlock_module_css_default.plain,
+		className: css$18.plain,
 		children: jsx("code", { children: trimmed })
 	}) : jsx("div", { dangerouslySetInnerHTML: { __html: html } });
 	return jsxs("div", {
 		ref: rootRef,
-		className: clsx(CodeBlock_module_css_default.block, "md-code-block", className),
+		className: clsx(css$18.block, "md-code-block", className),
 		children: [jsx("div", {
-			className: CodeBlock_module_css_default.bannerWrap,
+			className: css$18.bannerWrap,
 			children: jsxs("div", {
-				className: CodeBlock_module_css_default.banner,
+				className: css$18.banner,
 				children: [jsx("div", {
-					className: CodeBlock_module_css_default.infostring,
+					className: css$18.infostring,
 					children: lang ?? ""
 				}), jsx("div", {
-					className: CodeBlock_module_css_default.action,
+					className: css$18.action,
 					children: jsx("button", {
 						type: "button",
-						className: CodeBlock_module_css_default.copyButton,
+						className: css$18.copyButton,
 						onClick: onCopy,
 						children: copied ? copiedLabel : copyLabel
 					})
@@ -5053,9 +5114,6 @@ function renderTexToReact(value, displayMode) {
 	}
 	return [...new DOMParser().parseFromString(html, "text/html").body.childNodes].map(domToReact);
 }
-//#endregion
-//#region \0dsh-css-stub:./MarkdownText.module.css.mjs
-var MarkdownText_module_css_default = {};
 //#endregion
 //#region lib/types/markdown/render.js
 /**
@@ -5183,7 +5241,7 @@ function renderNode(node, key, context) {
 			const mention = context.inLink === true ? void 0 : context.fileMentions?.resolve(value);
 			if (mention !== void 0) return jsx("code", { children: jsx("button", {
 				type: "button",
-				className: MarkdownText_module_css_default.fileMention,
+				className: css$19.fileMention,
 				title: mention.title,
 				"aria-label": mention.label,
 				onClick: mention.open,
@@ -5276,7 +5334,7 @@ function renderTable(node, key, context) {
 	const align = node.align ?? null;
 	const [headRow, ...bodyRows] = node.children;
 	return jsx("div", {
-		className: MarkdownText_module_css_default.tableScroll,
+		className: css$19.tableScroll,
 		children: jsxs("table", { children: [headRow !== void 0 && jsx("thead", { children: renderTableRow(headRow, "th", align, 0, context) }), bodyRows.length > 0 && jsx("tbody", { children: bodyRows.map((row, index) => renderTableRow(row, "td", align, index + 1, context)) })] })
 	}, key);
 }
@@ -5297,10 +5355,9 @@ function renderTableRow(row, cellTag, align, key, context) {
 function renderSafeLink(href, children, key) {
 	const safeHref = sanitizeUrl(href);
 	if (safeHref === "") return jsx(Fragment$1, { children }, key);
-	const external = ["http:", "https:"].includes(new URL(safeHref).protocol);
 	return jsx("a", {
 		href: safeHref,
-		...external ? {
+		...["http:", "https:"].includes(new URL(safeHref).protocol) ? {
 			target: "_blank",
 			rel: "noopener noreferrer"
 		} : {},
@@ -5327,11 +5384,11 @@ function inlineCodeHttpUrl(value) {
 function renderImage(url, alt, key) {
 	const imageSrc = remoteImageUrl(sanitizeUrl(normalizeUri(url)));
 	if (imageSrc === void 0) return jsx("span", {
-		className: MarkdownText_module_css_default.imageAlt,
+		className: css$19.imageAlt,
 		children: alt
 	}, key);
 	return jsx("img", {
-		className: MarkdownText_module_css_default.image,
+		className: css$19.image,
 		src: imageSrc,
 		alt,
 		loading: "lazy",
@@ -5564,13 +5621,10 @@ const MarkdownText = memo(function MarkdownText({ text, streaming = false, codeL
 		fileMentions
 	]);
 	return jsx("div", {
-		className: MarkdownText_module_css_default.markdown,
+		className: css$19.markdown,
 		children
 	});
 });
-//#endregion
-//#region \0dsh-css-stub:./WebBlock.module.css.mjs
-var WebBlock_module_css_default = {};
 //#endregion
 //#region lib/types/WebBlock.js
 /**
@@ -5642,20 +5696,20 @@ function SafeLink({ url, label, className }) {
 */
 function SourceItem({ source, ordinal }) {
 	return jsxs("li", {
-		className: WebBlock_module_css_default.source,
+		className: css$20.source,
 		value: ordinal,
 		children: [
 			jsx(SafeLink, {
 				url: source.url,
 				label: linkLabel(source.url, source.title),
-				className: WebBlock_module_css_default.sourceLink
+				className: css$20.sourceLink
 			}),
 			source.snippet !== void 0 && source.snippet !== "" && jsx("div", {
-				className: WebBlock_module_css_default.snippet,
+				className: css$20.snippet,
 				children: source.snippet
 			}),
 			source.publishedAt !== void 0 && source.publishedAt !== "" && jsx("div", {
-				className: WebBlock_module_css_default.published,
+				className: css$20.published,
 				children: source.publishedAt
 			})
 		]
@@ -5670,25 +5724,25 @@ function SourceItem({ source, ordinal }) {
 function WebSearchBlock({ answer, sources, truncated, className }) {
 	const empty = (answer === void 0 || answer === "") && sources.length === 0;
 	return jsxs("div", {
-		className: clsx(WebBlock_module_css_default.block, className),
+		className: clsx(css$20.block, className),
 		"data-web": "search",
 		children: [
 			answer !== void 0 && answer !== "" && jsx("div", {
-				className: WebBlock_module_css_default.answer,
+				className: css$20.answer,
 				children: jsx(MarkdownText, { text: answer })
 			}),
 			empty ? jsx("div", {
-				className: WebBlock_module_css_default.empty,
+				className: css$20.empty,
 				children: "未找到结果"
 			}) : jsx("ol", {
-				className: WebBlock_module_css_default.sources,
+				className: css$20.sources,
 				children: sources.map((source, index) => jsx(SourceItem, {
 					source,
 					ordinal: index + 1
 				}, index))
 			}),
 			truncated && jsx("div", {
-				className: WebBlock_module_css_default.truncated,
+				className: css$20.truncated,
 				children: "来源列表已截断"
 			})
 		]
@@ -5701,19 +5755,19 @@ function WebSearchBlock({ answer, sources, truncated, className }) {
 */
 function WebFetchBlock({ url, statusCode, truncated, className }) {
 	return jsxs("div", {
-		className: clsx(WebBlock_module_css_default.block, WebBlock_module_css_default.fetch, className),
+		className: clsx(css$20.block, css$20.fetch, className),
 		"data-web": "fetch",
 		children: [jsx(SafeLink, {
 			url,
 			label: url,
-			className: WebBlock_module_css_default.fetchUrl
+			className: css$20.fetchUrl
 		}), jsxs("div", {
-			className: WebBlock_module_css_default.fetchMeta,
+			className: css$20.fetchMeta,
 			children: [jsxs("span", {
-				className: WebBlock_module_css_default.status,
+				className: css$20.status,
 				children: ["HTTP ", statusCode]
 			}), truncated && jsx("span", {
-				className: WebBlock_module_css_default.truncated,
+				className: css$20.truncated,
 				children: "内容已截断"
 			})]
 		})]
@@ -5727,9 +5781,6 @@ function WebFetchBlock({ url, statusCode, truncated, className }) {
 function WebBlock(props) {
 	return props.kind === "search" ? jsx(WebSearchBlock, { ...props }) : jsx(WebFetchBlock, { ...props });
 }
-//#endregion
-//#region \0dsh-css-stub:./JsonBlock.module.css.mjs
-var JsonBlock_module_css_default = {};
 //#endregion
 //#region lib/types/markdown/JsonBlock.js
 const MAX_CHARS = 2e4;
@@ -5754,10 +5805,10 @@ function JsonBlock({ label, payload, defaultOpen = false, truncatedLabel = defau
 		truncatedLabel
 	]);
 	return jsxs("div", {
-		className: JsonBlock_module_css_default.root,
+		className: css$21.root,
 		children: [jsxs("button", {
 			type: "button",
-			className: JsonBlock_module_css_default.toggle,
+			className: css$21.toggle,
 			onClick: () => {
 				setOpen((v) => !v);
 			},
@@ -5767,19 +5818,16 @@ function JsonBlock({ label, payload, defaultOpen = false, truncatedLabel = defau
 				label
 			]
 		}), open && jsx("pre", {
-			className: JsonBlock_module_css_default.body,
+			className: css$21.body,
 			children: body
 		})]
 	});
 }
 //#endregion
-//#region \0dsh-css-stub:./MessageText.module.css.mjs
-var MessageText_module_css_default = {};
-//#endregion
 //#region lib/types/markdown/MessageText.js
 function MessageText({ text }) {
 	return jsx("div", {
-		className: MessageText_module_css_default.text,
+		className: css$22.text,
 		children: text
 	});
 }
@@ -5855,4 +5903,6 @@ function extractMarkdownPlainText(markdown, options = {}) {
 	}
 }
 //#endregion
-export { BrandWordmark, Button, CodeBlock, ConnectionBanner, DEFAULT_DIFF_MAX_LINES, DEFAULT_READ_MAX_LINES, DEFAULT_SEARCH_MAX_LINES, DEFAULT_TERMINAL_MAX_LINES, DiffBlock, DisclosureRow, FishLogo, HoverCard, IconAgentPresetOutline16, IconApiOutline14, IconArchiveOutline20, IconBranchOutline16, IconBrowseOutline16, IconCheckOutline14, IconCheckOutline16, IconChecklistOutline14, IconChevronDownOutline14, IconChevronLeftOutline14, IconChevronRightOutline14, IconChevronUpOutline14, IconCloseFill14, IconCloseOutline16, IconCodeOutline16, IconCopyOutline16, IconCordisPluginOutline14, IconDarkOutline16, IconDataOutline16, IconDislikeFill16, IconDislikeOutline16, IconDownloadOutline16, IconEditOutline16, IconEllipsisOutline16, IconEnhanceOutline16, IconFolderClose16, IconFolderOpen16, IconFolderOpenOutline16, IconFollowsystemOutline16, IconFullscreenOutline16, IconGlobeOutline14, IconGoalOutline16, IconInspectOutline12, IconLightOutline16, IconLikeFill16, IconLikeOutline16, IconLinkOutline14, IconLinkOutline16, IconListPenOutline16, IconLoadingOutline16, IconNewChatOutline16, IconPanelLeftOutline16, IconPaperclipOutline16, IconPauseOutline16, IconPersonalizationOutline16, IconPlayOutline16, IconPlusOutline16, IconProjectAddOutline16, IconQuestionOutline14, IconQueueOutline14, IconRefreshOutline14, IconRefreshOutline16, IconRightUpOutline14, IconRightUpOutline16, IconSearchOutline16, IconSendOutline14, IconSendOutline16, IconSettingsOutline14, IconSettingsOutline16, IconShareOutline16, IconSkillOutline16, IconSparkle16, IconStopFill16, IconThinkOutline14, IconThinkOutline16, IconTrashOutline16, IconTreeCorner8x10, IconTriangleRightFill14, IconUserOutline16, IconWarningOutline16, Input, JsonBlock, JsonTree, MarkdownText, Menu, MessageText, Modal, OnboardingSurface, Pill, ReadBlock, RiskConfirmation, SearchBlock, StateDot, TerminalBlock, Toast, Tooltip, WebBlock, extractMarkdownPlainText, useAnchoredMaxHeight, writeClipboard };
+export { BrandWordmark, Button, CodeBlock, ConnectionBanner, DEFAULT_DIFF_MAX_LINES, DEFAULT_READ_MAX_LINES, DEFAULT_SEARCH_MAX_LINES, DEFAULT_TERMINAL_MAX_LINES, DiffBlock, DisclosureRow, FishLogo, HoverCard, IconAgentPresetOutline16, IconApiOutline14, IconArchiveOutline20, IconBranchOutline16, IconBrowseOutline16, IconCheckOutline14, IconCheckOutline16, IconChecklistOutline14, IconChevronDownOutline14, IconChevronLeftOutline14, IconChevronRightOutline14, IconChevronUpOutline14, IconCloseFill14, IconCloseOutline16, IconCodeOutline16, IconCopyOutline16, IconCordisPluginOutline14, IconDarkOutline16, IconDataOutline16, IconDislikeFill16, IconDislikeOutline16, IconDownloadOutline16, IconEditOutline16, IconEllipsisOutline16, IconEnhanceOutline16, IconFolderClose16, IconFolderOpen16, IconFolderOpenOutline16, IconFollowsystemOutline16, IconFullscreenOutline16, IconGlobeOutline14, IconGoalOutline16, IconInspectOutline12, IconLightOutline16, IconLikeFill16, IconLikeOutline16, IconLinkOutline14, IconLinkOutline16, IconListPenOutline16, IconLoadingOutline16, IconNewChatOutline16, IconPanelLeftOutline16, IconPaperclipOutline16, IconPauseOutline16, IconPersonalizationOutline16, IconPlayOutline16, IconPlusOutline16, IconProjectAddOutline16, IconQuestionOutline14, IconQueueOutline14, IconRefreshOutline14, IconRefreshOutline16, IconRightUpOutline14, IconRightUpOutline16, IconSearchOutline16, IconSendOutline14, IconSendOutline16, IconSettingsOutline14, IconSettingsOutline16, IconShareOutline16, IconSkillOutline16, IconSparkle16, IconStopFill16, IconThinkOutline14, IconThinkOutline16, IconTrashOutline16, IconTreeCorner8x10, IconTriangleRightFill14, IconUserOutline16, IconWarningOutline16, Input, JsonBlock, JsonTree, MarkdownText, Menu, MessageText, Modal, OnboardingSurface, Pill, ReadBlock, RiskConfirmation, SearchBlock, StateDot, TerminalBlock, Toast, Tooltip, WebBlock, extractMarkdownPlainText, useAnchoredMaxHeight, useAnchoredPosition, useDismissOnOutsidePointer, writeClipboard };
+
+//# sourceMappingURL=index.js.map

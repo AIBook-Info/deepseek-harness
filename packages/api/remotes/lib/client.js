@@ -79,6 +79,7 @@ window.__ModuleLoader__.load({
 					Object.defineProperty(this, "value", { value });
 					return value;
 				}
+				throw new Error("cached value already set");
 			} };
 		}
 		function nullish(input) {
@@ -124,10 +125,7 @@ window.__ModuleLoader__.load({
 		}
 		function mergeDefs(...defs) {
 			const mergedDescriptors = {};
-			for (const def of defs) {
-				const descriptors = Object.getOwnPropertyDescriptors(def);
-				Object.assign(mergedDescriptors, descriptors);
-			}
+			for (const def of defs) Object.assign(mergedDescriptors, Object.getOwnPropertyDescriptors(def));
 			return Object.defineProperties({}, mergedDescriptors);
 		}
 		function esc(str) {
@@ -634,10 +632,8 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
-				if (def.value < curr) {
-					if (def.inclusive) bag.maximum = def.value;
-					else bag.exclusiveMaximum = def.value;
-				}
+				if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
+				else bag.exclusiveMaximum = def.value;
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
@@ -658,10 +654,8 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
-				if (def.value > curr) {
-					if (def.inclusive) bag.minimum = def.value;
-					else bag.exclusiveMinimum = def.value;
-				}
+				if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
+				else bag.exclusiveMinimum = def.value;
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
@@ -1432,7 +1426,7 @@ window.__ModuleLoader__.load({
 		const $ZodUndefined = /*@__PURE__*/ $constructor("$ZodUndefined", (inst, def) => {
 			$ZodType.init(inst, def);
 			inst._zod.pattern = _undefined$2;
-			inst._zod.values = /* @__PURE__ */ new Set([void 0]);
+			inst._zod.values = new Set([void 0]);
 			inst._zod.parse = (payload, _ctx) => {
 				const input = payload.value;
 				if (typeof input === "undefined") return payload;
@@ -2062,7 +2056,7 @@ window.__ModuleLoader__.load({
 			inst._zod.optin = "optional";
 			inst._zod.optout = "optional";
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, void 0]) : void 0;
+				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, void 0]) : void 0;
 			});
 			defineLazy(inst._zod, "pattern", () => {
 				const pattern = def.innerType._zod.pattern;
@@ -2096,7 +2090,7 @@ window.__ModuleLoader__.load({
 				return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
 			});
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, null]) : void 0;
+				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, null]) : void 0;
 			});
 			inst._zod.parse = (payload, ctx) => {
 				if (payload.value === null) return payload;
@@ -3052,10 +3046,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					defs[seen.defId] = seen.def;
 				}
 			}
-			if (ctx.external) {} else if (Object.keys(defs).length > 0) {
-				if (ctx.target === "draft-2020-12") result.$defs = defs;
-				else result.definitions = defs;
-			}
+			if (ctx.external) {} else if (Object.keys(defs).length > 0) if (ctx.target === "draft-2020-12") result.$defs = defs;
+			else result.definitions = defs;
 			try {
 				const finalized = JSON.parse(JSON.stringify(result));
 				Object.defineProperty(finalized, "~standard", {
@@ -3168,18 +3160,16 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 			const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 			const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
-			if (exMin) {
-				if (legacy) {
-					json.minimum = exclusiveMinimum;
-					json.exclusiveMinimum = true;
-				} else json.exclusiveMinimum = exclusiveMinimum;
-			} else if (typeof minimum === "number") json.minimum = minimum;
-			if (exMax) {
-				if (legacy) {
-					json.maximum = exclusiveMaximum;
-					json.exclusiveMaximum = true;
-				} else json.exclusiveMaximum = exclusiveMaximum;
-			} else if (typeof maximum === "number") json.maximum = maximum;
+			if (exMin) if (legacy) {
+				json.minimum = exclusiveMinimum;
+				json.exclusiveMinimum = true;
+			} else json.exclusiveMinimum = exclusiveMinimum;
+			else if (typeof minimum === "number") json.minimum = minimum;
+			if (exMax) if (legacy) {
+				json.maximum = exclusiveMaximum;
+				json.exclusiveMaximum = true;
+			} else json.exclusiveMaximum = exclusiveMaximum;
+			else if (typeof maximum === "number") json.maximum = maximum;
 			if (typeof multipleOf === "number") json.multipleOf = multipleOf;
 		};
 		const booleanProcessor = (_schema, _ctx, json, _params) => {
@@ -3203,10 +3193,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const vals = [];
 			for (const val of def.values) if (val === void 0) {
 				if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
-			} else if (typeof val === "bigint") {
-				if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
-				else vals.push(Number(val));
-			} else vals.push(val);
+			} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+			else vals.push(Number(val));
+			else vals.push(val);
 			if (vals.length === 0) {} else if (vals.length === 1) {
 				const val = vals[0];
 				json.type = val === null ? "null" : typeof val;
@@ -4000,12 +3989,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			});
 		});
 		function object(shape, params) {
-			const def = {
+			return new ZodObject({
 				type: "object",
 				shape: shape ?? {},
 				...normalizeParams(params)
-			};
-			return new ZodObject(def);
+			});
 		}
 		const ZodUnion = /*@__PURE__*/ $constructor("ZodUnion", (inst, def) => {
 			$ZodUnion.init(inst, def);
@@ -4084,10 +4072,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			};
 		});
 		function _enum(values, params) {
-			const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
 			return new ZodEnum({
 				type: "enum",
-				entries,
+				entries: Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values,
 				...normalizeParams(params)
 			});
 		}
@@ -4289,6 +4276,16 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		//#region ../../interaction/commands/lib/typert.remote-client.js
 		const _deepseek_ai_dsh_commands_commands_execute_parameter_0$schema = intersection(string(), unknown());
 		const _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema = string();
+		const _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema = array(object({
+			"mediaType": union([
+				literal("image/png"),
+				literal("image/jpeg"),
+				literal("image/webp"),
+				literal("image/gif")
+			]),
+			"data": string(),
+			"name": string().optional()
+		}));
 		const _deepseek_ai_dsh_commands_commands_execute_result$schema = union([_undefined(), object({
 			"commandId": intersection(string(), unknown()).readonly(),
 			"result": union([object({
@@ -4304,9 +4301,12 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		const _deepseek_ai_dsh_commands_commands_list_result$schema = array(object({
 			"name": string().readonly(),
 			"description": string().readonly(),
-			"input": object({ "hint": string().readonly() }).readonly().optional()
+			"input": object({
+				"hint": string().readonly(),
+				"images": boolean().readonly().optional()
+			}).readonly().optional()
 		}));
-		const TYPERT_REMOTE$4 = {
+		const TYPERT_REMOTE$6 = {
 			package: "@deepseek-ai/dsh-commands",
 			descriptors: [{
 				id: "@deepseek-ai/dsh-commands#commands/execute",
@@ -4318,26 +4318,39 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					context: "agent",
 					wire: "agentId"
 				},
-				parameters: [{
-					name: "agent",
-					wire: "agentId",
-					source: "lookup",
-					lookup: "agent",
-					codec: {
-						mode: "strict",
-						typeSymbol: "@deepseek-ai/dsh-session/types#SessionId",
-						schema: _deepseek_ai_dsh_commands_commands_execute_parameter_0$schema
+				parameters: [
+					{
+						name: "agent",
+						wire: "agentId",
+						source: "lookup",
+						lookup: "agent",
+						codec: {
+							mode: "strict",
+							typeSymbol: "@deepseek-ai/dsh-session/types#SessionId",
+							schema: _deepseek_ai_dsh_commands_commands_execute_parameter_0$schema
+						}
+					},
+					{
+						name: "line",
+						wire: "line",
+						source: "json",
+						codec: {
+							mode: "strict",
+							typeSymbol: "@deepseek-ai/dsh-commands#commands/execute:line",
+							schema: _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema
+						}
+					},
+					{
+						name: "images",
+						wire: "images",
+						source: "json",
+						codec: {
+							mode: "strict",
+							typeSymbol: "@deepseek-ai/dsh-commands#commands/execute:images",
+							schema: _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema
+						}
 					}
-				}, {
-					name: "line",
-					wire: "line",
-					source: "json",
-					codec: {
-						mode: "strict",
-						typeSymbol: "@deepseek-ai/dsh-commands#commands/execute:line",
-						schema: _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema
-					}
-				}],
+				],
 				cancellation: { parameter: "signal" },
 				result: {
 					mode: "strict",
@@ -4346,7 +4359,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				},
 				sourceLocation: {
 					"file": "packages/interaction/commands/src/index.ts",
-					"line": 297,
+					"line": 329,
 					"column": 9
 				}
 			}, {
@@ -4377,7 +4390,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				},
 				sourceLocation: {
 					"file": "packages/interaction/commands/src/index.ts",
-					"line": 260,
+					"line": 285,
 					"column": 3
 				}
 			}]
@@ -4506,7 +4519,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			"id": intersection(string(), unknown()).readonly(),
 			"revision": number().readonly()
 		});
-		const TYPERT_REMOTE$3 = {
+		const TYPERT_REMOTE$5 = {
 			package: "@deepseek-ai/dsh-goal",
 			descriptors: [
 				{
@@ -5099,7 +5112,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			"reason": literal("plugin-missing"),
 			"message": string()
 		})]);
-		const TYPERT_REMOTE$2 = {
+		const TYPERT_REMOTE$4 = {
 			package: "@deepseek-ai/dsh-cordis-host-runner",
 			descriptors: [
 				{
@@ -5700,7 +5713,61 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				}
 			]
 		};
-		const TYPERT_REMOTE$1 = {
+		//#endregion
+		//#region ../../context/file-reference/lib/typert.remote-client.js
+		const _deepseek_ai_dsh_file_reference_fileReferences_list_parameter_0$schema = intersection(string(), unknown());
+		const _deepseek_ai_dsh_file_reference_fileReferences_list_parameter_1$schema = string();
+		const _deepseek_ai_dsh_file_reference_fileReferences_list_result$schema = array(object({
+			"path": string(),
+			"kind": union([literal("file"), literal("directory")])
+		}));
+		const TYPERT_REMOTE$3 = {
+			package: "@deepseek-ai/dsh-file-reference",
+			descriptors: [{
+				id: "@deepseek-ai/dsh-file-reference#fileReferences/list",
+				service: "fileReferences",
+				namespace: "fileReferences",
+				method: "list",
+				implementation: "remoteExportList",
+				invocation: { kind: "direct" },
+				scope: {
+					context: "agent",
+					wire: "agentId"
+				},
+				parameters: [{
+					name: "agent",
+					wire: "agentId",
+					source: "lookup",
+					lookup: "agent",
+					codec: {
+						mode: "strict",
+						typeSymbol: "@deepseek-ai/dsh-session/types#SessionId",
+						schema: _deepseek_ai_dsh_file_reference_fileReferences_list_parameter_0$schema
+					}
+				}, {
+					name: "query",
+					wire: "query",
+					source: "json",
+					codec: {
+						mode: "strict",
+						typeSymbol: "@deepseek-ai/dsh-file-reference#fileReferences/list:query",
+						schema: _deepseek_ai_dsh_file_reference_fileReferences_list_parameter_1$schema
+					}
+				}],
+				cancellation: { parameter: "signal" },
+				result: {
+					mode: "strict",
+					typeSymbol: "@deepseek-ai/dsh-file-reference#fileReferences/list:result",
+					schema: _deepseek_ai_dsh_file_reference_fileReferences_list_result$schema
+				},
+				sourceLocation: {
+					"file": "packages/context/file-reference/src/index.ts",
+					"line": 54,
+					"column": 3
+				}
+			}]
+		};
+		const TYPERT_REMOTE$2 = {
 			package: "@deepseek-ai/dsh-host-plugin-inventory",
 			descriptors: [{
 				id: "@deepseek-ai/dsh-host-plugin-inventory#pluginInventory/list",
@@ -5826,7 +5893,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				})
 			]).readonly()
 		})]);
-		const TYPERT_REMOTE = {
+		const TYPERT_REMOTE$1 = {
 			package: "@deepseek-ai/dsh-message-feedback",
 			descriptors: [
 				{
@@ -5913,6 +5980,63 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			]
 		};
 		//#endregion
+		//#region ../../context/session-reference/lib/typert.remote-client.js
+		const _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_parameter_0$schema = intersection(string(), unknown());
+		const _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_parameter_1$schema = string();
+		const _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_result$schema = array(object({
+			"mention": string(),
+			"sessionId": intersection(string(), unknown()),
+			"label": string(),
+			"cwd": string().optional(),
+			"createdAt": number()
+		}));
+		const TYPERT_REMOTE = {
+			package: "@deepseek-ai/dsh-session-reference",
+			descriptors: [{
+				id: "@deepseek-ai/dsh-session-reference#sessionReferenceResolver/candidates",
+				service: "sessionReferenceResolver",
+				namespace: "sessionReferenceResolver",
+				method: "candidates",
+				implementation: "remoteExportCandidates",
+				invocation: { kind: "direct" },
+				scope: {
+					context: "agent",
+					wire: "agentId"
+				},
+				parameters: [{
+					name: "agent",
+					wire: "agentId",
+					source: "lookup",
+					lookup: "agent",
+					codec: {
+						mode: "strict",
+						typeSymbol: "@deepseek-ai/dsh-session/types#SessionId",
+						schema: _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_parameter_0$schema
+					}
+				}, {
+					name: "query",
+					wire: "query",
+					source: "json",
+					codec: {
+						mode: "strict",
+						typeSymbol: "@deepseek-ai/dsh-session-reference#sessionReferenceResolver/candidates:query",
+						schema: _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_parameter_1$schema
+					}
+				}],
+				cancellation: { parameter: "signal" },
+				result: {
+					mode: "strict",
+					typeSymbol: "@deepseek-ai/dsh-session-reference#sessionReferenceResolver/candidates:result",
+					schema: _deepseek_ai_dsh_session_reference_sessionReferenceResolver_candidates_result$schema
+				},
+				sourceLocation: {
+					"file": "packages/context/session-reference/src/index.ts",
+					"line": 218,
+					"column": 9
+				}
+			}]
+		};
+		//#endregion
 		//#region lib/types/client/index.js
 		/** Platform-neutral assembly of generated Host Remote contributions. */
 		/** Required service: the typed Client Remote contribution mount. */
@@ -5926,6 +6050,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const disposers = [];
 			try {
 				for (const contribution of [
+					TYPERT_REMOTE$6,
+					TYPERT_REMOTE$5,
 					TYPERT_REMOTE$4,
 					TYPERT_REMOTE$3,
 					TYPERT_REMOTE$2,

@@ -1,153 +1,100 @@
-import * as ReactJsxRuntime from "react/jsx-runtime";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import * as Cordis from "@deepseek-ai/cordis";
 import { Context } from "@deepseek-ai/cordis";
 import Loader from "@deepseek-ai/cordis-plugin-loader";
-import * as ReactDomClient from "react-dom/client";
-import { createRoot } from "react-dom/client";
-import * as ModulesClient from "@deepseek-ai/dsh-client-modules/client";
-import { ClientModuleSystem, parseBootManifest } from "@deepseek-ai/dsh-client-modules/client";
-import * as WebReact from "@deepseek-ai/dsh-client-web-react";
-import { bindSnapshotSelector, createSlotRenderer } from "@deepseek-ai/dsh-client-web-react";
+import css from "./boot-page.module.css";
 import * as React from "react";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import * as ReactJsxRuntime from "react/jsx-runtime";
 import * as ReactDom from "react-dom";
+import * as ReactDomClient from "react-dom/client";
 import * as UiSlots from "@deepseek-ai/dsh-client-ui-slots";
 import * as UiPrimitives from "@deepseek-ai/dsh-client-ui-primitives";
-import * as UiAttachment from "@deepseek-ai/dsh-client-ui-attachment";
-import * as SchemaForm from "@deepseek-ai/dsh-client-schema-form";
-//#region \0rolldown/runtime.js
-var __defProp = Object.defineProperty;
-var __exportAll = (all, no_symbols) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
-	return target;
+import "./base.css";
+//#region lib/types/boot-page.js
+/** Create a div with one module class and optional text. */
+function div(className, text) {
+	const el = document.createElement("div");
+	el.className = className ?? "";
+	if (text !== void 0) el.textContent = text;
+	return el;
+}
+/** Kernel-owned page mounted below the application's root element. */
+var BootPage = class {
+	root;
+	card;
+	wordmark;
+	spinner;
+	hint;
+	states = /* @__PURE__ */ new Map();
+	active = /* @__PURE__ */ new Set();
+	total = 0;
+	failure;
+	/**
+	* Build and attach the boot page.
+	* @param container - Application mount point.
+	*/
+	constructor(container) {
+		this.root = div(css.boot);
+		this.root.dataset.dshBoot = "";
+		this.card = div(css.card);
+		this.wordmark = div(css.wordmark, "HARNESS");
+		this.spinner = div(css.spinner);
+		this.spinner.dataset.dshBootSpinner = "";
+		this.hint = div(css.hint, "Loading plugins…");
+		this.card.append(this.wordmark, this.spinner, this.hint);
+		this.root.append(this.card);
+		container.append(this.root);
+		this.updateProgress();
+	}
+	/**
+	* Set the number of loader entries represented by the progress arc.
+	* @param total - Complete boot roster size.
+	*/
+	setTotal(total) {
+		this.total = total;
+		this.updateProgress();
+	}
+	/**
+	* Project one loader entry's fiber state.
+	* @param id - Loader entry name.
+	* @param state - Projected fiber state.
+	*/
+	setState(id, state) {
+		this.states.set(id, state);
+		if (state === "active") this.active.add(id);
+		this.updateProgress();
+		this.render();
+	}
+	/**
+	* Display the boot failure report.
+	* @param message - Failure report text.
+	*/
+	fail(message) {
+		this.failure = message;
+		this.render();
+	}
+	/** Detach the page before or after the UI renderer takes the mount point. */
+	dispose() {
+		this.root.remove();
+	}
+	/** Redraw the state-dependent content below the wordmark. */
+	render() {
+		const failed = [...this.states].filter(([, state]) => state === "failed").map(([id]) => id);
+		if (this.failure === void 0 && failed.length === 0) {
+			if (this.spinner.parentElement !== this.card) this.card.replaceChildren(this.wordmark, this.spinner, this.hint);
+			return;
+		}
+		const report = div(css.failed);
+		report.append(div(css.failedTitle, "Failed to load plugins"));
+		for (const id of failed) report.append(div(css.failedItem, id));
+		if (this.failure !== void 0) report.append(div(css.failedItem, this.failure));
+		this.card.replaceChildren(this.wordmark, report);
+	}
+	/** Grow the rotating arc monotonically as loader entries activate. */
+	updateProgress() {
+		const ratio = this.total === 0 ? 0 : Math.min(this.active.size / this.total, 1);
+		this.spinner.style.setProperty("--dsh-boot-arc", `${String(Math.round(72 + ratio * 216))}deg`);
+	}
 };
-//#endregion
-//#region lib/types/DocumentTitle.js
-/**
-* Project the selected durable session title into the browser title and
-* restore the shell's original product title when unmounted.
-* @param props - selected session title projection.
-* @returns no rendered content.
-*/
-function DocumentTitle({ title }) {
-	const original = useRef(document.title);
-	useEffect(() => {
-		document.title = title === void 0 ? original.current : `${title} — ${original.current}`;
-		return () => {
-			document.title = original.current;
-		};
-	}, [title]);
-	return null;
-}
-//#endregion
-//#region lib/types/app.js
-/**
-* Build the renderApp factory the app-shell plugin provides to AppRoot.
-* @param deps - assembly inputs.
-* @returns factory producing the real UI tree (called once per AppRoot render after settled).
-*/
-function buildRenderApp(deps) {
-	const { ctx } = deps;
-	const sessions = ctx.get("sessions");
-	if (sessions === void 0) throw new Error("shell assembly: sessions service unavailable");
-	const useSessions = bindSnapshotSelector(sessions.list);
-	const SessionDocumentTitle = () => {
-		const title = useSessions((state) => {
-			const id = state.current;
-			return id === void 0 ? void 0 : state.byId[id]?.title;
-		});
-		return jsx(DocumentTitle, { ...title === void 0 ? {} : { title } });
-	};
-	return () => jsxs(Fragment, { children: [jsx(SessionDocumentTitle, {}), ctx.slots.renderSlot("root", {})] });
-}
-//#endregion
-//#region lib/types/app-shell.js
-var app_shell_exports = /* @__PURE__ */ __exportAll({
-	APP_SHELL_ID: () => APP_SHELL_ID,
-	apply: () => apply,
-	inject: () => inject,
-	name: () => name
-});
-/** Shell-owned pseudo entry id under which the host graph mounts this plugin. */
-const APP_SHELL_ID = "@deepseek-ai/dsh-client-app-shell";
-/** Cordis plugin name. */
-const name = "app-shell";
-/** Services required before shell assembly. */
-const inject = [
-	"slots",
-	"sessions",
-	"layout"
-];
-/** Installs the React renderer and exposes the assembled application.
-* @param ctx - Plugin context.
-*/
-function apply(ctx) {
-	ctx.slots.install(createSlotRenderer());
-	let renderApp;
-	ctx.reflect.provide("appShell", { renderApp: () => {
-		renderApp ??= buildRenderApp({ ctx });
-		return renderApp();
-	} });
-}
-//#endregion
-//#region \0dsh-css-stub:./AppRoot.module.css.mjs
-var AppRoot_module_css_default = {};
-//#endregion
-//#region lib/types/AppRoot.js
-/**
-* Shell root: boot loading page → (boot settled) → real UI in one switch.
-* Pure kernel component with zero plugin dependencies — before settled it may
-* only rely on itself (the fail-loud presentation must not depend on the
-* system whose failure it reports; the status/signal stores are kernel-own,
-* shell self-sufficiency rule); the real UI is produced by the
-* app-shell entry once every entry is active. A failed boot keeps the
-* loading page, lists the per-entry fiber states and the sweep report (fail
-* loud, no partial UI).
-*/
-/** Boot gate: loading page until the boot settles; failures stay here. */
-function AppRoot(props) {
-	const settled = useSyncExternalStore(props.settled.subscribe, props.settled.getSnapshot);
-	const status = useSyncExternalStore(props.status.subscribe, props.status.getSnapshot);
-	const error = useSyncExternalStore(props.error.subscribe, props.error.getSnapshot);
-	const failed = Object.entries(status).filter(([, s]) => s === "failed");
-	if (settled) return jsx(Fragment, { children: props.renderApp() });
-	const loud = error !== void 0 || failed.length > 0;
-	return jsx("div", {
-		className: AppRoot_module_css_default.boot,
-		children: jsxs("div", {
-			className: AppRoot_module_css_default.card,
-			children: [jsx("div", {
-				className: AppRoot_module_css_default.wordmark,
-				children: "HARNESS"
-			}), !loud ? jsxs(Fragment, { children: [jsx("div", { className: AppRoot_module_css_default.spinner }), jsx("div", {
-				className: AppRoot_module_css_default.hint,
-				children: "Loading plugins…"
-			})] }) : jsxs("div", {
-				className: AppRoot_module_css_default.failed,
-				children: [
-					jsx("div", {
-						className: AppRoot_module_css_default.failedTitle,
-						children: "Failed to load plugins"
-					}),
-					failed.map(([id]) => jsx("div", {
-						className: AppRoot_module_css_default.failedItem,
-						children: id
-					}, id)),
-					error !== void 0 && jsx("div", {
-						className: AppRoot_module_css_default.failedItem,
-						children: error
-					})
-				]
-			})]
-		})
-	});
-}
 //#endregion
 //#region lib/types/seed.js
 /**
@@ -170,10 +117,7 @@ function getStaticModules() {
 		"react-dom/client": ReactDomClient,
 		"@deepseek-ai/cordis": Cordis,
 		"@deepseek-ai/dsh-client-ui-slots": UiSlots,
-		"@deepseek-ai/dsh-client-web-react": WebReact,
-		"@deepseek-ai/dsh-client-ui-primitives": UiPrimitives,
-		"@deepseek-ai/dsh-client-ui-attachment": UiAttachment,
-		"@deepseek-ai/dsh-client-schema-form": SchemaForm
+		"@deepseek-ai/dsh-client-ui-primitives": UiPrimitives
 	};
 }
 //#endregion
@@ -201,200 +145,98 @@ const STATE_LABELS = {
 	[FIBER_STATE.DISPOSED]: "disposed",
 	[FIBER_STATE.UNLOADING]: "unloading"
 };
-/**
-* Create a writable kernel signal.
-* @param init - initial value.
-* @returns the signal.
-*/
-function createSignal(init) {
-	let value = init;
-	const listeners = /* @__PURE__ */ new Set();
-	return {
-		getSnapshot: () => value,
-		subscribe: (fn) => {
-			listeners.add(fn);
-			return () => {
-				listeners.delete(fn);
-			};
-		},
-		set: (next) => {
-			value = next;
-			for (const fn of [...listeners]) fn();
-		}
-	};
-}
-/**
-* Create the boot status store.
-* @returns the store (empty until the boot chain projects rows).
-*/
-function createLoaderStatusStore() {
-	let value = {};
-	const listeners = /* @__PURE__ */ new Set();
-	return {
-		getSnapshot: () => value,
-		subscribe: (fn) => {
-			listeners.add(fn);
-			return () => {
-				listeners.delete(fn);
-			};
-		},
-		set: (id, state) => {
-			value = {
-				...value,
-				[id]: state
-			};
-			for (const fn of [...listeners]) fn();
-		}
-	};
-}
 //#endregion
 //#region lib/types/boot.js
 /**
-* Web shell boot kernel — the face consumed by the apps/web entry. Everything
-* here is machinery that cannot itself be a loader entry, and none of it
-* value-imports a plugin package (shell self-sufficiency rule: the
-* loading page must work while — especially when — plugins fail). The one
-* sanctioned exception is the modules package (bootstrap
-* identity): the module system cannot arrive through itself, so its class
-* and its client-half wrapper are shell-bundled and the kernel adopts its
-* plugin entry once cordis is up.
-*
-* AppWebEntry.run(), module face first, then plugin face: parse
-* `window.__DSH_BOOT__` into the two-view BootManifest (wire boundary)
-* → build the module system over the module-view rows → render the loading
-* page → prefetch every `immediately` row in parallel with mounting the
-* vendored cordis Loader (`internal` contract injection BEFORE any entry exists —
-* the bare-import fallback in tree.import must never run in a browser) →
-* await the prefetch tier, THEN adopt the modules entry and create one
-* loader entry per plugin-view row plus the shell-own app-shell assembly
-* entry → loader.await() + a full fiber sweep (all ACTIVE, else fail
-* listing who/what/which service) → flip the settled signal so AppRoot
-* switches to the real UI in one pass.
-*
-* Entry creation waits for the whole immediately tier: materialization runs
-* synchronous cross-package require edges (e.g. locale → runtime/client) that
-* fiber inject waiting cannot protect — a bundle's factory must be
-* registered before any dependent entry materializes. Per-row prefetch
-* failures still resolve silently (the create-side import reloads and
-* owns the loud failure), so the barrier never turns one bad bundle into a
-* boot-wide fail-fast.
-*
-* Composition lives in the host graph; the shell makes zero composition
-* decisions (the app-shell assembly is itself a graph entry, the only
-* shell-own module registered with the module system).
+* Web boot kernel. It owns only the module system, Cordis loader, and a
+* framework-free boot page. The dynamic UI renderer receives the mount
+* point after every client entry activates.
+* @module @deepseek-ai/dsh-client-web/src/boot
 */
-/**
-* The modules package's own graph row id. The kernel adopts that entry
-* itself (its wrapper is statically registered — shell-bundled code, never
-* fetched), so the plugin-row loop must skip it: the vendored Group.create
-* does not deduplicate by name, and a second fiber would provide 'modules'
-* twice.
-*/
-const MODULES_ID = "@deepseek-ai/dsh-client-modules";
-/**
-* The web shell kernel: mounts the loading page into a DOM element and runs
-* the two-stage boot over the host graph. Fields hold only what must exist
-* before cordis does — the parsed manifest, the module system, and the
-* loading-page UI handles; everything else lives in plugins.
-*/
+/** Browser boot entry consumed by `apps/web`. */
 var AppWebEntry = class {
-	el;
+	container;
 	seams;
-	status = createLoaderStatusStore();
-	settled = createSignal(false);
-	error = createSignal(void 0);
+	page;
 	ctx;
 	modules;
 	manifest;
-	root;
 	/**
-	* Hold the mount point; all work happens in {@link run}.
-	* @param el - mount point (the app's #root).
-	* @param seams - Optional module transport overrides for test environments.
+	* Draw the boot page; {@link run} starts the loader.
+	* @param container - Application mount point.
+	* @param seams - Optional module transport replacement.
 	*/
-	constructor(el, seams) {
-		this.el = el;
+	constructor(container, seams) {
+		this.container = container;
 		this.seams = seams;
+		this.page = new BootPage(container);
 	}
 	/**
-	* Run the boot chain to settlement. Boot-chain failures resolve (not
-	* reject): the loading page stays up and renders the failure report (the
-	* fail-loud surface the kernel owns). Rejects only when the boot manifest
-	* is missing or malformed — there is nothing to boot against.
-	* @returns resolves once the UI settled or the failure report rendered.
+	* Load and activate every client entry, then hand the mount point to the
+	* UI renderer. Plugin failures remain visible on the boot page.
+	* @returns Resolves after application mount or failure rendering.
 	*/
 	async run() {
-		this.manifest = parseBootManifest(globalThis.__DSH_BOOT__);
-		this.modules = new ClientModuleSystem({
-			modules: this.manifest.modules,
-			staticModules: getStaticModules(),
-			...this.seams
-		});
-		this.modules.registerStatic(APP_SHELL_ID, app_shell_exports);
-		this.modules.registerStatic(MODULES_ID, ModulesClient);
-		globalThis.__DSH_MODULES__ = this.modules;
-		this.root = createRoot(this.el);
-		this.root.render(jsx(AppRoot, {
-			settled: this.settled,
-			status: this.status,
-			error: this.error,
-			renderApp: () => {
-				const shell = this.ctx.get("appShell");
-				if (shell === void 0) throw new Error("web boot: appShell service missing after settled");
-				return shell.renderApp();
-			}
-		}));
-		const prefetching = this.prefetchImmediateTier();
-		this.ctx = new Context();
 		try {
-			await this.runPluginBoot(prefetching);
-			this.settled.set(true);
+			const win = globalThis;
+			const moduleLoader = win.__ModuleLoader__;
+			if (moduleLoader === void 0) throw new Error("web boot: window.__ModuleLoader__ bootstrap facade is missing");
+			this.modules = moduleLoader.create({
+				boot: win.__DSH_BOOT__,
+				staticModules: getStaticModules(),
+				...this.seams
+			});
+			this.manifest = this.modules.manifest;
+			const prefetching = this.prefetchImmediateTier();
+			const ctx = new Context();
+			this.ctx = ctx;
+			await this.runPluginBoot(ctx, prefetching);
+			await this.mountApp(ctx);
 		} catch (reason) {
 			console.error(reason);
-			this.error.set(reason instanceof Error ? reason.message : String(reason));
+			this.page.fail(reason instanceof Error ? reason.message : String(reason));
 		}
 	}
-	/** Unmount the shell (loading page or settled UI). */
-	dispose() {
-		this.root?.unmount();
-	}
-	/** Prefetch the immediately tier (factory registration only; failures defer to the import path). */
-	async prefetchImmediateTier() {
-		await Promise.all(this.manifest.plugins.filter((row) => row.immediately).map((row) => this.modules.prefetch(row.id).catch(() => {})));
-	}
-	/** Plugin face: mount the Loader, inject the `internal` contract, adopt modules, create the graph entries, settle, sweep. */
-	async runPluginBoot(prefetching) {
+	/** Dispose the client plugin tree and whichever page owns the mount point. */
+	async dispose() {
 		const ctx = this.ctx;
+		this.ctx = void 0;
+		if (ctx !== void 0) await ctx.fiber.dispose();
+		this.page.dispose();
+	}
+	/** Mount through a dependency fiber so replacing uiRenderer remounts the application. */
+	async mountApp(ctx) {
+		await ctx.inject(["uiRenderer"], (scope) => {
+			scope.effect(() => scope.uiRenderer.mount(this.container), "web boot: application mount");
+		});
+	}
+	/** Prefetch stage-one bundles; their import path owns any eventual failure. */
+	async prefetchImmediateTier() {
+		await Promise.all(this.manifest.plugins.filter((row) => row.immediately).map((row) => this.modules.prefetch(row.id).catch((_prefetchError) => {})));
+	}
+	/** Mount the Loader, create all graph entries, await quiescence, and audit activation. */
+	async runPluginBoot(ctx, prefetching) {
 		await ctx.plugin(Loader);
 		const loader = ctx.loader;
 		loader.internal = this.modules;
 		ctx.on("internal/status", (fiber) => {
 			const entry = fiber.entry;
 			if (entry === void 0 || entry.fiber === void 0) return;
-			this.status.set(entry.options.name, STATE_LABELS[entry.fiber.state]);
+			this.page.setState(entry.options.name, STATE_LABELS[entry.fiber.state]);
 		});
+		const rows = this.manifest.plugins.map((row) => row.id);
+		this.page.setTotal(rows.length);
 		await prefetching;
-		const rows = [
-			MODULES_ID,
-			...this.manifest.plugins.map((row) => row.id).filter((id) => id !== MODULES_ID),
-			APP_SHELL_ID
-		];
 		await Promise.all(rows.map(async (name) => {
-			this.status.set(name, "loading");
+			this.page.setState(name, "loading");
 			const id = await loader.create({ name });
-			if (loader.resolve(id).fiber === void 0) this.status.set(name, "failed");
+			if (loader.resolve(id).fiber === void 0) this.page.setState(name, "failed");
 		}));
 		await loader.await();
-		this.assertEntriesActive();
+		this.assertEntriesActive(ctx);
 	}
-	/**
-	* Sweep every loader entry after the tree quiesced: an entry without a
-	* fiber failed its import; a fiber not ACTIVE is FAILED (apply threw) or
-	* PENDING (a required service never arrived — cordis inject waiting has no
-	* timeout, so this sweep is the fail-loud compensation).
-	*/
-	assertEntriesActive() {
-		const ctx = this.ctx;
+	/** Reject entries that failed import/apply or still wait on missing services. */
+	assertEntriesActive(ctx) {
 		const failures = [];
 		for (const entry of ctx.loader.entries()) {
 			const name = entry.options.name;
@@ -427,10 +269,11 @@ const PLATFORM_MODULES = [
 	"react-dom/client",
 	"@deepseek-ai/cordis",
 	"@deepseek-ai/dsh-client-ui-slots",
-	"@deepseek-ai/dsh-client-web-react",
-	"@deepseek-ai/dsh-client-ui-primitives",
-	"@deepseek-ai/dsh-client-ui-attachment",
-	"@deepseek-ai/dsh-client-schema-form"
+	"@deepseek-ai/dsh-client-ui-primitives"
 ];
+/** Client-bundle specifiers whose factories the parser preloads before the shell starts. */
+const PRELOADED_CLIENT_EXTERNALS = ["@deepseek-ai/dsh-client-runtime/client"];
 //#endregion
-export { APP_SHELL_ID, AppRoot, AppWebEntry, DocumentTitle, FIBER_STATE, PLATFORM_MODULES, STATE_LABELS, buildRenderApp, createLoaderStatusStore, createSignal, getStaticModules };
+export { AppWebEntry, PLATFORM_MODULES, PRELOADED_CLIENT_EXTERNALS, getStaticModules };
+
+//# sourceMappingURL=index.js.map

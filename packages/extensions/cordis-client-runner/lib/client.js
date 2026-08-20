@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
 			}
 			return to;
 		};
-		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
+		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
 			value: mod,
 			enumerable: true
 		}) : target, mod));
@@ -202,7 +202,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 		* as trusted as the host process that accepted its definition.
 		*/
 		/** Facade verbs beyond declared services (host CTX_VERBS twin). */
-		const CTX_VERBS = /* @__PURE__ */ new Set([
+		const CTX_VERBS = new Set([
 			"effect",
 			"on",
 			"once",
@@ -214,7 +214,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			"throttle",
 			"debounce"
 		]);
-		const TIMER_VERBS = /* @__PURE__ */ new Set([
+		const TIMER_VERBS = new Set([
 			"timeout",
 			"interval",
 			"setTimeout",
@@ -1137,7 +1137,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			{
 				key: "locale",
 				summary: "Dictionary registry plus locale preference.",
-				description: "Dictionary registry plus locale preference. Lookup chain per key: the entry's namespace in the active locale -> that namespace's zh fallback -> the shared common namespace (active, then zh) -> the key itself (missing text stays visible, fail loud in the UI rather than blank). Reads go through getLocale; writes only through setLocale; continuous sync through the `locale/change` event, or through the LocaleFace getSnapshot/subscribe pair the render machinery consumes (installed via `ctx.slots.installLocale`).",
+				description: "Dictionary registry plus locale preference. Lookup chain per key: the entry's namespace in the active locale -> that namespace's en fallback -> the shared common namespace (active, then en) -> the key itself (missing text stays visible, fail loud in the UI rather than blank). Reads go through getLocale; writes only through setLocale; continuous sync through the `locale/change` event, or through the LocaleFace getSnapshot/subscribe pair the render machinery consumes (installed via `ctx.slots.installLocale`).",
 				methods: [
 					{
 						signature: "getLocale(): LocaleSnapshot",
@@ -1162,7 +1162,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 					},
 					{
 						signature: "setLocale(id: string): void",
-						description: "Switch the active locale — the only user preference write entry.",
+						description: "Switch the active locale — the only user preference write entry.\n\nThe durable write happens even when the id already matches the active locale, because the active value may be a provisional browser-derived or fallback resolution that nothing has stored yet. Picking the language already on screen is still an explicit choice, and it must survive a different browser sharing the same DSH home. Only the render notification is conditional: republishing an unchanged locale would churn every subscriber for nothing.",
 						parameters: [{
 							name: "id",
 							description: "a registered locale id; unknown ids throw."
@@ -1734,7 +1734,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			},
 			{
 				name: "ISession",
-				declaration: "export interface ISession {\n    readonly sessionId: SessionId;\n    readonly projections: ProjectionsFace;\n    prompt(content: PromptContentPart[], mode: 'queue' | 'steer'): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    readAttachment(attachmentId: AttachmentIdType): Promise<RpcResult<{\n        attachment: ImageAttachmentRef;\n        data: Uint8Array;\n    }>>;\n    updateQueue(itemId: MessageId, action: QueueAction): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    cancel(): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    rename(title: string): Promise<RpcResult<{\n        title: string;\n        seq: number;\n    }>>;\n    loadOlder(): Promise<void>;\n    command(line: string): Promise<RemoteResult<{\n        matched: boolean;\n    }>>;\n}"
+				declaration: "export interface ISession {\n    readonly sessionId: SessionId;\n    readonly projections: ProjectionsFace;\n    prompt(content: PromptContentPart[], mode: 'queue' | 'steer', signal?: AbortSignal): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    readAttachment(attachmentId: AttachmentIdType): Promise<RpcResult<{\n        attachment: ImageAttachmentRef;\n        data: Uint8Array;\n    }>>;\n    updateQueue(itemId: MessageId, action: QueueAction): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    cancel(): Promise<RpcResult<{\n        accepted: true;\n    }>>;\n    rename(title: string): Promise<RpcResult<{\n        title: string;\n        seq: number;\n    }>>;\n    loadOlder(): Promise<void>;\n    command(line: string): Promise<RemoteResult<{\n        matched: boolean;\n    }>>;\n}"
 			},
 			{
 				name: "KeyPropsOf",
@@ -2190,7 +2190,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-message-feedback MessageFeedbackActions id 'feedback'"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.chat.assistant-actions', () => ctx.slots.register(\n      { name: 'conversation.chat.assistant-actions', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:109"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:138"
 			},
 			{
 				key: "conversation.chat.commandview",
@@ -2222,7 +2222,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: [],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register(\n      { name: 'conversation.chat.commandview', key: '<one key the owner dispatches>' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:94"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:123"
 			},
 			{
 				key: "conversation.chat.node",
@@ -2236,10 +2236,10 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 					type: "string",
 					doc: "Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant."
 				}],
-				ownerProps: ["/** Stable owner currency delivered to one keyed Chat business renderer. */\nexport interface ChatNodeOwnerProps {\n  /** Selected Tool call, when the shared details store names one. */\n  selectedCallId?: CallId | undefined\n  /** Session workspace root; Tool summaries display paths relative to it. */\n  cwd?: string | undefined\n  openFile: (path: string) => void\n  inspectCall: (callId: CallId) => void\n  forkAt: (seq: number) => void\n  /** Resolve a session-authorized historical image for inline display. */\n  loadImage: (attachment: ImageAttachmentRef) => Promise<string>\n  fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined\n}"],
+				ownerProps: ["/** Stable owner currency delivered to one keyed Chat business renderer. */\nexport interface ChatNodeOwnerProps {\n  /** Selected Tool call, when the shared details store names one. */\n  selectedCallId?: CallId | undefined\n  /** Session workspace root; Tool summaries display paths relative to it. */\n  cwd?: string | undefined\n  openFile: (path: string) => void\n  inspectCall: (callId: CallId) => void\n  forkAt: (seq: number) => void\n  /** Render a historical image group through the attachment slot. */\n  renderMessageImages: RenderMessageImages\n  fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined\n}"],
 				ownerPropsReferences: [
-					"ImageAttachmentRef",
 					"MarkdownFileMentions",
+					"RenderMessageImages",
 					"TurnTailOwnerProps"
 				],
 				standardProps: [
@@ -2274,7 +2274,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(\n      { name: 'conversation.chat.node', key: '<one key the owner dispatches>' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:78"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:105"
 			},
 			{
 				key: "conversation.chat.turnTail",
@@ -2306,7 +2306,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-deliverables ProducedFiles"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register(\n      { name: 'conversation.chat.turnTail', select: owner => null },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:101"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:130"
 			},
 			{
 				key: "conversation.composer",
@@ -2342,7 +2342,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.composer', () => ctx.slots.register(\n      { name: 'conversation.composer', select: owner => null },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:132"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:161"
 			},
 			{
 				key: "conversation.composer.bar",
@@ -2369,7 +2369,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-conversation InputBar"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.composer.bar', () => ctx.slots.register(\n      { name: 'conversation.composer.bar' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:201"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:235"
 			},
 			{
 				key: "conversation.composer.dock",
@@ -2415,7 +2415,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-conversation StatsLine id 'stats'"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(\n      { name: 'conversation.composer.dock', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:170"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:204"
 			},
 			{
 				key: "conversation.details.tool",
@@ -2442,7 +2442,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-tool ToolDetails"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.details.tool', () => ctx.slots.register(\n      { name: 'conversation.details.tool' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:124"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:153"
 			},
 			{
 				key: "conversation.hero.agentPreset",
@@ -2461,7 +2461,26 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-agent-preset AgentPresetSeat"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.hero.agentPreset', () => ctx.slots.register(\n      { name: 'conversation.hero.agentPreset' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:145"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:179"
+			},
+			{
+				key: "conversation.hero.brand.mark",
+				kind: "single",
+				scope: "root",
+				summary: "Brand mark leading the blank-session headline.",
+				doc: "Brand mark leading the blank-session headline. Declared by this\npackage's `conversation` entry; the shell supplies a fish fallback.",
+				registerOptions: [],
+				ownerProps: ["/** Presentation props supplied to the blank-session brand-mark occupant. */\nexport interface HeroBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n  /** Host CSS class for preserving the default hero mark color and hover motion. */\n  className?: string | undefined\n}"],
+				ownerPropsReferences: [],
+				standardProps: ["useSessions: SnapshotSelectorHook<SessionListState>", "useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>"],
+				keyDomain: "",
+				hookContext: "",
+				slotInject: "",
+				declaredBy: "an entry in 'conversation' (client-ui-conversation), so it exists while that entry is mounted",
+				occupants: ["client-ui-brand-official OfficialBrandMark"],
+				replaceRisk: "shadows-shipped-ui",
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register(\n      { name: 'conversation.hero.brand.mark' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:173"
 			},
 			{
 				key: "conversation.hero.workspace",
@@ -2480,7 +2499,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-workspace WorkspacePicker"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.hero.workspace', () => ctx.slots.register(\n      { name: 'conversation.hero.workspace' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:139"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:168"
 			},
 			{
 				key: "conversation.hero.workspace.directoryFlow",
@@ -2499,7 +2518,34 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-directory-picker-browse BrowseDirectoryFlow", "client-ui-directory-picker-native NativeDirectoryFlow"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.hero.workspace.directoryFlow', () => ctx.slots.register(\n      { name: 'conversation.hero.workspace.directoryFlow' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-workspace/src/client/contract/slots.ts:56"
+				source: "packages/client/ui-workspace/src/client/contract/slots.ts:57"
+			},
+			{
+				key: "conversation.input.attachments",
+				kind: "single",
+				scope: "session-maybe",
+				summary: "Optional draft-image rail, drop target, and preview surface inside the composer.",
+				doc: "Optional draft-image rail, drop target, and preview surface inside the composer.",
+				registerOptions: [],
+				ownerProps: ["/** Input state handed to the optional attachment presentation plugin. */\nexport interface ComposerAttachmentsOwnerProps {\n  /** Browser-owned draft images in input order. */\n  attachments: readonly ComposerAttachment[]\n  /** Whether a document-level file drop may add images now. */\n  canAcceptDrop: boolean\n  /** Add one dropped batch through the composer's validation path. */\n  onAddImages: (files: readonly File[]) => void\n  /** Remove one draft image through the conversation service. */\n  onRemoveImage: (id: DraftAttachmentId) => void\n  /** Display-ready limits for the drop invitation. */\n  dropLimits?: { readonly count: number; readonly size: string } | undefined\n}"],
+				ownerPropsReferences: ["ComposerAttachment", "DraftAttachmentId"],
+				standardProps: [
+					"useSessions: SnapshotSelectorHook<SessionListState>",
+					"useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>",
+					"useSession: MaybeSnapshotSelectorHook<ConversationSnapshot>",
+					"sessionId: SessionId | undefined",
+					"useProjection: UseProjection",
+					"useInput: MaybeSnapshotSelectorHook<InputState>",
+					"inputActions: InputActions | undefined"
+				],
+				keyDomain: "",
+				hookContext: "",
+				slotInject: "",
+				declaredBy: "an entry in 'conversation.composer.bar' (client-ui-conversation), so it exists while that entry is mounted",
+				occupants: ["client-ui-attachment ComposerAttachments"],
+				replaceRisk: "shadows-shipped-ui",
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.attachments', () => ctx.slots.register(\n      { name: 'conversation.input.attachments' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:237"
 			},
 			{
 				key: "conversation.input.dock",
@@ -2549,7 +2595,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(\n      { name: 'conversation.input.dock', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:161"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:195"
 			},
 			{
 				key: "conversation.input.left",
@@ -2595,7 +2641,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: [],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.left', () => ctx.slots.register(\n      { name: 'conversation.input.left', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:179"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:213"
 			},
 			{
 				key: "conversation.input.model",
@@ -2622,7 +2668,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-model-selection ModelSelect"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.model', () => ctx.slots.register(\n      { name: 'conversation.input.model' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:221"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:261"
 			},
 			{
 				key: "conversation.input.overlay",
@@ -2695,7 +2741,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-plan PlanChip"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.plan', () => ctx.slots.register(\n      { name: 'conversation.input.plan' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:211"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:251"
 			},
 			{
 				key: "conversation.input.right",
@@ -2741,7 +2787,34 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: [],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.input.right', () => ctx.slots.register(\n      { name: 'conversation.input.right', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:187"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:221"
+			},
+			{
+				key: "conversation.message.images",
+				kind: "single",
+				scope: "session",
+				summary: "Optional renderer for one consecutive group of durable message images.",
+				doc: "Optional renderer for one consecutive group of durable message images.",
+				registerOptions: [],
+				ownerProps: ["/** Historical image group handed to the optional attachment presentation plugin. */\nexport interface MessageImagesOwnerProps {\n  /** Consecutive image blocks rendered as one gallery. */\n  images: readonly { readonly attachment: ImageAttachmentRef }[]\n  /** Session-authorized durable image loader. */\n  loadImage: (attachment: ImageAttachmentRef) => Promise<string>\n  /** Message-side alignment. */\n  align: 'start' | 'end'\n}"],
+				ownerPropsReferences: ["ImageAttachmentRef", "Message"],
+				standardProps: [
+					"useSessions: SnapshotSelectorHook<SessionListState>",
+					"useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>",
+					"useSession: SnapshotSelectorHook<ConversationSnapshot>",
+					"sessionId: SessionId",
+					"useProjection: UseProjection",
+					"useInput: SnapshotSelectorHook<InputState>",
+					"inputActions: InputActions"
+				],
+				keyDomain: "",
+				hookContext: "",
+				slotInject: "",
+				declaredBy: "an entry in 'conversation.view' (client-ui-conversation), so it exists while that entry is mounted",
+				occupants: ["client-ui-attachment MessageImages"],
+				replaceRisk: "shadows-shipped-ui",
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.message.images', () => ctx.slots.register(\n      { name: 'conversation.message.images' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:114"
 			},
 			{
 				key: "conversation.session",
@@ -2768,7 +2841,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-conversation ConversationSession"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.session', () => ctx.slots.register(\n      { name: 'conversation.session' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:44"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:71"
 			},
 			{
 				key: "conversation.session.header",
@@ -2795,7 +2868,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-conversation ConversationSessionHeader"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.session.header', () => ctx.slots.register(\n      { name: 'conversation.session.header' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:52"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:79"
 			},
 			{
 				key: "conversation.session.header.actions",
@@ -2845,7 +2918,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(\n      { name: 'conversation.session.header.actions', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:63"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:90"
 			},
 			{
 				key: "conversation.session.header.utilities",
@@ -2891,7 +2964,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["session-log-export SessionLogDownloadHeaderAction id 'session-log-download'"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register(\n      { name: 'conversation.session.header.utilities', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:68"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:95"
 			},
 			{
 				key: "conversation.view",
@@ -2937,7 +3010,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-conversation ChatView id 'chat'", "client-ui-trajectory TrajectoryView id 'trajectory'"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('conversation.view', () => ctx.slots.register(\n      { name: 'conversation.view', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-conversation/src/client/contract/slots.ts:76"
+				source: "packages/client/ui-conversation/src/client/contract/slots.ts:103"
 			},
 			{
 				key: "details",
@@ -3145,45 +3218,31 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			},
 			{
 				key: "settings.plugin.item",
-				kind: "list",
+				kind: "keyed",
 				scope: "root",
 				summary: "One plugin's card inside the plugin configuration section (see module JSDoc).",
 				doc: "One plugin's card inside the plugin configuration section (see module JSDoc).",
-				registerOptions: [
-					{
-						name: "id",
-						requirement: "required",
-						type: "string",
-						doc: "Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it."
-					},
-					{
-						name: "order",
-						requirement: "optional",
-						type: "number",
-						doc: "Position among the entries, ascending (default 0)."
-					},
-					{
-						name: "label",
-						requirement: "optional",
-						type: "string | (() => string)",
-						doc: "Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering."
-					}
-				],
+				registerOptions: [{
+					name: "key",
+					requirement: "required",
+					type: "string",
+					doc: "Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant."
+				}],
 				ownerProps: ["/** Owner share of a plugin card (the section supplies nothing). */\nexport interface SettingsPluginItemOwnerProps {\n  /** Marker field: card owner props are intentionally empty. */\n  children?: never\n}"],
 				ownerPropsReferences: [],
 				standardProps: ["useSessions: SnapshotSelectorHook<SessionListState>", "useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>"],
-				keyDomain: "",
+				keyDomain: "open: any string the owner dispatches (no compile-time key set), none are taken yet",
 				hookContext: "",
 				slotInject: "",
 				declaredBy: "an entry in 'settings.plugins.tab' (client-ui-settings-plugins), so it exists while that entry is mounted",
 				occupants: [
-					"client-ui-settings-plugins BashCard id 'bash'",
-					"client-ui-settings-plugins AgentLoopCard id 'agent-loop'",
-					"client-ui-settings-plugins WebSearchCard id 'web-search'"
+					"client-ui-settings-plugins BashCard",
+					"client-ui-settings-plugins AgentLoopCard",
+					"client-ui-settings-plugins WebSearchCard"
 				],
 				replaceRisk: "none",
-				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('settings.plugin.item', () => ctx.slots.register(\n      { name: 'settings.plugin.item', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-settings-plugins/src/client/slot-contract.ts:16"
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('settings.plugin.item', () => ctx.slots.register(\n      { name: 'settings.plugin.item', key: '<one key the owner dispatches>' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-settings-plugins/src/client/slot-contract.ts:19"
 			},
 			{
 				key: "settings.plugins.tab",
@@ -3343,6 +3402,44 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				source: "packages/client/ui-layout/src/client/index.ts:49"
 			},
 			{
+				key: "sidebar.brand.mark",
+				kind: "single",
+				scope: "root",
+				summary: "Brand mark rendered in the expanded brand row and collapsed rail.",
+				doc: "Brand mark rendered in the expanded brand row and collapsed rail.\nDeclared by this package's `sidebar` entry; deployments may replace\nthe shell's fish fallback without replacing the surrounding controls.",
+				registerOptions: [],
+				ownerProps: ["/** Geometry supplied to the sidebar brand-mark occupant. */\nexport interface SidebarBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n}"],
+				ownerPropsReferences: [],
+				standardProps: ["useSessions: SnapshotSelectorHook<SessionListState>", "useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>"],
+				keyDomain: "",
+				hookContext: "",
+				slotInject: "",
+				declaredBy: "an entry in 'sidebar' (client-ui-sidebar), so it exists while that entry is mounted",
+				occupants: ["client-ui-brand-official OfficialBrandMark"],
+				replaceRisk: "shadows-shipped-ui",
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register(\n      { name: 'sidebar.brand.mark' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:23"
+			},
+			{
+				key: "sidebar.brand.name",
+				kind: "single",
+				scope: "root",
+				summary: "Brand name rendered beside the expanded mark.",
+				doc: "Brand name rendered beside the expanded mark. Declared by this\npackage's `sidebar` entry; the shell supplies a generic text fallback.",
+				registerOptions: [],
+				ownerProps: ["/** Empty owner share for the sidebar brand-name occupant. */\nexport interface SidebarBrandNameOwnerProps {\n  /** Marker field: the occupant owns its own content and width. */\n  children?: never\n}"],
+				ownerPropsReferences: [],
+				standardProps: ["useSessions: SnapshotSelectorHook<SessionListState>", "useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>"],
+				keyDomain: "",
+				hookContext: "",
+				slotInject: "",
+				declaredBy: "an entry in 'sidebar' (client-ui-sidebar), so it exists while that entry is mounted",
+				occupants: ["client-ui-brand-official OfficialBrandName"],
+				replaceRisk: "shadows-shipped-ui",
+				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register(\n      { name: 'sidebar.brand.name' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
+				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:28"
+			},
+			{
 				key: "sidebar.footer.action",
 				kind: "list",
 				scope: "root",
@@ -3378,7 +3475,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-cordis CordisPanel id 'cordis-panel'"],
 				replaceRisk: "none",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(\n      { name: 'sidebar.footer.action', id: 'my-entry', order: 100, label: 'My entry' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:35"
+				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:46"
 			},
 			{
 				key: "sidebar.settings",
@@ -3397,7 +3494,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-settings-general SettingsRoot"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.settings', () => ctx.slots.register(\n      { name: 'sidebar.settings' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:30"
+				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:41"
 			},
 			{
 				key: "sidebar.workspaces",
@@ -3416,7 +3513,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-workspace WorkspaceBrowser"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register(\n      { name: 'sidebar.workspaces' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:24"
+				source: "packages/client/ui-sidebar/src/client/contract/slots.ts:35"
 			},
 			{
 				key: "sidebar.workspaces.directoryFlow",
@@ -3435,7 +3532,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				occupants: ["client-ui-directory-picker-browse BrowseDirectoryFlow", "client-ui-directory-picker-native NativeDirectoryFlow"],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('sidebar.workspaces.directoryFlow', () => ctx.slots.register(\n      { name: 'sidebar.workspaces.directoryFlow' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-workspace/src/client/contract/slots.ts:58"
+				source: "packages/client/ui-workspace/src/client/contract/slots.ts:59"
 			},
 			{
 				key: "tool.call.toolview",
@@ -3449,7 +3546,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 					type: "string",
 					doc: "Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant."
 				}],
-				ownerProps: ["/** Standard owner currency supplied to every atomic Tool view. */\nexport interface ToolCallOwnerProps {\n  /** Tool call identity, stable across running and settled forms. */\n  callId: string\n  /** Wire Tool name and keyed dispatch value. */\n  toolName: string\n  /** Frozen running call or settled result node. */\n  block: ToolCallBlock\n  /** Session workspace root for relative summaries. */\n  cwd?: string | undefined\n  /** Open a Tool argument path through the Host. */\n  openFile: (path: string) => void\n  /** Inspect this call in the trajectory view when available. */\n  inspect?: (() => void) | undefined\n}"],
+				ownerProps: ["/** Standard owner currency supplied to every atomic Tool view. */\nexport interface ToolCallOwnerProps {\n  /** Tool call identity, stable across running and settled forms. */\n  callId: string\n  /** Wire Tool name and keyed dispatch value. */\n  toolName: string\n  /** Frozen running call or settled result node. */\n  block: ToolCallBlock\n  /** Session workspace root for relative summaries. */\n  cwd?: string | undefined\n  /** Host account home; POSIX home-rooted summaries display as `~`. */\n  home?: string | undefined\n  /** Open a Tool argument path through the Host. */\n  openFile: (path: string) => void\n  /** Inspect this call in the trajectory view when available. */\n  inspect?: (() => void) | undefined\n}"],
 				ownerPropsReferences: ["Wire"],
 				standardProps: [
 					"useSessions: SnapshotSelectorHook<SessionListState>",
@@ -3483,7 +3580,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 				],
 				replaceRisk: "shadows-shipped-ui",
 				example: "return {\n  inject: ['slots'],\n  apply(ctx) {\n    ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(\n      { name: 'tool.call.toolview', key: '<one key the owner dispatches>' },\n      () => React.createElement('div', null, 'hello'),\n    ))\n  },\n}",
-				source: "packages/client/ui-tool/src/client/contract/slots.ts:23"
+				source: "packages/client/ui-tool/src/client/contract/slots.ts:24"
 			},
 			{
 				key: "tool.view.cordis",
@@ -3667,7 +3764,7 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
 			return typeof value === "string" ? value : void 0;
 		}
 		const SLOT_CATALOG = new Map(CLIENT_SLOT_API.map((entry) => [entry.key, entry]));
-		const GUARDED_SLOT_KEYS = /* @__PURE__ */ new Map([["tool.view.cordis", {
+		const GUARDED_SLOT_KEYS = new Map([["tool.view.cordis", {
 			description: "fixed by the dynamic Client Guard",
 			values: [{
 				value: "self",

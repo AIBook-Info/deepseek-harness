@@ -113,7 +113,7 @@ window.__ModuleLoader__.load({
 				};
 			}
 			/**
-			* Install the shell's renderer (web-react's createSlotRenderer product).
+			* Install the shell's renderer (ui-renderer's createSlotRenderer product).
 			* Boot-once: a second install throws. Runs through the caller's ctx.effect,
 			* so shell fiber unload uninstalls the renderer.
 			* @param renderer - the outlet machinery implementing SlotRenderer.
@@ -427,6 +427,7 @@ window.__ModuleLoader__.load({
 					Object.defineProperty(this, "value", { value });
 					return value;
 				}
+				throw new Error("cached value already set");
 			} };
 		}
 		function nullish(input) {
@@ -472,10 +473,7 @@ window.__ModuleLoader__.load({
 		}
 		function mergeDefs(...defs) {
 			const mergedDescriptors = {};
-			for (const def of defs) {
-				const descriptors = Object.getOwnPropertyDescriptors(def);
-				Object.assign(mergedDescriptors, descriptors);
-			}
+			for (const def of defs) Object.assign(mergedDescriptors, Object.getOwnPropertyDescriptors(def));
 			return Object.defineProperties({}, mergedDescriptors);
 		}
 		function esc(str) {
@@ -980,10 +978,8 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
-				if (def.value < curr) {
-					if (def.inclusive) bag.maximum = def.value;
-					else bag.exclusiveMaximum = def.value;
-				}
+				if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
+				else bag.exclusiveMaximum = def.value;
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
@@ -1004,10 +1000,8 @@ window.__ModuleLoader__.load({
 			inst._zod.onattach.push((inst) => {
 				const bag = inst._zod.bag;
 				const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
-				if (def.value > curr) {
-					if (def.inclusive) bag.minimum = def.value;
-					else bag.exclusiveMinimum = def.value;
-				}
+				if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
+				else bag.exclusiveMinimum = def.value;
 			});
 			inst._zod.check = (payload) => {
 				if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
@@ -2321,7 +2315,7 @@ window.__ModuleLoader__.load({
 			inst._zod.optin = "optional";
 			inst._zod.optout = "optional";
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, void 0]) : void 0;
+				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, void 0]) : void 0;
 			});
 			defineLazy(inst._zod, "pattern", () => {
 				const pattern = def.innerType._zod.pattern;
@@ -2355,7 +2349,7 @@ window.__ModuleLoader__.load({
 				return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
 			});
 			defineLazy(inst._zod, "values", () => {
-				return def.innerType._zod.values ? /* @__PURE__ */ new Set([...def.innerType._zod.values, null]) : void 0;
+				return def.innerType._zod.values ? new Set([...def.innerType._zod.values, null]) : void 0;
 			});
 			inst._zod.parse = (payload, ctx) => {
 				if (payload.value === null) return payload;
@@ -3293,10 +3287,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					defs[seen.defId] = seen.def;
 				}
 			}
-			if (ctx.external) {} else if (Object.keys(defs).length > 0) {
-				if (ctx.target === "draft-2020-12") result.$defs = defs;
-				else result.definitions = defs;
-			}
+			if (ctx.external) {} else if (Object.keys(defs).length > 0) if (ctx.target === "draft-2020-12") result.$defs = defs;
+			else result.definitions = defs;
 			try {
 				const finalized = JSON.parse(JSON.stringify(result));
 				Object.defineProperty(finalized, "~standard", {
@@ -3409,18 +3401,16 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 			const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 			const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
-			if (exMin) {
-				if (legacy) {
-					json.minimum = exclusiveMinimum;
-					json.exclusiveMinimum = true;
-				} else json.exclusiveMinimum = exclusiveMinimum;
-			} else if (typeof minimum === "number") json.minimum = minimum;
-			if (exMax) {
-				if (legacy) {
-					json.maximum = exclusiveMaximum;
-					json.exclusiveMaximum = true;
-				} else json.exclusiveMaximum = exclusiveMaximum;
-			} else if (typeof maximum === "number") json.maximum = maximum;
+			if (exMin) if (legacy) {
+				json.minimum = exclusiveMinimum;
+				json.exclusiveMinimum = true;
+			} else json.exclusiveMinimum = exclusiveMinimum;
+			else if (typeof minimum === "number") json.minimum = minimum;
+			if (exMax) if (legacy) {
+				json.maximum = exclusiveMaximum;
+				json.exclusiveMaximum = true;
+			} else json.exclusiveMaximum = exclusiveMaximum;
+			else if (typeof maximum === "number") json.maximum = maximum;
 			if (typeof multipleOf === "number") json.multipleOf = multipleOf;
 		};
 		const neverProcessor = (_schema, _ctx, json, _params) => {
@@ -3438,10 +3428,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			const vals = [];
 			for (const val of def.values) if (val === void 0) {
 				if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
-			} else if (typeof val === "bigint") {
-				if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
-				else vals.push(Number(val));
-			} else vals.push(val);
+			} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+			else vals.push(Number(val));
+			else vals.push(val);
 			if (vals.length === 0) {} else if (vals.length === 1) {
 				const val = vals[0];
 				json.type = val === null ? "null" : typeof val;
@@ -4180,12 +4169,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			});
 		});
 		function object(shape, params) {
-			const def = {
+			return new ZodObject({
 				type: "object",
 				shape: shape ?? {},
 				...normalizeParams(params)
-			};
-			return new ZodObject(def);
+			});
 		}
 		const ZodUnion = /*@__PURE__*/ $constructor("ZodUnion", (inst, def) => {
 			$ZodUnion.init(inst, def);
@@ -4255,10 +4243,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			};
 		});
 		function _enum(values, params) {
-			const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
 			return new ZodEnum({
 				type: "enum",
-				entries,
+				entries: Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values,
 				...normalizeParams(params)
 			});
 		}
@@ -4630,11 +4617,6 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				details: object({ ns: string() })
 			}),
 			object({
-				code: literal("settings-not-exposed"),
-				message: string(),
-				details: object({ ns: string() })
-			}),
-			object({
 				code: literal("settings-conflict"),
 				message: string(),
 				details: object({
@@ -4920,8 +4902,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			} else {
 				const proto = getPrototypeOf(base);
 				if (proto !== null && isPlain) return { ...base };
-				const obj = Object.create(proto);
-				return Object.assign(obj, base);
+				return Object.assign(Object.create(proto), base);
 			}
 		}
 		function freeze(obj, deep = false) {
@@ -5366,9 +5347,9 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		* shell over it: {@link defineStore} bakes an init/persist/actions literal
 		* into a {@link StoreHandle}, the registration-side store seat of slot
 		* terminals. Lives in the React-free runtime (the data layer owns its
-		* engine; web-react is shell-only React
+		* engine; ui-renderer is shell-only React
 		* glue): engine products are bare observables — subscribe/getSnapshot/
-		* update/set, NO selector hook. Hook synthesis is web-react's (the one
+		* update/set, NO selector hook. Hook synthesis is ui-renderer's (the one
 		* uSES bridge, cached per source at the binding site).
 		*/
 		/**
@@ -5974,8 +5955,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					else steps.set(stepDataKey(data.turn, requireStep(data)), values);
 				}
 				let changed = false;
-				for (const turn of /* @__PURE__ */ new Set([...this.turnDataStores.keys(), ...turns.keys()])) changed = this.mutableTurnData(turn).replace(turns.get(turn) ?? /* @__PURE__ */ new Map()) || changed;
-				for (const step of /* @__PURE__ */ new Set([...this.stepDataStores.keys(), ...steps.keys()])) changed = this.mutableStepData(step).replace(steps.get(step) ?? /* @__PURE__ */ new Map()) || changed;
+				for (const turn of new Set([...this.turnDataStores.keys(), ...turns.keys()])) changed = this.mutableTurnData(turn).replace(turns.get(turn) ?? /* @__PURE__ */ new Map()) || changed;
+				for (const step of new Set([...this.stepDataStores.keys(), ...steps.keys()])) changed = this.mutableStepData(step).replace(steps.get(step) ?? /* @__PURE__ */ new Map()) || changed;
 				return changed;
 			}
 			/**
@@ -7212,7 +7193,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			* @param mode - queue appends after the current turn; steer interrupts it.
 			* @returns the prompt result (also mirrored into promptError on failure).
 			*/
-			async prompt(content, mode) {
+			async prompt(content, mode, signal) {
 				this.promptError = null;
 				this.lastAgentError = null;
 				this.promptAttempted = true;
@@ -7225,7 +7206,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 						mode,
 						content,
 						clientTimeZone: resolvedClientTimeZone()
-					})).result;
+					}, signal)).result;
 					else if (this.address.mode === "one-shot") result = {
 						ok: false,
 						error: {
@@ -7250,7 +7231,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 								text: part.text
 							}] : []),
 							clientTimeZone: resolvedClientTimeZone()
-						})).result;
+						}, signal)).result;
 						result = routed.ok ? {
 							ok: true,
 							value: { accepted: true }
@@ -7382,7 +7363,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			* @returns the admission result, or the error branch on transport failure.
 			*/
 			async command(line) {
-				const result = await this.remote.commands.execute(this.sessionId, line);
+				const result = await this.remote.commands.execute(this.sessionId, line, []);
 				if (!result.ok) return result;
 				return {
 					ok: true,
@@ -8336,10 +8317,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					const buffered = this.pendingBuffers.get(frame.sessionId);
 					if (buffered !== void 0) {
 						const kept = buffered.filter((item) => item.payload.type !== "session/queue");
-						if (kept.length !== buffered.length) {
-							if (kept.length === 0) this.pendingBuffers.delete(frame.sessionId);
-							else this.pendingBuffers.set(frame.sessionId, kept);
-						}
+						if (kept.length !== buffered.length) if (kept.length === 0) this.pendingBuffers.delete(frame.sessionId);
+						else this.pendingBuffers.set(frame.sessionId, kept);
 					}
 				}
 				if (frame.type === "approval/requested") this.trackPending(frame.sessionId, `a:${frame.approvalId}`, "approval");
@@ -10238,7 +10217,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		//#endregion
 		//#region ../../core/session/src/surface.ts
 		/** Runtime counterpart of the message-producing event union. */
-		const SURFACE_EVENT_TYPES = /* @__PURE__ */ new Set([
+		const SURFACE_EVENT_TYPES = new Set([
 			"user/message",
 			"assistant/message",
 			"tool/result"
@@ -10316,9 +10295,30 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		* @returns an absolute path when a workspace root is available, otherwise the original path.
 		*/
 		function resolveWorkspacePath(cwd, path) {
-			if (path.startsWith("/") || /^[A-Za-z]:[/\\]/.test(path) || path.startsWith("\\\\")) return path;
+			if (path.startsWith("/") || isWindowsStylePath(path)) return path;
 			if (cwd === void 0 || cwd === "") return path;
 			return `${cwd.replace(/[/\\]+$/, "")}/${path.replace(/^[/\\]+/, "")}`;
+		}
+		/** Drive-letter or UNC path; Web display must not rewrite these as `~`. */
+		function isWindowsStylePath(value) {
+			return /^[A-Za-z]:[/\\]/.test(value) || value.startsWith("\\\\");
+		}
+		/**
+		* Display-only POSIX home abbreviation. Windows drive and UNC paths stay
+		* verbatim, including when `home` itself is a Windows path. A missing, empty,
+		* or filesystem-root `home` leaves `path` unchanged so `/` cannot become `~`.
+		* @param path - absolute or already-short display path.
+		* @param home - host account home from `host.describe`; absent skips abbreviation.
+		* @returns `~` or `~/…` for the POSIX home and its descendants, otherwise `path`.
+		*/
+		function abbreviateHomePath(path, home) {
+			if (home === void 0 || home === "") return path;
+			if (isWindowsStylePath(path) || isWindowsStylePath(home)) return path;
+			const root = home.replace(/\/+$/, "");
+			if (root === "" || root === "/") return path;
+			if (path.replace(/\/+$/, "") === root) return "~";
+			if (path.startsWith(`${root}/`)) return `~${path.slice(root.length)}`;
+			return path;
 		}
 		//#endregion
 		//#region lib/types/client/sessions/partial.js
@@ -10393,6 +10393,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		/** A collected name list rendered as one label; null when the list is empty. */
 		function joined(names) {
 			return names.length > 0 ? names.join(", ") : null;
+		}
+		/**
+		* The referenced-session labels of one durable `session-reference` recall
+		* source, in first-seen order; empty for every other source shape, including
+		* a foreign or older log whose reference entries carry no readable label.
+		* @param source - the logged `user/message` source, exactly as recorded.
+		* @returns distinct non-empty reference labels.
+		*/
+		function sessionRecallLabels(source) {
+			const record = asRecord(source);
+			if (record === null || readString(record, "kind") !== "session-reference") return [];
+			return collect(record, "references", "label");
 		}
 		/**
 		* Project one durable message source onto its transcript role and producer name.
@@ -10533,6 +10545,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		exports.SlotRegistry = SlotRegistry;
 		exports.WorkspaceCreateError = WorkspaceCreateError;
 		exports.WorkspaceRuntime = WorkspaceRuntime;
+		exports.abbreviateHomePath = abbreviateHomePath;
 		exports.apply = apply;
 		exports.contextForm = contextForm;
 		exports.contextProvenance = contextProvenance;
@@ -10549,6 +10562,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		exports.isTokenDelta = isTokenDelta;
 		exports.resolveWorkspacePath = resolveWorkspacePath;
 		exports.scopeOf = scopeOf;
+		exports.sessionRecallLabels = sessionRecallLabels;
 		exports.shallowEqual = shallowEqual;
 		exports.toAssistantBlock = toAssistantBlock;
 		exports.toAssistantBlocks = toAssistantBlocks;

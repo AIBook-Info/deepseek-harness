@@ -2,7 +2,8 @@ import { Context, Inject } from "@deepseek-ai/cordis";
 import { Fragment, createElement, useSyncExternalStore } from "react";
 import { act, render, within } from "@testing-library/react";
 import { ConversationEventRegistry, ConversationViewRegistry, EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS, SessionProvideChannel, SlotRegistry, createScope, createSnapshotStore, scopeOf } from "@deepseek-ai/dsh-client-runtime/client";
-import { createSlotRenderer } from "@deepseek-ai/dsh-client-web-react";
+import { bindSnapshotSelector as bindSnapshotSelector$1 } from "@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts";
+import { createSlotRenderer as createSlotRenderer$1 } from "@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { SESSION_SEARCH_RESULT_LIMIT } from "@deepseek-ai/dsh-host-apiproxy/api";
 //#region lib/types/snapshot.js
@@ -1053,7 +1054,7 @@ function usePinnedBrowserLanguages(primary, ...rest) {
 //#region lib/types/index.js
 /**
 * jsdom slot test runtime: a real small runtime — Cordis `Context`, the
-* runtime `SlotRegistry`, and the web-react renderer — assembled around
+* runtime `SlotRegistry`, and the UI renderer — assembled around
 * test-owned session/workspace doubles, so feature specs exercise
 * declaration, registration, scope, store, inject, rendering, updates, and
 * disposal without hand-building the machinery per suite.
@@ -1063,6 +1064,21 @@ function usePinnedBrowserLanguages(primary, ...rest) {
 * machinery — everything mounts the production implementations.
 * @module @deepseek-ai/dsh-client-test-runtime
 */
+/**
+* Bind an observable source to the production renderer's selector hook.
+* @param source - Observable snapshot source.
+* @returns Typed React selector hook.
+*/
+function bindSnapshotSelector(source) {
+	return bindSnapshotSelector$1(source);
+}
+/**
+* Create the production slot renderer used by client feature tests.
+* @returns Slot renderer instance.
+*/
+function createSlotRenderer() {
+	return createSlotRenderer$1();
+}
 /**
 * Owner-props cell behind the auto frame: one external store the frame
 * subscribes to, so {@link SlotTestRuntime.renderSlot} and
@@ -1335,4 +1351,4 @@ var SlotTestRuntime = class SlotTestRuntime {
 	}
 };
 //#endregion
-export { FixtureSession, SlotTestRuntime, TestRemote, TestRoot, TestSessions, TestWorkspaces, conversationSnapshot, domSnapshotSerializer, makeTranslate, registerDomSnapshotSerializer, stubSettingsScope, usePinnedBrowserLanguages, workspaceListState };
+export { FixtureSession, SlotTestRuntime, TestRemote, TestRoot, TestSessions, TestWorkspaces, bindSnapshotSelector, conversationSnapshot, createSlotRenderer, domSnapshotSerializer, makeTranslate, registerDomSnapshotSerializer, stubSettingsScope, usePinnedBrowserLanguages, workspaceListState };

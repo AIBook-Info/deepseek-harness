@@ -85,7 +85,9 @@ var SlotCore = class {
 				if (occupant) throw new Error(`list slot "${options.name}" already has an entry with id "${options.id}" ${occupantHint(occupant)}`);
 				break;
 			}
-			case "chain": if (options.select === void 0) throw new Error(`chain slot "${options.name}" requires options.select`);
+			case "chain":
+				if (options.select === void 0) throw new Error(`chain slot "${options.name}" requires options.select`);
+				break;
 		}
 		if (options.children) for (const childKey of Object.keys(options.children)) {
 			const childRec = this.records.get(childKey);
@@ -419,3 +421,5 @@ var SlotCore = class {
 };
 //#endregion
 export { SlotCore, SlotOwnershipError, StaleAuthorizationError, resolveSlotLabel };
+
+//# sourceMappingURL=index.js.map

@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
 			view: "View",
 			presetStandardName: "Standard mode",
 			presetStandardDescription: "Full coding agent with file editing, shell, file and web search, skills, planning, goals, subagents, and workflows.",
-			presetCodeName: "Code mode",
+			presetCodeName: "PTC mode",
 			presetCodeDescription: "All Standard mode capabilities, with tools exposed through the Code Mode SDK so the model can combine multi-step operations in one TypeScript program.",
 			presetMinimalName: "Minimal mode",
 			presetMinimalDescription: "Two-tool coding agent with persistent bash and str_replace_editor.",
@@ -169,8 +169,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AgentPresetLabel_module_css_default = {
-			"label": "_62xkTa_label",
-			"icon": "_62xkTa_icon"
+			"icon": "_62xkTa_icon",
+			"label": "_62xkTa_label"
 		};
 		//#endregion
 		//#region lib/types/client/AgentPresetLabel.js
@@ -269,11 +269,11 @@ window.__ModuleLoader__.load({
 		}
 		var AgentPresetRow_module_css_default = {
 			"chevron": "mRPq1a_chevron",
-			"title": "mRPq1a_title",
-			"row": "mRPq1a_row",
 			"desc": "mRPq1a_desc",
+			"row": "mRPq1a_row",
 			"rowText": "mRPq1a_rowText",
-			"selector": "mRPq1a_selector"
+			"selector": "mRPq1a_selector",
+			"title": "mRPq1a_title"
 		};
 		//#endregion
 		//#region lib/types/client/AgentPresetRow.js
@@ -343,17 +343,17 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AgentPresetSeat_module_css_default = {
-			"itemDesc": "uGWAPa_itemDesc",
 			"chevron": "uGWAPa_chevron",
-			"introIcon": "uGWAPa_introIcon",
-			"seatIcon": "uGWAPa_seatIcon",
 			"introChar": "uGWAPa_introChar",
-			"seat-icon-in": "uGWAPa_seat-icon-in",
-			"itemName": "uGWAPa_itemName",
-			"item": "uGWAPa_item",
-			"seat-char-in": "uGWAPa_seat-char-in",
+			"introIcon": "uGWAPa_introIcon",
 			"introText": "uGWAPa_introText",
-			"seat": "uGWAPa_seat"
+			"item": "uGWAPa_item",
+			"itemDesc": "uGWAPa_itemDesc",
+			"itemName": "uGWAPa_itemName",
+			"seat": "uGWAPa_seat",
+			"seat-char-in": "uGWAPa_seat-char-in",
+			"seat-icon-in": "uGWAPa_seat-icon-in",
+			"seatIcon": "uGWAPa_seatIcon"
 		};
 		//#endregion
 		//#region lib/types/client/AgentPresetSeat.js
@@ -607,10 +607,16 @@ window.__ModuleLoader__.load({
 		/** Reads the roster and persists the chosen default. */
 		var AgentPresetSettingsController = class {
 			api;
+			describeFace;
 			/** Row snapshot the renderer subscribes to. */
 			store = (0, _deepseek_ai_dsh_client_runtime_client.createSnapshotStore)(INITIAL$2);
-			constructor(api) {
+			/**
+			* @param api - the agent-preset and settings wire faces (roster and default write).
+			* @param describeFace - the shared mirror's describe face (writability source).
+			*/
+			constructor(api, describeFace) {
 				this.api = api;
+				this.describeFace = describeFace;
 			}
 			set(patch) {
 				this.store.set({
@@ -637,21 +643,14 @@ window.__ModuleLoader__.load({
 					});
 					return;
 				}
-				try {
-					const described = await this.api.settings.describe({});
-					this.set({
-						status: "ready",
-						error: null,
-						writable: described.result.ok && described.result.value.writable,
-						options: presetOptions(presets),
-						currentValue: presets.find((preset) => preset.isDefault)?.id ?? first.id
-					});
-				} catch (error) {
-					this.set({
-						status: "error",
-						error: messageOf(error)
-					});
-				}
+				await this.describeFace.ensure();
+				this.set({
+					status: "ready",
+					error: null,
+					writable: this.describeFace.getSnapshot().view?.writable ?? false,
+					options: presetOptions(presets),
+					currentValue: presets.find((preset) => preset.isDefault)?.id ?? first.id
+				});
 			}
 			/**
 			* Persist one preset as the default for sessions created later. Running
@@ -984,40 +983,40 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AgentPresetSection_module_css_default = {
-			"revealedPathLabel": "OvefSa_revealedPathLabel",
-			"cardDesc": "OvefSa_cardDesc",
-			"cardBrokenReason": "OvefSa_cardBrokenReason",
-			"revealedPath": "OvefSa_revealedPath",
-			"viewerCode": "OvefSa_viewerCode",
-			"groupHead": "OvefSa_groupHead",
-			"iconDanger": "OvefSa_iconDanger",
 			"badge": "OvefSa_badge",
-			"cardFoot": "OvefSa_cardFoot",
-			"dialog": "OvefSa_dialog",
-			"field": "OvefSa_field",
-			"group": "OvefSa_group",
-			"cards": "OvefSa_cards",
-			"fieldLabel": "OvefSa_fieldLabel",
-			"intro": "OvefSa_intro",
 			"brokenBadge": "OvefSa_brokenBadge",
-			"title": "OvefSa_title",
-			"deleteDialog": "OvefSa_deleteDialog",
-			"section": "OvefSa_section",
-			"cardBroken": "OvefSa_cardBroken",
-			"deleteConfirm": "OvefSa_deleteConfirm",
-			"cardId": "OvefSa_cardId",
-			"secondaryButton": "OvefSa_secondaryButton",
-			"creatorButton": "OvefSa_creatorButton",
-			"input": "OvefSa_input",
-			"cardHead": "OvefSa_cardHead",
-			"cardMain": "OvefSa_cardMain",
 			"card": "OvefSa_card",
 			"cardActive": "OvefSa_cardActive",
-			"error": "OvefSa_error",
+			"cardBroken": "OvefSa_cardBroken",
+			"cardBrokenReason": "OvefSa_cardBrokenReason",
+			"cardDesc": "OvefSa_cardDesc",
+			"cardFoot": "OvefSa_cardFoot",
+			"cardHead": "OvefSa_cardHead",
+			"cardId": "OvefSa_cardId",
+			"cardMain": "OvefSa_cardMain",
 			"cardName": "OvefSa_cardName",
-			"inUse": "OvefSa_inUse",
+			"cards": "OvefSa_cards",
+			"creatorButton": "OvefSa_creatorButton",
+			"deleteConfirm": "OvefSa_deleteConfirm",
+			"deleteDialog": "OvefSa_deleteDialog",
+			"dialog": "OvefSa_dialog",
+			"dialogFields": "OvefSa_dialogFields",
+			"error": "OvefSa_error",
+			"field": "OvefSa_field",
+			"fieldLabel": "OvefSa_fieldLabel",
+			"group": "OvefSa_group",
+			"groupHead": "OvefSa_groupHead",
 			"iconButton": "OvefSa_iconButton",
-			"dialogFields": "OvefSa_dialogFields"
+			"iconDanger": "OvefSa_iconDanger",
+			"inUse": "OvefSa_inUse",
+			"input": "OvefSa_input",
+			"intro": "OvefSa_intro",
+			"revealedPath": "OvefSa_revealedPath",
+			"revealedPathLabel": "OvefSa_revealedPathLabel",
+			"secondaryButton": "OvefSa_secondaryButton",
+			"section": "OvefSa_section",
+			"title": "OvefSa_title",
+			"viewerCode": "OvefSa_viewerCode"
 		};
 		//#endregion
 		//#region lib/types/client/AgentPresetSection.js
@@ -1557,7 +1556,8 @@ window.__ModuleLoader__.load({
 			"slots",
 			"locale",
 			"connection",
-			"remote"
+			"remote",
+			"settingsScope"
 		];
 		/**
 		* Mount the General-settings row.
@@ -1565,7 +1565,7 @@ window.__ModuleLoader__.load({
 		*/
 		function apply(ctx) {
 			const { api } = ctx.get("connection");
-			const controller = new AgentPresetSettingsController(api);
+			const controller = new AgentPresetSettingsController(api, ctx.settingsScope.describe());
 			const rosterReaders = /* @__PURE__ */ new Set();
 			const section = new AgentPresetSectionController(api, () => {
 				controller.load();

@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
 			}
 			return to;
 		};
-		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
+		var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
 			value: mod,
 			enumerable: true
 		}) : target, mod));
@@ -259,7 +259,8 @@ window.__ModuleLoader__.load({
 						stepStartTime: state.started ? state.startTime : null,
 						firstTokenTime: state.firstTokenTime ?? null,
 						completedTime: event.time
-					}
+					},
+					...event.data.interrupted === true ? { interrupted: true } : {}
 				};
 			}
 			const boundary = closedBoundary(context);
@@ -292,7 +293,7 @@ window.__ModuleLoader__.load({
 					...state.retry.maxRetries === void 0 ? {} : { maxRetries: state.retry.maxRetries },
 					retryDelayMs: state.retry.delayMs
 				},
-				...node === void 0 || node.interrupted === true ? {} : {
+				...node?.messageId === void 0 ? {} : {
 					resultSeq: node.seq,
 					...node.provenance === void 0 ? {} : { provenance: node.provenance }
 				},
@@ -1039,7 +1040,7 @@ window.__ModuleLoader__.load({
 			if (root === void 0) return void 0;
 			let state = {
 				rootId: root.callId,
-				calls: /* @__PURE__ */ new Map([[root.callId, root]]),
+				calls: new Map([[root.callId, root]]),
 				children: /* @__PURE__ */ new Map(),
 				parents: /* @__PURE__ */ new Map()
 			};
@@ -1072,7 +1073,7 @@ window.__ModuleLoader__.load({
 				const root = rootCall(match);
 				return {
 					rootId: root.callId,
-					calls: /* @__PURE__ */ new Map([[root.callId, root]]),
+					calls: new Map([[root.callId, root]]),
 					children: /* @__PURE__ */ new Map(),
 					parents: /* @__PURE__ */ new Map()
 				};
@@ -1560,14 +1561,12 @@ window.__ModuleLoader__.load({
 					this.pendingScrollAnchor = null;
 					if (anchor && this.scrollElement && this.options.enabled) {
 						const [key, _offset, followOnAppend, anchorDelta] = anchor;
-						if (key !== null && !followOnAppend) {
-							if (isIOSWebKit() && (this.isScrolling || this._iosTouching || this._iosJustTouchEnded)) {
-								if (anchorDelta !== 0) this._iosDeferredAdjustment += anchorDelta;
-							} else this._scrollToOffset(this.getScrollOffset(), {
-								adjustments: void 0,
-								behavior: void 0
-							});
-						}
+						if (key !== null && !followOnAppend) if (isIOSWebKit() && (this.isScrolling || this._iosTouching || this._iosJustTouchEnded)) {
+							if (anchorDelta !== 0) this._iosDeferredAdjustment += anchorDelta;
+						} else this._scrollToOffset(this.getScrollOffset(), {
+							adjustments: void 0,
+							behavior: void 0
+						});
 						if (followOnAppend) this.scrollToEnd({ behavior: followOnAppend });
 					}
 				};
@@ -1931,11 +1930,9 @@ window.__ModuleLoader__.load({
 					const scrollOffset = this.getScrollOffset();
 					const item = this.measurementsCache[index];
 					if (!item) return;
-					if (align === "auto") {
-						if (item.end >= scrollOffset + size - this.options.scrollPaddingEnd) align = "end";
-						else if (item.start <= scrollOffset + this.options.scrollPaddingStart) align = "start";
-						else return [scrollOffset, align];
-					}
+					if (align === "auto") if (item.end >= scrollOffset + size - this.options.scrollPaddingEnd) align = "end";
+					else if (item.start <= scrollOffset + this.options.scrollPaddingStart) align = "start";
+					else return [scrollOffset, align];
 					if (align === "end" && index === this.options.count - 1) return [this.getMaxScrollOffset(), align];
 					const toOffset = align === "end" ? item.end + this.options.scrollPaddingEnd : item.start - this.options.scrollPaddingStart;
 					return [this.getOffsetForAlignment(toOffset, align, item.size), align];
@@ -2249,10 +2246,8 @@ window.__ModuleLoader__.load({
 							isScrolling: instance2.isScrolling
 						} : null;
 					}
-					if (shouldRerender) {
-						if (useFlushSync && sync) (0, react_dom.flushSync)(rerender);
-						else rerender();
-					}
+					if (shouldRerender) if (useFlushSync && sync) (0, react_dom.flushSync)(rerender);
+					else rerender();
 					(_a = options.onChange) == null || _a.call(options, instance2, sync);
 				}
 			};
@@ -2585,13 +2580,11 @@ window.__ModuleLoader__.load({
 				const tokens = [];
 				let prevPart = null;
 				parts.forEach((part) => {
-					if (/\s/.test(part)) {
-						if (prevPart == null) tokens.push(part);
-						else tokens.push(tokens.pop() + part);
-					} else if (prevPart != null && /\s/.test(prevPart)) {
-						if (tokens[tokens.length - 1] == prevPart) tokens.push(tokens.pop() + part);
-						else tokens.push(prevPart + part);
-					} else tokens.push(part);
+					if (/\s/.test(part)) if (prevPart == null) tokens.push(part);
+					else tokens.push(tokens.pop() + part);
+					else if (prevPart != null && /\s/.test(prevPart)) if (tokens[tokens.length - 1] == prevPart) tokens.push(tokens.pop() + part);
+					else tokens.push(prevPart + part);
+					else tokens.push(part);
 					prevPart = part;
 				});
 				return tokens;
@@ -2822,8 +2815,7 @@ window.__ModuleLoader__.load({
 			else {
 				const { callback } = optionsObj;
 				diffLines(oldStr, newStr, Object.assign(Object.assign({}, optionsObj), { callback: (diff) => {
-					const patch = diffLinesResultToPatch(diff);
-					callback(patch);
+					callback(diffLinesResultToPatch(diff));
 				} }));
 			}
 			function diffLinesResultToPatch(diff) {
@@ -2857,23 +2849,21 @@ window.__ModuleLoader__.load({
 						if (current.added) newLine += lines.length;
 						else oldLine += lines.length;
 					} else {
-						if (oldRangeStart) {
-							if (lines.length <= context * 2 && i < diff.length - 2) for (const line of contextLines(lines)) curRange.push(line);
-							else {
-								const contextSize = Math.min(lines.length, context);
-								for (const line of contextLines(lines.slice(0, contextSize))) curRange.push(line);
-								const hunk = {
-									oldStart: oldRangeStart,
-									oldLines: oldLine - oldRangeStart + contextSize,
-									newStart: newRangeStart,
-									newLines: newLine - newRangeStart + contextSize,
-									lines: curRange
-								};
-								hunks.push(hunk);
-								oldRangeStart = 0;
-								newRangeStart = 0;
-								curRange = [];
-							}
+						if (oldRangeStart) if (lines.length <= context * 2 && i < diff.length - 2) for (const line of contextLines(lines)) curRange.push(line);
+						else {
+							const contextSize = Math.min(lines.length, context);
+							for (const line of contextLines(lines.slice(0, contextSize))) curRange.push(line);
+							const hunk = {
+								oldStart: oldRangeStart,
+								oldLines: oldLine - oldRangeStart + contextSize,
+								newStart: newRangeStart,
+								newLines: newLine - newRangeStart + contextSize,
+								lines: curRange
+							};
+							hunks.push(hunk);
+							oldRangeStart = 0;
+							newRangeStart = 0;
+							curRange = [];
 						}
 						oldLine += lines.length;
 						newLine += lines.length;
@@ -3012,152 +3002,152 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TrajectoryTable_module_css_default = {
-			"panelImageLink": "_op4Ta_panelImageLink",
-			"markdownPayload": "_op4Ta_markdownPayload",
-			"sourceBlockHeader": "_op4Ta_sourceBlockHeader",
-			"toolCatalogDescription": "_op4Ta_toolCatalogDescription",
-			"toolCallPayload": "_op4Ta_toolCallPayload",
-			"table": "_op4Ta_table",
-			"message": "_op4Ta_message",
-			"assistantToolCallArgs": "_op4Ta_assistantToolCallArgs",
-			"promptDiffLineremoved": "_op4Ta_promptDiffLineremoved",
-			"kindTag": "_op4Ta_kindTag",
-			"promptDiffLinemeta": "_op4Ta_promptDiffLinemeta",
-			"overviewTitleIcon": "_op4Ta_overviewTitleIcon",
-			"noOutputText": "_op4Ta_noOutputText",
-			"thinkingToggle": "_op4Ta_thinkingToggle",
-			"toolCatalogDefinition": "_op4Ta_toolCatalogDefinition",
-			"assistantToolCallName": "_op4Ta_assistantToolCallName",
-			"kindTagIcon": "_op4Ta_kindTagIcon",
-			"toolCallOnly": "_op4Ta_toolCallOnly",
-			"timestampToggle": "_op4Ta_timestampToggle",
-			"sourceBlockJumpTarget": "_op4Ta_sourceBlockJumpTarget",
-			"turnLabelCompact": "_op4Ta_turnLabelCompact",
-			"systemPrompt": "_op4Ta_systemPrompt",
-			"requestBoundaryControl": "_op4Ta_requestBoundaryControl",
-			"usageGroup": "_op4Ta_usageGroup",
-			"schemaPreview": "_op4Ta_schemaPreview",
-			"turnLabel": "_op4Ta_turnLabel",
-			"requestDetailsName": "_op4Ta_requestDetailsName",
-			"eventHeader": "_op4Ta_eventHeader",
-			"usagePanel": "_op4Ta_usagePanel",
-			"virtualSpacer": "_op4Ta_virtualSpacer",
-			"assistantToolCallButton": "_op4Ta_assistantToolCallButton",
-			"turnLabelActive": "_op4Ta_turnLabelActive",
-			"errorPayload": "_op4Ta_errorPayload",
-			"toolCallNameTypeface": "_op4Ta_toolCallNameTypeface",
-			"detailTabs": "_op4Ta_detailTabs",
-			"promptDiffSection": "_op4Ta_promptDiffSection",
-			"historyLoadButton": "_op4Ta_historyLoadButton",
-			"requestDetailsDot": "_op4Ta_requestDetailsDot",
-			"detailsTitle": "_op4Ta_detailsTitle",
-			"inlineResultText": "_op4Ta_inlineResultText",
-			"toolCatalogChevron": "_op4Ta_toolCatalogChevron",
-			"subtoolAmber": "_op4Ta_subtoolAmber",
-			"schema": "_op4Ta_schema",
-			"error": "_op4Ta_error",
-			"promptDiffSections": "_op4Ta_promptDiffSections",
-			"promptDiffLineadded": "_op4Ta_promptDiffLineadded",
-			"resultRequest": "_op4Ta_resultRequest",
-			"systemNeutral": "_op4Ta_systemNeutral",
-			"collapsedTurnContent": "_op4Ta_collapsedTurnContent",
-			"panelImageLinkPreview": "_op4Ta_panelImageLinkPreview",
-			"compactedSummary": "_op4Ta_compactedSummary",
-			"detailBody": "_op4Ta_detailBody",
-			"user": "_op4Ta_user",
-			"schemaParametersTitle": "_op4Ta_schemaParametersTitle",
-			"assistantContentRendered": "_op4Ta_assistantContentRendered",
-			"schemaDescription": "_op4Ta_schemaDescription",
-			"kindSlot": "_op4Ta_kindSlot",
-			"messageImagesPreview": "_op4Ta_messageImagesPreview",
-			"assistantToolCallsPreview": "_op4Ta_assistantToolCallsPreview",
-			"resultBlocksPreview": "_op4Ta_resultBlocksPreview",
-			"contextGreen": "_op4Ta_contextGreen",
-			"historyLoading": "_op4Ta_historyLoading",
-			"requestBoundaryControlActive": "_op4Ta_requestBoundaryControlActive",
-			"thinkingChevron": "_op4Ta_thinkingChevron",
-			"overviewParentLinks": "_op4Ta_overviewParentLinks",
-			"overviewTitle": "_op4Ta_overviewTitle",
-			"trajectory-table": "_op4Ta_trajectory-table",
-			"sourceBlockContent": "_op4Ta_sourceBlockContent",
-			"sourceBlockJumpIcon": "_op4Ta_sourceBlockJumpIcon",
-			"turnRail": "_op4Ta_turnRail",
-			"eventColumn": "_op4Ta_eventColumn",
-			"event": "_op4Ta_event",
-			"requestTokenDetail": "_op4Ta_requestTokenDetail",
-			"collapsedTurnText": "_op4Ta_collapsedTurnText",
-			"schemaTree": "_op4Ta_schemaTree",
-			"toolCatalogIcon": "_op4Ta_toolCatalogIcon",
-			"assistantToolCallIcon": "_op4Ta_assistantToolCallIcon",
-			"kindTagLabel": "_op4Ta_kindTagLabel",
-			"historyLoadingSpinner": "_op4Ta_historyLoadingSpinner",
-			"collapsedTurnEllipsis": "_op4Ta_collapsedTurnEllipsis",
-			"toolCatalogItem": "_op4Ta_toolCatalogItem",
-			"assistantVioletBright": "_op4Ta_assistantVioletBright",
-			"promptDiff": "_op4Ta_promptDiff",
-			"schemaIntro": "_op4Ta_schemaIntro",
-			"overviewPreview": "_op4Ta_overviewPreview",
-			"details": "_op4Ta_details",
-			"detailTab": "_op4Ta_detailTab",
-			"schemaParameters": "_op4Ta_schemaParameters",
-			"toolCatalogFullDescription": "_op4Ta_toolCatalogFullDescription",
-			"jsonPreview": "_op4Ta_jsonPreview",
-			"contentText": "_op4Ta_contentText",
-			"historyLoadingBar": "_op4Ta_historyLoadingBar",
-			"detailBodySummary": "_op4Ta_detailBodySummary",
-			"toolCatalogName": "_op4Ta_toolCatalogName",
-			"toolCatalog": "_op4Ta_toolCatalog",
-			"detailsLocation": "_op4Ta_detailsLocation",
-			"split": "_op4Ta_split",
-			"close": "_op4Ta_close",
-			"overviewHierarchyJumpIconTight": "_op4Ta_overviewHierarchyJumpIconTight",
-			"historyLoadRow": "_op4Ta_historyLoadRow",
-			"promptDiffLinecontext": "_op4Ta_promptDiffLinecontext",
-			"turnLabelFull": "_op4Ta_turnLabelFull",
-			"inlineResult": "_op4Ta_inlineResult",
-			"assistantToolCalls": "_op4Ta_assistantToolCalls",
-			"summaryScrollRegion": "_op4Ta_summaryScrollRegion",
-			"thinkingQuote": "_op4Ta_thinkingQuote",
-			"assistantOutput": "_op4Ta_assistantOutput",
-			"schemaName": "_op4Ta_schemaName",
-			"content": "_op4Ta_content",
-			"markdownPreview": "_op4Ta_markdownPreview",
+			"arrow": "_op4Ta_arrow",
 			"assistantContent": "_op4Ta_assistantContent",
-			"overview": "_op4Ta_overview",
-			"selectionRail": "_op4Ta_selectionRail",
-			"detailTabActive": "_op4Ta_detailTabActive",
-			"payloadPreview": "_op4Ta_payloadPreview",
-			"sourceBlockLabel": "_op4Ta_sourceBlockLabel",
-			"noPayload": "_op4Ta_noPayload",
-			"thinkingQuoteOnlyPreview": "_op4Ta_thinkingQuoteOnlyPreview",
+			"assistantContentRendered": "_op4Ta_assistantContentRendered",
+			"assistantOutput": "_op4Ta_assistantOutput",
+			"assistantToolCallArgs": "_op4Ta_assistantToolCallArgs",
+			"assistantToolCallButton": "_op4Ta_assistantToolCallButton",
+			"assistantToolCallIcon": "_op4Ta_assistantToolCallIcon",
+			"assistantToolCallName": "_op4Ta_assistantToolCallName",
 			"assistantToolCallText": "_op4Ta_assistantToolCallText",
+			"assistantToolCalls": "_op4Ta_assistantToolCalls",
+			"assistantToolCallsPreview": "_op4Ta_assistantToolCallsPreview",
+			"assistantVioletBright": "_op4Ta_assistantVioletBright",
+			"close": "_op4Ta_close",
+			"collapsedTurnContent": "_op4Ta_collapsedTurnContent",
+			"collapsedTurnEllipsis": "_op4Ta_collapsedTurnEllipsis",
+			"collapsedTurnText": "_op4Ta_collapsedTurnText",
+			"compacted": "_op4Ta_compacted",
+			"compactedSummary": "_op4Ta_compactedSummary",
+			"content": "_op4Ta_content",
+			"contentColumn": "_op4Ta_contentColumn",
+			"contentText": "_op4Ta_contentText",
+			"contextGreen": "_op4Ta_contextGreen",
+			"detailBody": "_op4Ta_detailBody",
+			"detailBodySummary": "_op4Ta_detailBodySummary",
+			"detailTab": "_op4Ta_detailTab",
+			"detailTabActive": "_op4Ta_detailTabActive",
+			"detailTabs": "_op4Ta_detailTabs",
+			"details": "_op4Ta_details",
+			"detailsHeader": "_op4Ta_detailsHeader",
+			"detailsLocation": "_op4Ta_detailsLocation",
+			"detailsResizeHandle": "_op4Ta_detailsResizeHandle",
+			"detailsTitle": "_op4Ta_detailsTitle",
+			"error": "_op4Ta_error",
+			"errorPayload": "_op4Ta_errorPayload",
+			"event": "_op4Ta_event",
+			"eventColumn": "_op4Ta_eventColumn",
+			"eventHeader": "_op4Ta_eventHeader",
+			"eventInner": "_op4Ta_eventInner",
+			"history-loading-spin": "_op4Ta_history-loading-spin",
+			"historyLoadButton": "_op4Ta_historyLoadButton",
+			"historyLoadRow": "_op4Ta_historyLoadRow",
+			"historyLoading": "_op4Ta_historyLoading",
+			"historyLoadingBar": "_op4Ta_historyLoadingBar",
+			"historyLoadingSpinner": "_op4Ta_historyLoadingSpinner",
+			"inlineResult": "_op4Ta_inlineResult",
+			"inlineResultText": "_op4Ta_inlineResultText",
+			"jsonPayload": "_op4Ta_jsonPayload",
+			"jsonPreview": "_op4Ta_jsonPreview",
+			"kindSlot": "_op4Ta_kindSlot",
+			"kindTag": "_op4Ta_kindTag",
+			"kindTagIcon": "_op4Ta_kindTagIcon",
+			"kindTagLabel": "_op4Ta_kindTagLabel",
+			"markdownPayload": "_op4Ta_markdownPayload",
+			"markdownPreview": "_op4Ta_markdownPreview",
+			"message": "_op4Ta_message",
+			"messageImages": "_op4Ta_messageImages",
+			"messageImagesPreview": "_op4Ta_messageImagesPreview",
+			"noOutputText": "_op4Ta_noOutputText",
+			"noPayload": "_op4Ta_noPayload",
+			"overview": "_op4Ta_overview",
+			"overviewHeading": "_op4Ta_overviewHeading",
+			"overviewHierarchyJumpIconTight": "_op4Ta_overviewHierarchyJumpIconTight",
+			"overviewHierarchyNavLink": "_op4Ta_overviewHierarchyNavLink",
+			"overviewParentLinks": "_op4Ta_overviewParentLinks",
+			"overviewPreview": "_op4Ta_overviewPreview",
+			"overviewSection": "_op4Ta_overviewSection",
+			"overviewSections": "_op4Ta_overviewSections",
+			"overviewTitle": "_op4Ta_overviewTitle",
+			"overviewTitleIcon": "_op4Ta_overviewTitleIcon",
+			"panelImage": "_op4Ta_panelImage",
+			"panelImageLink": "_op4Ta_panelImageLink",
+			"panelImageLinkPreview": "_op4Ta_panelImageLinkPreview",
+			"payload": "_op4Ta_payload",
+			"payloadPreview": "_op4Ta_payloadPreview",
+			"promptDiff": "_op4Ta_promptDiff",
+			"promptDiffLineadded": "_op4Ta_promptDiffLineadded",
+			"promptDiffLinecontext": "_op4Ta_promptDiffLinecontext",
+			"promptDiffLinemeta": "_op4Ta_promptDiffLinemeta",
+			"promptDiffLineremoved": "_op4Ta_promptDiffLineremoved",
+			"promptDiffSection": "_op4Ta_promptDiffSection",
+			"promptDiffSections": "_op4Ta_promptDiffSections",
+			"promptDiffTitle": "_op4Ta_promptDiffTitle",
+			"requestBoundaryControl": "_op4Ta_requestBoundaryControl",
+			"requestBoundaryControlActive": "_op4Ta_requestBoundaryControlActive",
+			"requestDetailsDot": "_op4Ta_requestDetailsDot",
+			"requestDetailsName": "_op4Ta_requestDetailsName",
+			"requestTokenDetail": "_op4Ta_requestTokenDetail",
+			"resultBlockText": "_op4Ta_resultBlockText",
+			"resultBlocks": "_op4Ta_resultBlocks",
+			"resultBlocksPreview": "_op4Ta_resultBlocksPreview",
+			"resultPreview": "_op4Ta_resultPreview",
+			"resultRequest": "_op4Ta_resultRequest",
+			"schema": "_op4Ta_schema",
+			"schemaDescription": "_op4Ta_schemaDescription",
+			"schemaIntro": "_op4Ta_schemaIntro",
+			"schemaName": "_op4Ta_schemaName",
+			"schemaParameters": "_op4Ta_schemaParameters",
+			"schemaParametersTitle": "_op4Ta_schemaParametersTitle",
+			"schemaPreview": "_op4Ta_schemaPreview",
+			"schemaTree": "_op4Ta_schemaTree",
+			"selectionRail": "_op4Ta_selectionRail",
+			"sourceBlock": "_op4Ta_sourceBlock",
+			"sourceBlockContent": "_op4Ta_sourceBlockContent",
+			"sourceBlockHeader": "_op4Ta_sourceBlockHeader",
+			"sourceBlockJumpIcon": "_op4Ta_sourceBlockJumpIcon",
+			"sourceBlockJumpTarget": "_op4Ta_sourceBlockJumpTarget",
+			"sourceBlockLabel": "_op4Ta_sourceBlockLabel",
+			"sourceBlocks": "_op4Ta_sourceBlocks",
+			"split": "_op4Ta_split",
+			"subtoolAmber": "_op4Ta_subtoolAmber",
+			"summaryScrollRegion": "_op4Ta_summaryScrollRegion",
+			"systemNeutral": "_op4Ta_systemNeutral",
+			"systemPrompt": "_op4Ta_systemPrompt",
+			"table": "_op4Ta_table",
+			"tablePane": "_op4Ta_tablePane",
+			"thinkingChevron": "_op4Ta_thinkingChevron",
+			"thinkingQuote": "_op4Ta_thinkingQuote",
+			"thinkingQuoteOnlyPreview": "_op4Ta_thinkingQuoteOnlyPreview",
+			"thinkingToggle": "_op4Ta_thinkingToggle",
+			"timestampToggle": "_op4Ta_timestampToggle",
+			"toolAmber": "_op4Ta_toolAmber",
+			"toolCallNameTypeface": "_op4Ta_toolCallNameTypeface",
+			"toolCallOnly": "_op4Ta_toolCallOnly",
+			"toolCallPayload": "_op4Ta_toolCallPayload",
+			"toolCatalog": "_op4Ta_toolCatalog",
+			"toolCatalogChevron": "_op4Ta_toolCatalogChevron",
+			"toolCatalogDefinition": "_op4Ta_toolCatalogDefinition",
+			"toolCatalogDescription": "_op4Ta_toolCatalogDescription",
+			"toolCatalogFullDescription": "_op4Ta_toolCatalogFullDescription",
+			"toolCatalogIcon": "_op4Ta_toolCatalogIcon",
+			"toolCatalogItem": "_op4Ta_toolCatalogItem",
+			"toolCatalogName": "_op4Ta_toolCatalogName",
 			"toolCatalogSummary": "_op4Ta_toolCatalogSummary",
 			"toolCatalogTree": "_op4Ta_toolCatalogTree",
-			"resultBlocks": "_op4Ta_resultBlocks",
-			"eventInner": "_op4Ta_eventInner",
-			"resultBlockText": "_op4Ta_resultBlockText",
-			"payload": "_op4Ta_payload",
+			"trajectory-table": "_op4Ta_trajectory-table",
+			"turnLabel": "_op4Ta_turnLabel",
+			"turnLabelActive": "_op4Ta_turnLabelActive",
+			"turnLabelCompact": "_op4Ta_turnLabelCompact",
+			"turnLabelFull": "_op4Ta_turnLabelFull",
+			"turnRail": "_op4Ta_turnRail",
+			"usageGroup": "_op4Ta_usageGroup",
 			"usageHeading": "_op4Ta_usageHeading",
-			"overviewSections": "_op4Ta_overviewSections",
-			"overviewSection": "_op4Ta_overviewSection",
-			"tablePane": "_op4Ta_tablePane",
-			"overviewHeading": "_op4Ta_overviewHeading",
-			"jsonPayload": "_op4Ta_jsonPayload",
-			"history-loading-spin": "_op4Ta_history-loading-spin",
-			"sourceBlock": "_op4Ta_sourceBlock",
-			"panelImage": "_op4Ta_panelImage",
-			"arrow": "_op4Ta_arrow",
-			"compacted": "_op4Ta_compacted",
-			"detailsHeader": "_op4Ta_detailsHeader",
-			"promptDiffTitle": "_op4Ta_promptDiffTitle",
-			"overviewHierarchyNavLink": "_op4Ta_overviewHierarchyNavLink",
-			"visuallyHidden": "_op4Ta_visuallyHidden",
-			"messageImages": "_op4Ta_messageImages",
-			"resultPreview": "_op4Ta_resultPreview",
-			"contentColumn": "_op4Ta_contentColumn",
-			"detailsResizeHandle": "_op4Ta_detailsResizeHandle",
-			"sourceBlocks": "_op4Ta_sourceBlocks",
-			"toolAmber": "_op4Ta_toolAmber"
+			"usagePanel": "_op4Ta_usagePanel",
+			"user": "_op4Ta_user",
+			"virtualSpacer": "_op4Ta_virtualSpacer",
+			"visuallyHidden": "_op4Ta_visuallyHidden"
 		};
 		//#endregion
 		//#region lib/types/client/TrajectoryTable.js
@@ -4066,14 +4056,11 @@ window.__ModuleLoader__.load({
 				onOpenCall
 			});
 			if (record.cell.thinkingDetail) {
-				if (!rendered) {
-					const source = [record.cell.thinkingDetail, record.cell.outputDetail].filter((value) => value !== void 0 && value !== "").join("\n\n");
-					return (0, react_jsx_runtime.jsx)(MarkdownFragment, {
-						text: source,
-						rendered: false,
-						preview
-					});
-				}
+				if (!rendered) return (0, react_jsx_runtime.jsx)(MarkdownFragment, {
+					text: [record.cell.thinkingDetail, record.cell.outputDetail].filter((value) => value !== void 0 && value !== "").join("\n\n"),
+					rendered: false,
+					preview
+				});
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: `${TrajectoryTable_module_css_default.assistantContent} ${TrajectoryTable_module_css_default.assistantContentRendered}`,
 					children: [
@@ -4310,7 +4297,7 @@ window.__ModuleLoader__.load({
 			const detailsResizeDrag = (0, react.useRef)(null);
 			const appliedRecordSelection = (0, react.useRef)(null);
 			const appliedRecordFocus = (0, react.useRef)(null);
-			const tabHistory = (0, react.useRef)(/* @__PURE__ */ new Set(["overview"]));
+			const tabHistory = (0, react.useRef)(new Set(["overview"]));
 			const rootRef = (0, react.useRef)(null);
 			const tablePaneRef = (0, react.useRef)(null);
 			const followsTableTail = (0, react.useRef)(false);
@@ -4454,8 +4441,7 @@ window.__ModuleLoader__.load({
 				if (record === void 0) return;
 				const tabs = detailTabs(record);
 				const available = new Set(tabs.map((tab) => tab.id));
-				const recent = [...tabHistory.current].reverse().find((tab) => available.has(tab));
-				setActiveTab(recent ?? tabs[0]?.id ?? "overview");
+				setActiveTab([...tabHistory.current].reverse().find((tab) => available.has(tab)) ?? tabs[0]?.id ?? "overview");
 			}, [allRecords, onRecordSelect]);
 			(0, react.useEffect)(() => {
 				if (recordSelection === null || appliedRecordSelection.current === recordSelection) return;
@@ -5322,18 +5308,18 @@ window.__ModuleLoader__.load({
 		}
 		var TrajectoryToolbar_module_css_default = {
 			"action": "_2tg7La_action",
-			"controlTrack": "_2tg7La_controlTrack",
-			"toggle": "_2tg7La_toggle",
-			"controlThumb": "_2tg7La_controlThumb",
 			"actionIcon": "_2tg7La_actionIcon",
+			"actions": "_2tg7La_actions",
+			"control": "_2tg7La_control",
+			"controlThumb": "_2tg7La_controlThumb",
+			"controlTrack": "_2tg7La_controlTrack",
+			"inner": "_2tg7La_inner",
+			"root": "_2tg7La_root",
 			"search": "_2tg7La_search",
 			"searchIcon": "_2tg7La_searchIcon",
-			"actions": "_2tg7La_actions",
-			"root": "_2tg7La_root",
-			"toggleIcon": "_2tg7La_toggleIcon",
-			"inner": "_2tg7La_inner",
-			"control": "_2tg7La_control",
-			"searchInput": "_2tg7La_searchInput"
+			"searchInput": "_2tg7La_searchInput",
+			"toggle": "_2tg7La_toggle",
+			"toggleIcon": "_2tg7La_toggleIcon"
 		};
 		//#endregion
 		//#region lib/types/client/TrajectoryToolbar.js
@@ -5573,18 +5559,18 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TrajectoryTimeline_module_css_default = {
-			"labels": "VffrFq_labels",
 			"earlierHistory": "VffrFq_earlierHistory",
-			"root": "VffrFq_root",
 			"empty": "VffrFq_empty",
-			"track": "VffrFq_track",
-			"span": "VffrFq_span",
-			"turnBoundaries": "VffrFq_turnBoundaries",
+			"hoverLine": "VffrFq_hoverLine",
+			"labels": "VffrFq_labels",
 			"lanes": "VffrFq_lanes",
 			"plot": "VffrFq_plot",
+			"root": "VffrFq_root",
 			"selection": "VffrFq_selection",
 			"selectionEdges": "VffrFq_selectionEdges",
-			"hoverLine": "VffrFq_hoverLine",
+			"span": "VffrFq_span",
+			"track": "VffrFq_track",
+			"turnBoundaries": "VffrFq_turnBoundaries",
 			"turnBoundary": "VffrFq_turnBoundary"
 		};
 		//#endregion
@@ -5943,8 +5929,7 @@ window.__ModuleLoader__.load({
 					onRecordSelect?.(clickedSpan.index);
 					return;
 				}
-				const committedRange = selected.end - selected.start < minimumSelectionDuration ? centeredRange(click ? selected.start : (selected.start + selected.end) / 2, minimumSelectionDuration, model.start, model.end) : selected;
-				commit(committedRange);
+				commit(selected.end - selected.start < minimumSelectionDuration ? centeredRange(click ? selected.start : (selected.start + selected.end) / 2, minimumSelectionDuration, model.start, model.end) : selected);
 				if (click) {
 					const timelinePoint = selected.start;
 					const nearest = model.spans.reduce((candidate, span) => {
@@ -6957,8 +6942,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var views_module_css_default = {
-			"root": "b4-bJG_root",
-			"ledger": "b4-bJG_ledger"
+			"ledger": "b4-bJG_ledger",
+			"root": "b4-bJG_root"
 		};
 		//#endregion
 		//#region lib/types/client/TrajectoryView.js
@@ -7146,7 +7131,6 @@ window.__ModuleLoader__.load({
 				requests,
 				callSchemas
 			]);
-			const timelinePartialSignature = partialStructureSignature(partial);
 			const timelinePartial = (0, react.useMemo)(() => partial === null ? null : {
 				turn: partial.turn,
 				step: partial.step,
@@ -7154,7 +7138,7 @@ window.__ModuleLoader__.load({
 			}, [
 				partialStep,
 				partialTurn,
-				timelinePartialSignature
+				partialStructureSignature(partial)
 			]);
 			const timelineTurns = (0, react.useMemo)(() => appendTrajectoryPartialLayout(finalized.turns, timelinePartial, finalized.lastIndex), [finalized, timelinePartial]);
 			const timelineMode = actualDuration ? actualTime ? "actual" : "duration" : actualTime ? "time" : "sequence";

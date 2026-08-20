@@ -18,19 +18,19 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var JobListAction_module_css_default = {
-			"row": "jBBRLa_row",
-			"rowSettled": "jBBRLa_rowSettled",
-			"rowDot": "jBBRLa_rowDot",
-			"kind": "jBBRLa_kind",
-			"duration": "jBBRLa_duration",
-			"status": "jBBRLa_status",
-			"menu": "jBBRLa_menu",
-			"triggerDot": "jBBRLa_triggerDot",
-			"trigger": "jBBRLa_trigger",
-			"root": "jBBRLa_root",
-			"triggerOpen": "jBBRLa_triggerOpen",
 			"count": "jBBRLa_count",
-			"label": "jBBRLa_label"
+			"duration": "jBBRLa_duration",
+			"kind": "jBBRLa_kind",
+			"label": "jBBRLa_label",
+			"menu": "jBBRLa_menu",
+			"root": "jBBRLa_root",
+			"row": "jBBRLa_row",
+			"rowDot": "jBBRLa_rowDot",
+			"rowSettled": "jBBRLa_rowSettled",
+			"status": "jBBRLa_status",
+			"trigger": "jBBRLa_trigger",
+			"triggerDot": "jBBRLa_triggerDot",
+			"triggerOpen": "jBBRLa_triggerOpen"
 		};
 		//#endregion
 		//#region lib/types/client/JobListAction.js
@@ -122,16 +122,7 @@ window.__ModuleLoader__.load({
 			const triggerRef = (0, react.useRef)(null);
 			const rows = (0, react.useMemo)(() => ordered(jobs), [jobs]);
 			const liveCount = (0, react.useMemo)(() => jobs.filter(isLive).length, [jobs]);
-			(0, react.useEffect)(() => {
-				if (!open) return;
-				const closeOutside = (event) => {
-					if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false);
-				};
-				document.addEventListener("pointerdown", closeOutside);
-				return () => {
-					document.removeEventListener("pointerdown", closeOutside);
-				};
-			}, [open]);
+			(0, _deepseek_ai_dsh_client_ui_primitives.useDismissOnOutsidePointer)(rootRef, open, setOpen);
 			(0, react.useEffect)(() => {
 				if (!open || liveCount === 0) return;
 				setNow(Date.now());

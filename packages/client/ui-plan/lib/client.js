@@ -20,8 +20,8 @@ window.__ModuleLoader__.load({
 		var PlanModeControl_module_css_default = {
 			"chip": "iNpjFa_chip",
 			"close": "iNpjFa_close",
-			"wrap": "iNpjFa_wrap",
-			"error": "iNpjFa_error"
+			"error": "iNpjFa_error",
+			"wrap": "iNpjFa_wrap"
 		};
 		//#endregion
 		//#region lib/types/client/PlanModeControl.js
@@ -119,7 +119,7 @@ window.__ModuleLoader__.load({
 				name: "conversation.input.plan",
 				locale: NS,
 				inject: (sessionId) => ({ exitPlanMode: async () => {
-					const result = await ctx.remote.commands.execute(sessionId, "/plan off");
+					const result = await ctx.remote.commands.execute(sessionId, "/plan off", []);
 					if (!result.ok) return `${result.error.message} (${result.error.code})`;
 					if (result.value === void 0) return "unknown command: /plan off";
 					return null;

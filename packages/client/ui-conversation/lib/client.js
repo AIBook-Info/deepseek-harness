@@ -10,7 +10,6 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		let _deepseek_ai_dsh_client_ui_attachment = require("@deepseek-ai/dsh-client-ui-attachment");
 		//#region lib/types/client/stores.js
 		/**
 		* Per-session chat store shared by conversation and details registrations.
@@ -126,17 +125,19 @@ window.__ModuleLoader__.load({
 			* @param text - serialized prompt text.
 			* @param imageIds - ordered draft-local attachment ids.
 			* @param mode - queue or steer delivery selected by composer policy.
+			* @param signal - optional cancellation for the complete Host admission.
+			* @returns the Host admission outcome; local attachment preparation failures reject.
 			*/
-			async sendSession(session, text, imageIds, mode) {
+			async sendSession(session, text, imageIds, mode, signal) {
 				const attachments = this.draftImages(imageIds);
 				if (attachments.length !== imageIds.length) throw new Error("conversation.sendSession: one or more draft images are no longer available");
 				const content = [...await this.serializeImages(attachments.map((attachment) => attachment.file)), ...text === "" ? [] : [{
 					type: "text",
 					text
 				}]];
-				const result = await session.prompt(content, mode);
-				if (!result.ok) throw new Error(`conversation.send failed: ${result.error.code}: ${result.error.message}`);
+				if (!(await session.prompt(content, mode, signal)).ok) return { kind: "error" };
 				this.releaseDraftImages(attachments);
+				return { kind: "success" };
 			}
 			/**
 			* Create runtime-only draft images and their object URLs.
@@ -164,6 +165,18 @@ window.__ModuleLoader__.load({
 					if (attachment !== void 0) attachments.push(attachment);
 				}
 				return attachments;
+			}
+			/**
+			* Serialize ordered draft images to command-submit wire payloads without
+			* sending or releasing them (the composer releases only after the command
+			* settles successfully).
+			* @param imageIds - ordered draft-local attachment ids.
+			* @returns base64 payloads in id order.
+			*/
+			async serializeDraftImages(imageIds) {
+				const attachments = this.draftImages(imageIds);
+				if (attachments.length !== imageIds.length) throw new Error("conversation.serializeDraftImages: one or more draft images are no longer available");
+				return Promise.all(attachments.map((attachment) => this.encodeImage(attachment.file)));
 			}
 			/**
 			* Release one browser-owned draft image and preview URL.
@@ -271,10 +284,16 @@ window.__ModuleLoader__.load({
 			serializeImages(images) {
 				return Promise.all(images.map(async (file) => ({
 					type: "image",
+					...await this.encodeImage(file)
+				})));
+			}
+			/** Canonical base64 wire form of one browser image file. */
+			async encodeImage(file) {
+				return {
 					mediaType: imageMediaType(file.type),
 					data: bytesToBase64(new Uint8Array(await file.arrayBuffer())),
 					...file.name === "" ? {} : { name: file.name }
-				})));
+				};
 			}
 		};
 		function imageMediaType(value) {
@@ -348,6 +367,18 @@ window.__ModuleLoader__.load({
 				subscribe: (fn) => session.subscribe(fn)
 			};
 		}
+		//#endregion
+		//#region lib/types/client/input/machine.js
+		const REFERENCE_PLACEHOLDER_RE = /[\uE100-\uE11D\uFFFC]/gu;
+		/**
+		* Build the inline draft text whose leading marker is decorated as the
+		* reference icon in the backdrop.
+		* @param reference - reference insertion with its cached display projection.
+		* @returns display text with one marker glyph followed by the complete label.
+		*/
+		function referenceDraftText(reference) {
+			return `@${reference.label}`;
+		}
 		/** The machine never writes the queue; the wiring layer overlays the queue store's projection. */
 		const EMPTY_QUEUE$1 = [];
 		/** Undo ring depth (bounded self-managed transaction log). */
@@ -391,6 +422,24 @@ window.__ModuleLoader__.load({
 			};
 		}
 		/**
+		* Expand the draft's reference ranges into their occurrences' clipboard text
+		* for persistence and clipboard projection. Table order is offset order, so
+		* one linear walk pairs ranges with entries.
+		* @param state - published input state.
+		* @returns the plain-text projection of the draft.
+		*/
+		function projectClipboard(state) {
+			const { draft, occurrences } = state;
+			if (occurrences.length === 0) return draft;
+			let out = "";
+			let cursor = 0;
+			for (const o of occurrences) {
+				out += draft.slice(cursor, o.offset) + o.clipboardText;
+				cursor = o.offset + o.length;
+			}
+			return out + draft.slice(cursor);
+		}
+		/**
 		* Pure input machine, one instance per session (per-session isolation is by
 		* construction). The machine constructs one AbortController per SubmitAttempt
 		* at enter time and aborts it itself on release; the shell never aborts, it
@@ -429,7 +478,8 @@ window.__ModuleLoader__.load({
 					phase: this.phase,
 					...c ? { claim: {
 						token: c.token,
-						...c.hint !== void 0 ? { hint: c.hint } : {}
+						...c.hint !== void 0 ? { hint: c.hint } : {},
+						...c.images === true ? { images: true } : {}
 					} } : {},
 					occurrences: this.occurrences,
 					...this.paste !== void 0 ? { paste: this.paste } : {},
@@ -481,14 +531,14 @@ window.__ModuleLoader__.load({
 			}
 			/**
 			* Reconcile the occurrence table with one edit (old-draft coordinates):
-			* entries past the range shift by the length delta; entries whose
-			* placeholder sits inside the replaced range go away whole (a
-			* deletion/replacement intersecting a placeholder acts on the whole chip).
+			* entries past the range shift by the length delta; an edit that intersects
+			* a reference range removes its structured occurrence and leaves the edited
+			* characters as ordinary draft text.
 			*/
 			reconcile(range) {
 				const delta = range.insertedLength - (range.end - range.start);
 				const kept = [];
-				for (const o of this.occurrences) if (o.offset < range.start) kept.push(o);
+				for (const o of this.occurrences) if (o.offset + o.length <= range.start) kept.push(o);
 				else if (o.offset >= range.end) kept.push(delta === 0 ? o : {
 					...o,
 					offset: o.offset + delta
@@ -503,14 +553,16 @@ window.__ModuleLoader__.load({
 				}
 			}
 			/** Mint one occurrence at a draft offset. */
-			mint(reference, offset) {
+			mint(reference, offset, length) {
 				this.occurrenceSeq += 1;
 				return {
 					occurrenceId: this.occurrenceSeq,
 					source: reference.source,
 					ref: reference.ref,
 					offset,
+					length,
 					label: reference.label,
+					...reference.appearance === void 0 ? {} : { appearance: reference.appearance },
 					clipboardText: reference.clipboardText
 				};
 			}
@@ -567,22 +619,24 @@ window.__ModuleLoader__.load({
 				return [];
 			}
 			/**
-			* Shared chip-insertion transaction: replace [span) with one placeholder
+			* Shared reference-insertion transaction: replace [span) with one inline
 			* occurrence (insert-ref and paste-upgrade both land here). A separating
-			* space follows the chip unless one is already next.
-			* @returns the inserted length (placeholder plus optional gap).
+			* space follows the reference unless one is already next.
+			* @returns the inserted length (display text plus optional gap).
 			*/
 			replaceSpanWithChip(reference, span) {
 				this.pushTxn();
 				this.typingRun = void 0;
 				const tail = this.draft.slice(span.end);
-				const inserted = "￼" + (tail.length === 0 || tail[0] !== " " ? " " : "");
+				const gap = tail.length === 0 || tail[0] !== " " ? " " : "";
+				const displayText = referenceDraftText(reference);
+				const inserted = displayText + gap;
 				this.reconcile({
 					start: span.start,
 					end: span.end,
 					insertedLength: inserted.length
 				});
-				this.withMinted([this.mint(reference, span.start)]);
+				this.withMinted([this.mint(reference, span.start, displayText.length)]);
 				this.adopt(this.draft.slice(0, span.start) + inserted + tail);
 				this.watchClaim();
 				return inserted.length;
@@ -671,7 +725,7 @@ window.__ModuleLoader__.load({
 				return [];
 			}
 			/**
-			* Paste as one transaction: the text (U+FFFC-sanitized) replaces the
+			* Paste as one transaction: the text (reference-placeholder-sanitized) replaces the
 			* selection; hot-snapshot sync matches componentize inside the SAME
 			* transaction (one undo returns to pre-paste); a match attempt opens for
 			* the async remainder while the phase still accepts reference mutations.
@@ -679,7 +733,7 @@ window.__ModuleLoader__.load({
 			onPasteBegin(rawText, selection, components = [], generation = 0) {
 				const { start, end } = selection;
 				if (start < 0 || start > end || end > this.draft.length) return [];
-				const text = rawText.split("￼").join("");
+				const text = rawText.replace(REFERENCE_PLACEHOLDER_RE, "");
 				this.pushTxn(selection);
 				this.typingRun = void 0;
 				const sorted = [...components].sort((a, b) => a.start - b.start);
@@ -688,8 +742,9 @@ window.__ModuleLoader__.load({
 				let cursor = 0;
 				for (const c of sorted) {
 					inserted += text.slice(cursor, c.start);
-					minted.push(this.mint(c.reference, start + inserted.length));
-					inserted += "￼";
+					const displayText = referenceDraftText(c.reference);
+					minted.push(this.mint(c.reference, start + inserted.length, displayText.length));
+					inserted += displayText;
 					cursor = c.end;
 				}
 				inserted += text.slice(cursor);
@@ -775,8 +830,11 @@ window.__ModuleLoader__.load({
 						draft: this.draft
 					}];
 				}
+				const attempt = this.beginAttempt(mode);
+				this.phase = "submitting";
 				return [{
 					type: "default-sink",
+					attempt,
 					draft: this.draft,
 					mode
 				}];
@@ -794,13 +852,18 @@ window.__ModuleLoader__.load({
 						args: argsAfter(attempt.draftSnapshot, outcome.claim.token)
 					}];
 				}
+				if (outcome === void 0) {
+					this.phase = "submitting";
+					return [{
+						type: "default-sink",
+						attempt,
+						draft: attempt.draftSnapshot,
+						mode: attempt.mode
+					}];
+				}
 				this.inflight = void 0;
 				this.phase = "plain";
-				return outcome === void 0 ? [{
-					type: "default-sink",
-					draft: attempt.draftSnapshot,
-					mode: attempt.mode
-				}] : [];
+				return [];
 			}
 			onAdjudicationFailed(attempt, message) {
 				if (this.phase !== "adjudicating" || this.inflight?.attempt.seq !== attempt.seq) return [];
@@ -820,7 +883,8 @@ window.__ModuleLoader__.load({
 					this.phase = "plain";
 					this.claim = void 0;
 					this.occurrences = [];
-					this.adopt("");
+					const snapshot = flight.attempt.draftSnapshot;
+					this.adopt(this.draft !== snapshot && this.draft.startsWith(snapshot) ? this.draft.slice(snapshot.length) : "");
 					this.log = [];
 					this.redoStack = [];
 					this.typingRun = void 0;
@@ -831,10 +895,10 @@ window.__ModuleLoader__.load({
 						text: ev.outcome.text
 					}] : [];
 				}
-				const text = ev.message ?? ev.outcome?.text ?? "command failed";
+				const text = ev.message ?? ev.outcome?.text;
 				if (this.draft === flight.attempt.draftSnapshot && this.claim !== void 0 && this.draft.startsWith(this.claim.token)) {
 					this.phase = "claimed";
-					return [{
+					return text === void 0 ? [] : [{
 						type: "notice",
 						level: "error",
 						text
@@ -842,15 +906,15 @@ window.__ModuleLoader__.load({
 				}
 				this.phase = "plain";
 				this.claim = void 0;
-				return [{
+				return text === void 0 ? [] : [{
 					type: "notice",
 					level: "error",
 					text
 				}];
 			}
-			/** Ordinary send accepted: clear as a commit (no undo unit; sent content
-			*  must not be resurrectable — same discipline as submit-settled success). */
+			/** Cut undo state after an accepted image-only send. */
 			onSendCommitted() {
+				if (this.phase !== "plain") return [];
 				this.claim = void 0;
 				this.occurrences = [];
 				this.adopt("");
@@ -893,7 +957,7 @@ window.__ModuleLoader__.load({
 			deps;
 			/** Published machine state + queue overlay (the InputZone currency source). */
 			state;
-			/** Latest surfaced notice (null after clear); the wiring renders it beside the error strip. */
+			/** Latest surfaced notice (null after clear); the bar renders errors as banners and information inline. */
 			notices = (0, _deepseek_ai_dsh_client_runtime_client.createSnapshotStore)(null);
 			/** The public provide-channel action face (one stable identity per session). */
 			actions = {
@@ -913,10 +977,12 @@ window.__ModuleLoader__.load({
 			};
 			core = new InputMachine({ now: () => Date.now() });
 			noticeSeq = 0;
-			lastDraft = "";
+			lastMirroredDraft = "";
 			imageIds = [];
+			/** One image-only send at a time: Enter during the Host round-trip is a no-op. */
+			imageSendInFlight = false;
 			disposed = false;
-			/** Draft persistence mirror (chat store write; receives the clipboard projection, never raw placeholders). */
+			/** Draft persistence mirror (chat store write; receives the clipboard projection, never display-only ranges). */
 			mirrorFn;
 			constructor(deps) {
 				this.deps = deps;
@@ -946,8 +1012,13 @@ window.__ModuleLoader__.load({
 				this.publish();
 				return true;
 			}
-			/** Remove one image id from this draft. */
+			/**
+			* Remove one image id from this draft. Busy admission phases refuse, like
+			* {@link addImages}: a removal landing while a command submit serializes
+			* would otherwise vanish from the rail yet still ride the in-flight send.
+			*/
 			removeImage(id) {
+				if (this.snapshot.phase === "adjudicating" || this.snapshot.phase === "submitting") return;
 				const next = this.imageIds.filter((candidate) => candidate !== id);
 				if (next.length === this.imageIds.length) return;
 				this.imageIds = next;
@@ -962,15 +1033,6 @@ window.__ModuleLoader__.load({
 				const next = this.imageIds.filter((id) => keep.has(id));
 				if (next.length === this.imageIds.length) return;
 				this.imageIds = next;
-				this.publish();
-			}
-			/**
-			* Restore a failed attempt before any images added after its admission.
-			* @param ids - failed attempt image ids.
-			*/
-			restoreImages(ids) {
-				const current = new Set(this.imageIds);
-				this.imageIds = [...ids.filter((id) => !current.has(id)), ...this.imageIds];
 				this.publish();
 			}
 			/**
@@ -1021,7 +1083,24 @@ window.__ModuleLoader__.load({
 			*/
 			submit(mode = "queue") {
 				if (this.snapshot.draft.trim() === "" && this.imageIds.length > 0) {
-					if (this.snapshot.phase === "plain") this.deps.defaultSink("", [...this.imageIds], mode);
+					if (this.snapshot.phase === "plain" && !this.imageSendInFlight) {
+						const imageIds = [...this.imageIds];
+						this.imageSendInFlight = true;
+						this.deps.defaultSink("", imageIds, mode, new AbortController().signal).then((outcome) => {
+							this.imageSendInFlight = false;
+							if (this.disposed) return;
+							if (outcome.kind === "success") this.commitSend(imageIds);
+							else if (outcome.text !== void 0) this.notify("error", outcome.text);
+						}, (error) => {
+							this.imageSendInFlight = false;
+							if (!this.disposed) this.notify("error", error instanceof Error ? error.message : String(error));
+						});
+					}
+					return;
+				}
+				const before = this.snapshot;
+				if (before.phase === "claimed" && this.imageIds.length > 0 && before.claim?.images !== true) {
+					this.notify("error", this.deps.commandImages.unsupportedNotice(before.claim?.token ?? before.draft));
 					return;
 				}
 				this.run(this.core.dispatch({
@@ -1149,13 +1228,19 @@ window.__ModuleLoader__.load({
 			* a scan-derived decoration, never state.
 			* @param text - the plain reference text to splice in (e.g. `/name `).
 			* @param span - pick-time span snapshot (draftRev CAS).
+			* @param keepCompleting - re-track at the caret after the splice so an open
+			* token (a directory pick's trailing slash) reopens the menu.
 			* @returns whether the text was applied.
 			*/
-			insertText(text, span) {
+			insertText(text, span, keepCompleting = false) {
 				const snapshot = this.core.state;
 				if (span.draftRev !== snapshot.draftRev) return false;
 				const draft = snapshot.draft;
 				this.setDraft(draft.slice(0, span.start) + text + draft.slice(span.end));
+				if (keepCompleting) {
+					const next = this.snapshot;
+					this.deps.inputTriggers?.()?.track(next.draft, span.start + text.length, { tier: guardOf(next.phase) }, next.draftRev);
+				}
 				return true;
 			}
 			/**
@@ -1215,23 +1300,23 @@ window.__ModuleLoader__.load({
 						this.beginSubmit(fx.attempt, fx.claim, fx.args);
 						return;
 					case "default-sink":
-						this.sinkSerialized(fx.draft, fx.mode);
+						this.sinkSerialized(fx.attempt, fx.draft, fx.mode);
 						return;
 					default: return;
 				}
 			}
 			/**
 			* Prompt serialization before the sink: expand each
-			* placeholder to its owner's model form via the session controller's
+			* inline reference range to its owner's model form via the session controller's
 			* codec routing. Owner missing / serialize failure / disposal blocks the
 			* send — notice + draft and chips retained, never a silent downgrade to
 			* the clipboard text. Chip-free drafts skip the async detour.
 			*/
-			sinkSerialized(draft, mode) {
+			sinkSerialized(attempt, draft, mode) {
 				const imageIds = [...this.imageIds];
 				const occurrences = this.core.state.occurrences;
 				if (occurrences.length === 0) {
-					this.deps.defaultSink(draft.trim(), imageIds, mode);
+					this.settleSubmit(attempt, this.deps.defaultSink(draft.trim(), imageIds, mode, attempt.signal), imageIds);
 					return;
 				}
 				const inputTriggers = this.deps.inputTriggers?.();
@@ -1240,6 +1325,7 @@ window.__ModuleLoader__.load({
 					if (inputTriggers === void 0) throw new Error(`no serializer for reference source "${o.source}"`);
 					return {
 						offset: o.offset,
+						length: o.length,
 						text: await inputTriggers.serializeReference(o.source, o.ref, controller.signal)
 					};
 				})).then((parts) => {
@@ -1248,15 +1334,44 @@ window.__ModuleLoader__.load({
 					let cursor = 0;
 					for (const part of parts) {
 						out += draft.slice(cursor, part.offset) + part.text;
-						cursor = part.offset + 1;
+						cursor = part.offset + part.length;
 					}
 					out += draft.slice(cursor);
-					this.deps.defaultSink(out.trim(), imageIds, mode);
+					this.settleSubmit(attempt, this.deps.defaultSink(out.trim(), imageIds, mode, attempt.signal), imageIds);
 				}, (error) => {
 					controller.abort();
-					if (this.disposed) return;
+					if (this.dead(attempt)) return;
 					const message = error instanceof Error ? error.message : String(error);
-					this.notify("error", message);
+					this.run(this.core.dispatch({
+						type: "submit-settled",
+						attempt,
+						ok: false,
+						message
+					}));
+				});
+			}
+			/** Settle one admission attempt; successful sends consume only their captured images. */
+			settleSubmit(attempt, pending, imageIds = []) {
+				pending.then((outcome) => {
+					if (this.dead(attempt)) return;
+					if (outcome.kind === "success" && imageIds.length > 0) {
+						const submitted = new Set(imageIds);
+						this.imageIds = this.imageIds.filter((id) => !submitted.has(id));
+					}
+					this.run(this.core.dispatch({
+						type: "submit-settled",
+						attempt,
+						ok: outcome.kind === "success",
+						outcome
+					}));
+				}, (error) => {
+					if (this.dead(attempt)) return;
+					this.run(this.core.dispatch({
+						type: "submit-settled",
+						attempt,
+						ok: false,
+						message: error instanceof Error ? error.message : String(error)
+					}));
 				});
 			}
 			/** Enter adjudication: poll the session controller; failure = notice + draft retained (never a silent downgrade). */
@@ -1270,7 +1385,7 @@ window.__ModuleLoader__.load({
 					}));
 					return;
 				}
-				inputTriggers.adjudicate(draft.trim(), attempt.signal).then((outcome) => {
+				inputTriggers.adjudicate(draft.trim(), attempt.signal, { images: this.imageIds.length }).then((outcome) => {
 					if (this.dead(attempt)) return;
 					this.run(this.core.dispatch({
 						type: "adjudicated",
@@ -1287,15 +1402,32 @@ window.__ModuleLoader__.load({
 					}));
 				});
 			}
-			/** The submit transaction: claim.submit against the session scope; ok maps from the outcome kind. */
+			/**
+			* The submit transaction: claim.submit against the session scope; ok maps
+			* from the outcome kind. An accepting claim receives the serialized draft
+			* images, which are cleared and released only on a success outcome; a
+			* failure (serialize, transport, or handler error) keeps draft and images
+			* for correction.
+			*/
 			beginSubmit(attempt, claim, args) {
-				Promise.resolve().then(() => claim.submit(args, this.deps.actx)).then((outcome) => {
-					if (this.dead(attempt)) return;
+				const imageIds = claim.images === true ? [...this.imageIds] : [];
+				Promise.resolve().then(async () => {
+					const images = imageIds.length > 0 ? await this.deps.commandImages.serialize(imageIds) : [];
+					if (this.dead(attempt)) return void 0;
+					return claim.submit(args, this.deps.actx, images);
+				}).then((outcome) => {
+					if (outcome === void 0 || this.dead(attempt)) return;
+					if (outcome.kind === "success" && imageIds.length > 0) {
+						const submitted = new Set(imageIds);
+						this.imageIds = this.imageIds.filter((id) => !submitted.has(id));
+						this.deps.commandImages.release(imageIds);
+					}
 					this.run(this.core.dispatch({
 						type: "submit-settled",
 						attempt,
 						ok: outcome.kind === "success",
-						outcome
+						outcome,
+						...outcome.kind === "error" && outcome.text === void 0 ? { message: "command failed" } : {}
 					}));
 				}, (error) => {
 					if (this.dead(attempt)) return;
@@ -1322,9 +1454,10 @@ window.__ModuleLoader__.load({
 			publish() {
 				const next = this.compose();
 				this.state.set(next);
-				if (next.draft !== this.lastDraft) {
-					this.lastDraft = next.draft;
-					this.mirrorFn?.(next.draft);
+				const mirroredDraft = projectClipboard(next);
+				if (mirroredDraft !== this.lastMirroredDraft) {
+					this.lastMirroredDraft = mirroredDraft;
+					this.mirrorFn?.(mirroredDraft);
 				}
 			}
 		};
@@ -1370,11 +1503,17 @@ window.__ModuleLoader__.load({
 					inputTriggers: () => this.controller(actx),
 					popup: () => this.popup(actx),
 					queue: queueReadFaceOf(session),
-					defaultSink: (text, imageIds, mode) => {
-						this.sink(session, text, imageIds, mode);
-					},
+					defaultSink: (text, imageIds, mode, signal) => this.sink(session, text, imageIds, mode, signal),
 					steerQueue: () => {
 						this.steerQueue(session, shell);
+					},
+					commandImages: {
+						serialize: (ids) => this.conversation().serializeDraftImages(ids),
+						release: (ids) => {
+							const conversation = this.rootCtx.get("conversation");
+							for (const imageId of ids) conversation?.releaseDraftImage(imageId);
+						},
+						unsupportedNotice: (token) => this.t("command.imagesUnsupported", { command: token.trim().replace(/^\//u, "") })
 					}
 				});
 				this.shells.set(id, shell);
@@ -1383,7 +1522,7 @@ window.__ModuleLoader__.load({
 						actx.on("slash/input-begin-command", (req) => shell.beginCommand(req.claim, req.span) ? true : void 0),
 						actx.on("slash/input-insert-reference", (req) => shell.insertReference(req.reference, req.span) ? true : void 0),
 						actx.on("slash/input-consume-token", (req) => shell.consumeToken(req.guard) ? true : void 0),
-						actx.on("slash/input-insert-text", (req) => shell.insertText(req.text, req.span) ? true : void 0)
+						actx.on("slash/input-insert-text", (req) => shell.insertText(req.text, req.span, req.continue === true) ? true : void 0)
 					];
 					return () => {
 						for (const off of offs) off();
@@ -1433,21 +1572,11 @@ window.__ModuleLoader__.load({
 			* Default sink: optimistic clear + prompt. The session is always a real
 			* host entity (materialized when its workspace was picked), so there is
 			* exactly one path; a failed first prompt is an ordinary prompt failure
-			* (error strip via promptError, draft restored only while untouched).
+			* (banner via promptError, draft restored only while untouched).
 			*/
-			sink(session, text, imageIds, mode) {
-				if (text === "" && imageIds.length === 0) return;
-				const shell = this.shells.get(session.sessionId);
-				shell?.commitSend(imageIds);
-				this.conversation().sendSession(session, text, imageIds, mode).catch(() => {
-					if (this.shells.get(session.sessionId) === shell) {
-						shell?.restoreImages(imageIds);
-						if (shell?.snapshot.draft === "") shell.setDraft(text);
-						return;
-					}
-					const conversation = this.rootCtx.get("conversation");
-					for (const id of imageIds) conversation?.releaseDraftImage(id);
-				});
+			sink(session, text, imageIds, mode, signal) {
+				if (text === "" && imageIds.length === 0) return Promise.resolve({ kind: "success" });
+				return this.conversation().sendSession(session, text, imageIds, mode, signal);
 			}
 			/**
 			* Steer every still-pending queued message into the running turn, in FIFO
@@ -2376,6 +2505,7 @@ window.__ModuleLoader__.load({
 		//#region lib/types/client/input/decorations.js
 		/** Token matcher: a trigger char at line start or after whitespace, then a word-ish name (never crosses \n). */
 		const TEXT_REF_RE = /(^|\s)([/@])([\w-]+)/g;
+		const FOLDER_REF_RE = /(^|\s)(@(?:"[^"\n]*\/|[^\s"]+\/))/g;
 		/**
 		* Scan the draft for plain-text reference tokens against the hot lexicons.
 		* Word-boundary discipline: the trigger must sit at the draft
@@ -2386,23 +2516,38 @@ window.__ModuleLoader__.load({
 		* @returns matched ranges in draft order.
 		*/
 		function scanTextRefs(draft, lexicon) {
-			if (lexicon.size === 0 || draft === "") return [];
+			if (draft === "") return [];
 			const out = [];
-			TEXT_REF_RE.lastIndex = 0;
-			let m;
-			while ((m = TEXT_REF_RE.exec(draft)) !== null) {
-				const trigger = m[2];
-				const name = m[3] ?? "";
-				if (lexicon.get(trigger)?.includes(name)) {
-					const start = m.index + (m[1]?.length ?? 0);
-					out.push({
-						start,
-						end: start + 1 + name.length,
-						trigger
-					});
+			if (lexicon.size > 0) {
+				TEXT_REF_RE.lastIndex = 0;
+				let m;
+				while ((m = TEXT_REF_RE.exec(draft)) !== null) {
+					const trigger = m[2];
+					const name = m[3] ?? "";
+					if (lexicon.get(trigger)?.includes(name)) {
+						const start = m.index + (m[1]?.length ?? 0);
+						out.push({
+							start,
+							end: start + 1 + name.length,
+							trigger
+						});
+					}
 				}
 			}
-			return out;
+			FOLDER_REF_RE.lastIndex = 0;
+			let folder;
+			while ((folder = FOLDER_REF_RE.exec(draft)) !== null) {
+				const token = folder[2] ?? "";
+				const start = folder.index + (folder[1]?.length ?? 0);
+				const end = start + token.length;
+				if (!out.some((range) => range.start < end && range.end > start)) out.push({
+					start,
+					end,
+					trigger: "@",
+					appearance: "folder"
+				});
+			}
+			return out.sort((left, right) => left.start - right.start);
 		}
 		/** The empty lexicon (default: zero text-ref decorations, old call sites unchanged). */
 		const EMPTY_LEXICON$1 = /* @__PURE__ */ new Map();
@@ -2422,7 +2567,10 @@ window.__ModuleLoader__.load({
 			const chips = occurrences.map((o) => ({
 				occurrenceId: o.occurrenceId,
 				offset: o.offset,
+				length: o.length,
+				text: draft.slice(o.offset, o.offset + o.length),
 				label: o.label,
+				...o.appearance === void 0 ? {} : { appearance: o.appearance },
 				invalid: o.invalid === true
 			}));
 			const hint = claimActive && claim.hint !== void 0 && draft.slice(claim.token.length).trim() === "" ? claim.hint : null;
@@ -2435,16 +2583,14 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region lib/types/client/image-labels.js
-		/** Bridges the `conversation` locale namespace to the zero-cordis attachment
-		* atoms' label props (`@deepseek-ai/dsh-client-ui-attachment` reads no
-		* application state; owners resolve every string). */
+		/** Attachment error and limit copy owned by the conversation input flow. */
 		/**
 		* Byte count as user-facing megabytes (`10MB`, `2.5MB`).
 		* @param bytes - the byte count.
 		* @returns the rounded megabyte text.
 		*/
 		function imageSizeText(bytes) {
-			const mb = bytes / 1048576;
+			const mb = bytes / (1024 * 1024);
 			return `${Number.isInteger(mb) ? String(mb) : mb.toFixed(1)}MB`;
 		}
 		/**
@@ -2462,6 +2608,9 @@ window.__ModuleLoader__.load({
 				case "MODEL_DOES_NOT_SUPPORT_IMAGES": return t("image.modelUnsupported");
 				case "SUBAGENT_IMAGE_UNSUPPORTED": return t("image.subagentUnsupported");
 				case "IMAGE_TOO_MANY_PIXELS": return t("image.tooManyPixels");
+				case "IMAGE_DIMENSION_TOO_LARGE":
+					if (limits !== void 0) return t("image.dimensionTooLarge", { size: limits.maxImageDimension });
+					break;
 				case "INVALID_IMAGE":
 				case "IMAGE_TYPE_MISMATCH": return t("image.unsupportedType");
 				case "TOO_MANY_IMAGES":
@@ -2470,65 +2619,43 @@ window.__ModuleLoader__.load({
 				case "IMAGE_TOO_LARGE":
 					if (limits !== void 0) return t("image.fileTooLarge", { size: imageSizeText(limits.maxImageBytes) });
 					break;
-				case "IMAGES_TOO_LARGE": if (limits !== void 0) return t("image.totalTooLarge", { size: imageSizeText(limits.maxMessageImageBytes) });
+				case "IMAGES_TOO_LARGE":
+					if (limits !== void 0) return t("image.totalTooLarge", { size: imageSizeText(limits.maxMessageImageBytes) });
+					break;
+				default: break;
 			}
 			return t("image.sendFailed", { reason });
 		}
+		//#endregion
+		//#region lib/types/client/reference/ReferenceIcon.js
 		/**
-		* Resolve the original-image lightbox strings.
-		* @param t - the conversation-namespace translate.
-		* @returns the lightbox dialog and close-control labels.
+		* Render the icon that identifies one inline reference domain.
+		* @param props - Reference kind, optional size, and optional CSS class.
+		* @returns The corresponding current-color SVG glyph.
 		*/
-		function lightboxLabels(t) {
-			return {
-				dialog: t("image.preview"),
-				close: t("image.closePreview")
-			};
-		}
-		/**
-		* Resolve the chat-history image strings.
-		* @param t - the conversation-namespace translate.
-		* @returns the message-image labels including the forwarded lightbox strings.
-		*/
-		function messageImageLabels(t) {
-			return {
-				image: t("image.label"),
-				open: t("image.openOriginal"),
-				openNamed: (label) => t("image.openOriginalLabel", { label }),
-				loading: t("image.loading"),
-				loadFailed: t("image.loadFailed"),
-				lightbox: lightboxLabels(t)
-			};
-		}
-		/**
-		* Resolve the full-page drop overlay strings.
-		* @param t - the conversation-namespace translate.
-		* @param accepting - whether drops are currently accepted.
-		* @param limits - per-message limits for the desc line, when known.
-		* @returns the overlay title, with the limits desc while accepting.
-		*/
-		function dropOverlayLabels(t, accepting, limits) {
-			if (!accepting) return { title: t("image.dropBlocked") };
-			return {
-				title: t("image.dropTitle"),
-				desc: limits === void 0 ? void 0 : t("image.dropDesc", {
-					count: limits.count,
-					size: limits.size
-				})
-			};
-		}
-		/**
-		* Resolve the composer draft-image rail strings.
-		* @param t - the conversation-namespace translate.
-		* @returns the rail group, open-tooltip, and paging-arrow labels.
-		*/
-		function attachmentRailLabels(t) {
-			return {
-				group: t("image.pending"),
-				open: t("image.openOriginal"),
-				scrollLeft: t("image.scrollLeft"),
-				scrollRight: t("image.scrollRight")
-			};
+		function ReferenceIcon({ kind, size = 16, className }) {
+			switch (kind) {
+				case "session": return (0, react_jsx_runtime.jsx)("svg", {
+					width: size,
+					height: size,
+					className,
+					viewBox: "0 0 16 16",
+					fill: "none",
+					"aria-hidden": true,
+					children: (0, react_jsx_runtime.jsx)("path", {
+						d: "M8 0.597656C3.91296 0.597656 0.599716 3.91103 0.599609 7.99805C0.599609 9.13171 0.854567 10.2079 1.31152 11.1699L1.59277 11.7607L2.77441 11.1992L2.49414 10.6084L2.36035 10.3076C2.06865 9.59612 1.90723 8.81645 1.90723 7.99805C1.90733 4.63362 4.63554 1.90625 8 1.90625C11.3644 1.90635 14.0917 4.63368 14.0918 7.99805C14.0918 11.3625 11.3644 14.0907 8 14.0908C7.311 14.0908 6.80642 14.0414 6.35938 13.918C5.919 13.7963 5.50105 13.5929 5.00098 13.2441C4.26805 12.7329 3.21756 12.5526 2.35156 13.0996L2.33789 13.1084L2.32422 13.1182L1.74805 13.5234L2.18164 14.8184L3.05957 14.2002C3.37505 14.0068 3.84248 14.0319 4.25195 14.3174C4.84447 14.7307 5.39718 15.009 6.01172 15.1787C6.61963 15.3465 7.25579 15.3984 8 15.3984C12.087 15.3983 15.4004 12.0851 15.4004 7.99805C15.4003 3.9111 12.087 0.59776 8 0.597656ZM4.56836 8.50977V9.80371H8.12402V8.50977H4.56836ZM4.56836 7.30078H11.4619V6.00684H4.56836V7.30078Z",
+						fill: "currentColor"
+					})
+				});
+				case "file": return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconBrowseOutline16, {
+					size,
+					className
+				});
+				case "folder": return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFolderClose16, {
+					size,
+					className
+				});
+			}
 		}
 		//#endregion
 		//#region lib/types/client/chat/message-chrome.js
@@ -2878,22 +3005,22 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ContextMeter_module_css_default = {
-			"percent": "_7tjl3G_percent",
-			"header": "_7tjl3G_header",
 			"bar": "_7tjl3G_bar",
-			"panel": "_7tjl3G_panel",
-			"colorSystem": "_7tjl3G_colorSystem",
-			"headline": "_7tjl3G_headline",
-			"swatch": "_7tjl3G_swatch",
-			"track": "_7tjl3G_track",
-			"rows": "_7tjl3G_rows",
 			"colorMessages": "_7tjl3G_colorMessages",
-			"segment": "_7tjl3G_segment",
-			"root": "_7tjl3G_root",
-			"row": "_7tjl3G_row",
-			"fill": "_7tjl3G_fill",
+			"colorSystem": "_7tjl3G_colorSystem",
 			"colorTools": "_7tjl3G_colorTools",
 			"figures": "_7tjl3G_figures",
+			"fill": "_7tjl3G_fill",
+			"header": "_7tjl3G_header",
+			"headline": "_7tjl3G_headline",
+			"panel": "_7tjl3G_panel",
+			"percent": "_7tjl3G_percent",
+			"root": "_7tjl3G_root",
+			"row": "_7tjl3G_row",
+			"rows": "_7tjl3G_rows",
+			"segment": "_7tjl3G_segment",
+			"swatch": "_7tjl3G_swatch",
+			"track": "_7tjl3G_track",
 			"trigger": "_7tjl3G_trigger"
 		};
 		//#endregion
@@ -3066,11 +3193,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var PermissionSelect_module_css_default = {
-			"triggerIcon": "e1DaAq_triggerIcon",
-			"trigger": "e1DaAq_trigger",
 			"chevron": "e1DaAq_chevron",
-			"triggerLabel": "e1DaAq_triggerLabel",
-			"chevronOpen": "e1DaAq_chevronOpen"
+			"chevronOpen": "e1DaAq_chevronOpen",
+			"trigger": "e1DaAq_trigger",
+			"triggerIcon": "e1DaAq_triggerIcon",
+			"triggerLabel": "e1DaAq_triggerLabel"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/PermissionSelect.js
@@ -3263,8 +3390,39 @@ window.__ModuleLoader__.load({
 			})] });
 		}
 		//#endregion
+		//#region lib/types/client/skeleton/safari.js
+		/** Safari-specific textarea layout recovery for the conversation composer. */
+		const ALTERNATE_IOS_BROWSER = /\b(?:CriOS|FxiOS|EdgiOS|OPiOS|OPT|DuckDuckGo|Brave)(?:\/|\b)/;
+		/**
+		* Detect Safari's `Version/... Safari/...` form while excluding known alternate iOS browser tokens.
+		* @param identity - Browser user-agent and vendor values.
+		* @returns Whether the identity should use the Safari-specific recovery.
+		*/
+		function isSafariBrowser(identity) {
+			return identity.vendor === "Apple Computer, Inc." && /\bVersion\/[\d.]+.*\bSafari\/[\d.]+/.test(identity.userAgent) && !ALTERNATE_IOS_BROWSER.test(identity.userAgent);
+		}
+		/**
+		* Repair Safari's stale native textarea layout and the scrollport auto height it can contaminate.
+		* @param input - Composer textarea whose own scrollable overflow must stay zero.
+		*/
+		function repairSafariTextareaLayout(input) {
+			if (input === null || input.scrollHeight <= input.clientHeight) return;
+			const scrollport = input.closest("[data-input-scroll]");
+			if (scrollport === null) return;
+			const inputHeight = input.style.height;
+			input.style.height = `${String(input.clientHeight + 1)}px`;
+			input.offsetHeight;
+			input.style.height = inputHeight;
+			input.offsetHeight;
+			const scrollportHeight = scrollport.style.height;
+			scrollport.style.height = `${String(scrollport.clientHeight + 1)}px`;
+			scrollport.offsetHeight;
+			scrollport.style.height = scrollportHeight;
+			scrollport.offsetHeight;
+		}
+		//#endregion
 		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-conversation\src\client\skeleton\InputBar.module.css.mjs
-		const css$17 = "@font-face{font-family:DshChipCell;src:url(data:font/ttf;base64,AAEAAAAKAIAAAwAgT1MvMkT8SmIAAAEoAAAAYGNtYXAADQBPAAABkAAAADRnbHlmAAAAAAAAAcwAAAABaGVhZCwtPGoAAACsAAAANmhoZWEDIg7bAAAA5AAAACRobXR4EZQAAAAAAYgAAAAIbG9jYQAAAAAAAAHEAAAABm1heHAAAwACAAABCAAAACBuYW1lvljk2gAAAdAAAABscG9zdNNweNQAAAI8AAAALQABAAAAAQAAdia1tV8PPPUAAwPoAAAAAOaLfcUAAAAA5ot9xQAAAAAAAAAAAAAAAwACAAAAAAAAAAEAAAMg/zgAAA+gAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAACAAEAAAACAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwjKAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAPz8/PwAA//z//AMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAAB9AAAD6AAAAAAAAIAAAADAAAAFAADAAEAAAAUAAQAIAAAAAQABAABAAD//P//AAD//P//AAUAAQAAAAAAAAAAAAAAAAAAAAAAAAAEADYAAQAAAAAAAQALAAAAAQAAAAAAAgAHAAsAAwABBAkAAQAWABIAAwABBAkAAgAOAChEc2hDaGlwQ2VsbFJlZ3VsYXIARABzAGgAQwBoAGkAcABDAGUAbABsAFIAZQBnAHUAbABhAHIAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAABAgZvYmpyZXAAAAA=)format(\"truetype\")}.b0GJPG_root{padding:0 var(--dsh-composer-side-clearance) 8px;flex-direction:column;align-items:center;display:flex}.b0GJPG_hero{padding:0 var(--dsh-composer-side-clearance)}.b0GJPG_notice{width:100%;max-width:var(--dsh-composer-card-max-width);background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);border-radius:8px;margin-bottom:6px;padding:4px 8px;font-size:12px;line-height:18px}.b0GJPG_noticeError{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}.b0GJPG_card{box-sizing:border-box;width:100%;max-width:var(--dsh-composer-card-max-width);border:1px solid var(--dsw-alias-border-l2-darkmode-thin);background:var(--dsw-specific-input-major);box-shadow:var(--dsw-shadow-lv2);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border-radius:22px;flex-direction:column;gap:12px;padding-top:10px;font-size:16px;line-height:24px;display:flex;position:relative}.b0GJPG_cardWorkspaceTrigger{cursor:pointer;border-color:#0000}.b0GJPG_cardWorkspaceTrigger:after{content:\"\";background:var(--dsw-alias-border-l4);pointer-events:none;border-radius:22px;transition:background-color .1s;position:absolute;inset:-1px;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E\");mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E\")}.b0GJPG_cardWorkspaceTrigger :disabled{pointer-events:none}.b0GJPG_cardWorkspaceTrigger:hover:after{background:var(--dsw-alias-state-business-primary)}.b0GJPG_accessory{align-items:center;gap:8px;padding:10px 12px 0;display:flex}.b0GJPG_attachments{min-width:0;padding:4px 12px 0}.b0GJPG_overlayAnchor{height:0;position:absolute;inset:0 0 auto}.b0GJPG_scroll{max-height:var(--dsh-composer-text-max-height);overflow-y:auto}.b0GJPG_grow{position:relative}.b0GJPG_backdrop{color:var(--dsw-alias-label-primary);pointer-events:none;position:absolute;inset:0;overflow:hidden}.b0GJPG_hlToken{color:var(--dsw-alias-state-warn-label);background-color:#0000}.b0GJPG_hlSegment{color:#0000;background-color:#0000;border-radius:4px}.b0GJPG_hint{color:var(--dsw-alias-label-caption)}.b0GJPG_pending{background:var(--dsw-alias-state-business-primary);border-radius:50%;width:8px;height:8px;animation:1s ease-in-out infinite alternate b0GJPG_input-pending}@keyframes b0GJPG_input-pending{0%{opacity:.35}to{opacity:1}}.b0GJPG_input{resize:none;color:#0000;width:100%;height:100%;caret-color:var(--dsw-alias-state-business-primary);background:0 0;border:none;outline:none;position:absolute;inset:0;overflow:hidden}.b0GJPG_input,.b0GJPG_mirror,.b0GJPG_backdrop{box-sizing:border-box;font-family:\"DshChipCell\", var(--dsw-font-family);font-size:inherit;line-height:inherit;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;padding:4px 12px 0 16px}.b0GJPG_input::placeholder{color:var(--dsw-alias-label-caption);user-select:none}.b0GJPG_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:not-allowed}.b0GJPG_input[aria-haspopup=menu]{cursor:pointer}.b0GJPG_mirror{visibility:hidden;pointer-events:none}.b0GJPG_hero .b0GJPG_mirror{min-height:52px}.b0GJPG_row{justify-content:space-between;align-items:center;gap:12px;min-width:0;padding:2px 8px 6px;display:flex;container-type:inline-size}.b0GJPG_tools,.b0GJPG_modes,.b0GJPG_trailing{align-items:center;min-width:0;display:flex}.b0GJPG_tools{gap:16px}.b0GJPG_modes{gap:12px}.b0GJPG_trailing{flex:none;gap:12px}.b0GJPG_add{background:var(--dsw-specific-selector);width:28px;height:28px;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:999px;flex:none;place-items:center;display:grid}.b0GJPG_add:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.b0GJPG_add:disabled{opacity:.5;cursor:default}.b0GJPG_select{max-width:220px;height:28px;color:var(--dsw-alias-label-secondary);white-space:nowrap;cursor:pointer;appearance:none;background-color:#0000;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");background-position:right 4px center;background-repeat:no-repeat;background-size:12px 12px;border:none;border-radius:8px;outline:none;padding:0 20px 0 8px;font-size:13px;font-weight:500;line-height:20px}.b0GJPG_select:hover:not(:disabled){background-color:var(--dsw-alias-interactive-bg-hover)}.b0GJPG_select:disabled{opacity:.5;cursor:default}.b0GJPG_primary{background:var(--dsw-alias-button-info-fill);color:#fff;cursor:pointer;border:none;border-radius:999px;flex:none;place-items:center;width:34px;height:34px;transition:background-color .1s;display:grid;transform:translateY(-2px)}.b0GJPG_primary:hover:not(:disabled){background:var(--dsw-alias-button-info-hover)}.b0GJPG_primary:disabled{opacity:.4;cursor:default}.b0GJPG_retry{color:inherit;cursor:pointer;background:0 0;border:1px solid;border-radius:4px;margin-left:8px;padding:1px 8px;font-size:12px}.b0GJPG_textRef{color:var(--dsw-alias-state-business-primary);-webkit-box-decoration-break:clone;box-decoration-break:clone;background-color:#0000}.b0GJPG_textRef:after{display:none}.b0GJPG_chip{background:#6187d838;border-radius:6px;position:relative}.b0GJPG_chip:before{content:\"￼\";color:#0000}.b0GJPG_chipLabel{width:calc(138.889% - 10px);color:var(--dsw-alias-label-primary);white-space:nowrap;justify-content:center;align-items:center;display:flex;position:absolute;top:50%;left:50%;overflow:hidden;transform:translate(-50%,-50%)scale(.72)}.b0GJPG_chipInvalid{opacity:.7;background:#d8616133;text-decoration:line-through}";
+		const css$17 = ".b0GJPG_root{padding:0 var(--dsh-composer-side-clearance) 8px;flex-direction:column;align-items:center;display:flex}.b0GJPG_hero{padding:0 var(--dsh-composer-side-clearance)}.b0GJPG_notice{width:100%;max-width:var(--dsh-composer-card-max-width);background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);border-radius:8px;margin-bottom:6px;padding:4px 8px;font-size:12px;line-height:18px}.b0GJPG_card{box-sizing:border-box;width:100%;max-width:var(--dsh-composer-card-max-width);border:1px solid var(--dsw-alias-border-l2-darkmode-thin);background:var(--dsw-specific-input-major);box-shadow:var(--dsw-shadow-lv2);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border-radius:22px;flex-direction:column;gap:12px;padding-top:10px;font-size:16px;line-height:24px;display:flex;position:relative}.b0GJPG_cardWorkspaceTrigger{cursor:pointer;border-color:#0000}.b0GJPG_cardWorkspaceTrigger:after{content:\"\";background:var(--dsw-alias-border-l4);pointer-events:none;border-radius:22px;transition:background-color .1s;position:absolute;inset:-1px;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E\");mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E\")}.b0GJPG_cardWorkspaceTrigger :disabled{pointer-events:none}.b0GJPG_cardWorkspaceTrigger:hover:after{background:var(--dsw-alias-state-business-primary)}.b0GJPG_accessory{align-items:center;gap:8px;padding:10px 12px 0;display:flex}.b0GJPG_overlayAnchor{height:0;position:absolute;inset:0 0 auto}.b0GJPG_scroll{max-height:var(--dsh-composer-text-max-height);overflow-y:auto}.b0GJPG_grow{position:relative}.b0GJPG_backdrop{color:var(--dsw-alias-label-primary);pointer-events:none;position:absolute;inset:0;overflow:hidden}.b0GJPG_backdropDisabled,.b0GJPG_backdropDisabled :is(.b0GJPG_hlToken,.b0GJPG_hint,.b0GJPG_textRef,.b0GJPG_chip,.b0GJPG_chipInvalid){color:var(--dsw-alias-label-tertiary)}.b0GJPG_hlToken{color:var(--dsw-alias-state-warn-label);background-color:#0000}.b0GJPG_hlSegment{color:#0000;background-color:#0000;border-radius:4px}.b0GJPG_hint{color:var(--dsw-alias-label-caption)}.b0GJPG_pending{background:var(--dsw-alias-state-business-primary);border-radius:50%;width:8px;height:8px;animation:1s ease-in-out infinite alternate b0GJPG_input-pending}@keyframes b0GJPG_input-pending{0%{opacity:.35}to{opacity:1}}.b0GJPG_input{resize:none;color:#0000;-webkit-text-fill-color:transparent;width:100%;height:100%;caret-color:var(--dsw-alias-state-business-primary);background:0 0;border:none;outline:none;position:absolute;inset:0;overflow:hidden}.b0GJPG_input,.b0GJPG_mirror,.b0GJPG_backdrop{box-sizing:border-box;font-family:var(--dsw-font-family);font-size:inherit;line-height:inherit;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;padding:4px 12px 0 16px}.b0GJPG_input::placeholder{color:var(--dsw-alias-label-caption);-webkit-text-fill-color:var(--dsw-alias-label-caption);user-select:none}.b0GJPG_input:disabled{color:#0000;-webkit-text-fill-color:transparent;cursor:not-allowed}.b0GJPG_input[aria-haspopup=menu]{cursor:pointer}.b0GJPG_mirror{visibility:hidden;pointer-events:none}.b0GJPG_hero .b0GJPG_mirror{min-height:52px}.b0GJPG_row{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;min-width:0;padding:2px 8px 6px;display:flex;container-type:inline-size}.b0GJPG_tools,.b0GJPG_modes,.b0GJPG_trailing{align-items:center;min-width:0;display:flex}.b0GJPG_tools{gap:16px}.b0GJPG_modes{gap:12px}.b0GJPG_trailing{flex:none;gap:12px;margin-left:auto}.b0GJPG_add{background:var(--dsw-specific-selector);width:28px;height:28px;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:999px;flex:none;place-items:center;display:grid}.b0GJPG_add:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.b0GJPG_add:disabled{opacity:.5;cursor:default}.b0GJPG_select{max-width:220px;height:28px;color:var(--dsw-alias-label-secondary);white-space:nowrap;cursor:pointer;appearance:none;background-color:#0000;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");background-position:right 4px center;background-repeat:no-repeat;background-size:12px 12px;border:none;border-radius:8px;outline:none;padding:0 20px 0 8px;font-size:13px;font-weight:500;line-height:20px}.b0GJPG_select:hover:not(:disabled){background-color:var(--dsw-alias-interactive-bg-hover)}.b0GJPG_select:disabled{opacity:.5;cursor:default}.b0GJPG_primary{background:var(--dsw-alias-button-info-fill);color:#fff;cursor:pointer;border:none;border-radius:999px;flex:none;place-items:center;width:34px;height:34px;transition:background-color .1s;display:grid;transform:translateY(-2px)}.b0GJPG_primary:hover:not(:disabled){background:var(--dsw-alias-button-info-hover)}.b0GJPG_primary:disabled{opacity:.4;cursor:default}.b0GJPG_retry{color:inherit;cursor:pointer;background:0 0;border:1px solid;border-radius:4px;margin-left:8px;padding:1px 8px;font-size:12px}.b0GJPG_textRef{color:var(--dsw-alias-state-business-primary);-webkit-box-decoration-break:clone;box-decoration-break:clone;background-color:#0000}.b0GJPG_textRef:after{display:none}.b0GJPG_textRefTrigger{position:relative}.b0GJPG_textRefTriggerGlyph{color:#0000}.b0GJPG_textRefIcon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}.b0GJPG_chip{color:var(--dsw-alias-state-business-primary);-webkit-box-decoration-break:clone;box-decoration-break:clone;background:0 0;position:relative}.b0GJPG_chipTrigger{position:relative}.b0GJPG_chipTriggerGlyph{color:#0000}.b0GJPG_chipIcon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}.b0GJPG_chipInvalid{opacity:.7;color:var(--dsw-alias-state-error-primary);text-decoration:line-through}";
 		const tagId$17 = "@deepseek-ai/dsh-client-ui-conversation/InputBar.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$17) + "]") === null) {
 			const tag = document.createElement("style");
@@ -3274,37 +3432,41 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var InputBar_module_css_default = {
+			"accessory": "b0GJPG_accessory",
+			"add": "b0GJPG_add",
+			"backdrop": "b0GJPG_backdrop",
+			"backdropDisabled": "b0GJPG_backdropDisabled",
+			"card": "b0GJPG_card",
+			"cardWorkspaceTrigger": "b0GJPG_cardWorkspaceTrigger",
+			"chip": "b0GJPG_chip",
+			"chipIcon": "b0GJPG_chipIcon",
+			"chipInvalid": "b0GJPG_chipInvalid",
+			"chipTrigger": "b0GJPG_chipTrigger",
+			"chipTriggerGlyph": "b0GJPG_chipTriggerGlyph",
+			"grow": "b0GJPG_grow",
+			"hero": "b0GJPG_hero",
+			"hint": "b0GJPG_hint",
+			"hlSegment": "b0GJPG_hlSegment",
+			"hlToken": "b0GJPG_hlToken",
+			"input": "b0GJPG_input",
+			"input-pending": "b0GJPG_input-pending",
+			"mirror": "b0GJPG_mirror",
 			"modes": "b0GJPG_modes",
 			"notice": "b0GJPG_notice",
 			"overlayAnchor": "b0GJPG_overlayAnchor",
-			"cardWorkspaceTrigger": "b0GJPG_cardWorkspaceTrigger",
-			"textRef": "b0GJPG_textRef",
-			"attachments": "b0GJPG_attachments",
-			"mirror": "b0GJPG_mirror",
-			"accessory": "b0GJPG_accessory",
-			"root": "b0GJPG_root",
-			"hlToken": "b0GJPG_hlToken",
-			"hlSegment": "b0GJPG_hlSegment",
-			"add": "b0GJPG_add",
-			"card": "b0GJPG_card",
-			"grow": "b0GJPG_grow",
-			"scroll": "b0GJPG_scroll",
-			"noticeError": "b0GJPG_noticeError",
-			"hint": "b0GJPG_hint",
-			"input-pending": "b0GJPG_input-pending",
-			"chipLabel": "b0GJPG_chipLabel",
-			"chip": "b0GJPG_chip",
-			"chipInvalid": "b0GJPG_chipInvalid",
-			"backdrop": "b0GJPG_backdrop",
-			"retry": "b0GJPG_retry",
-			"primary": "b0GJPG_primary",
-			"row": "b0GJPG_row",
-			"select": "b0GJPG_select",
-			"hero": "b0GJPG_hero",
 			"pending": "b0GJPG_pending",
-			"input": "b0GJPG_input",
-			"trailing": "b0GJPG_trailing",
-			"tools": "b0GJPG_tools"
+			"primary": "b0GJPG_primary",
+			"retry": "b0GJPG_retry",
+			"root": "b0GJPG_root",
+			"row": "b0GJPG_row",
+			"scroll": "b0GJPG_scroll",
+			"select": "b0GJPG_select",
+			"textRef": "b0GJPG_textRef",
+			"textRefIcon": "b0GJPG_textRefIcon",
+			"textRefTrigger": "b0GJPG_textRefTrigger",
+			"textRefTriggerGlyph": "b0GJPG_textRefTriggerGlyph",
+			"tools": "b0GJPG_tools",
+			"trailing": "b0GJPG_trailing"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/InputBar.js
@@ -3337,8 +3499,6 @@ window.__ModuleLoader__.load({
 			const draft = input?.draft ?? "";
 			const attachments = (0, react.useMemo)(() => input === void 0 || draftImages === void 0 ? [] : draftImages(input.imageIds), [draftImages, input?.imageIds]);
 			const empty = draft.trim() === "" && attachments.length === 0;
-			const [preview, setPreview] = (0, react.useState)(null);
-			const [dragActive, setDragActive] = (0, react.useState)(false);
 			const [toast, setToast] = (0, react.useState)(null);
 			const toastSeq = (0, react.useRef)(0);
 			const showToast = (0, react.useCallback)((text) => {
@@ -3361,11 +3521,15 @@ window.__ModuleLoader__.load({
 				t,
 				imageLimits
 			]);
+			(0, react.useEffect)(() => {
+				if (notice?.level === "error") showToast(notice.text);
+			}, [notice, showToast]);
 			const inputRef = (0, react.useRef)(null);
 			const cardRef = (0, react.useRef)(null);
-			const dragDepthRef = (0, react.useRef)(0);
 			const scrollRef = (0, react.useRef)(null);
 			const mirrorRef = (0, react.useRef)(null);
+			const safari = (0, react.useMemo)(() => isSafariBrowser(navigator), []);
+			const safariNativeShrinkRef = (0, react.useRef)(false);
 			const composingRef = (0, react.useRef)(false);
 			const onCompositionStart = () => {
 				composingRef.current = true;
@@ -3393,9 +3557,11 @@ window.__ModuleLoader__.load({
 				input?.imageIds,
 				inputActions
 			]);
-			(0, react.useEffect)(() => {
-				if (preview !== null && !attachments.some((attachment) => attachment.id === preview.id)) setPreview(null);
-			}, [attachments, preview]);
+			(0, react.useLayoutEffect)(() => {
+				const nativeShrink = safariNativeShrinkRef.current;
+				safariNativeShrinkRef.current = false;
+				if (safari && nativeShrink) repairSafariTextareaLayout(inputRef.current);
+			}, [draft, safari]);
 			const revealCaret = (caret) => {
 				const scrollEl = scrollRef.current;
 				const mirrorEl = mirrorRef.current;
@@ -3415,8 +3581,7 @@ window.__ModuleLoader__.load({
 				else if (rect.top + line < box.top) scrollEl.scrollTop -= box.top - rect.top - line;
 			};
 			const revealSelectionFocus = (el) => {
-				const caret = el.selectionDirection === "backward" ? el.selectionStart : el.selectionEnd;
-				revealCaret(caret ?? el.value.length);
+				revealCaret((el.selectionDirection === "backward" ? el.selectionStart : el.selectionEnd) ?? el.value.length);
 			};
 			(0, react.useEffect)(() => {
 				const el = inputRef.current;
@@ -3452,6 +3617,10 @@ window.__ModuleLoader__.load({
 					el.removeEventListener("wheel", onWheel);
 				};
 			}, []);
+			const selectionOf = (el) => ({
+				start: el.selectionStart ?? 0,
+				end: el.selectionEnd ?? el.selectionStart ?? 0
+			});
 			const onKeyDown = (e) => {
 				if (workspaceTrigger) {
 					if (e.key === "Enter" || e.key === " ") {
@@ -3460,9 +3629,28 @@ window.__ModuleLoader__.load({
 					}
 					return;
 				}
-				if (keyboard === void 0 || inputActions === void 0) return;
+				if (input === void 0 || keyboard === void 0 || inputActions === void 0) return;
 				if (e.key === "Enter" && e.shiftKey) return;
 				const composing = composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+				if (!composing && !machineBusy && !locked && (e.key === "Backspace" || e.key === "Delete")) {
+					const selection = selectionOf(e.currentTarget);
+					if (selection.start === selection.end) {
+						const occurrence = input.occurrences.find((o) => e.key === "Backspace" ? o.offset + o.length === selection.start : o.offset === selection.start);
+						if (occurrence !== void 0) {
+							e.preventDefault();
+							const start = occurrence.offset;
+							const end = occurrence.offset + occurrence.length;
+							keyboard.setDraft(draft.slice(0, start) + draft.slice(end), {
+								start,
+								end,
+								insertedLength: 0
+							});
+							restoreCaret(e.currentTarget, start);
+							keyboard.track(keyboard.snapshot.draft, start);
+							return;
+						}
+					}
+				}
 				if (e.key === "ArrowUp" || e.key === "ArrowDown") {
 					if (keyboard.arbitrate(e.key === "ArrowUp" ? "up" : "down", composing) === "consumed") e.preventDefault();
 					return;
@@ -3504,37 +3692,35 @@ window.__ModuleLoader__.load({
 				if (keyboard === void 0 || locked) return;
 				if (machineBusy) return;
 				const next = e.target.value;
+				safariNativeShrinkRef.current = safari && next.length < draft.length;
 				keyboard.setDraft(next);
 				keyboard.track(next, e.target.selectionStart ?? next.length);
 			};
-			const selectionOf = (el) => ({
-				start: el.selectionStart ?? 0,
-				end: el.selectionEnd ?? el.selectionStart ?? 0
-			});
 			const onCopyOrCut = (e, cut) => {
 				if (input === void 0 || keyboard === void 0) return;
 				const el = e.currentTarget;
 				const { start, end } = selectionOf(el);
 				if (start === end) return;
-				draft.slice(start, end);
-				const touched = input.occurrences.filter((o) => o.offset >= start && o.offset < end);
+				const touched = input.occurrences.filter((o) => o.offset < end && o.offset + o.length > start);
 				if (touched.length === 0 && !cut) return;
 				e.preventDefault();
+				const copyStart = touched.reduce((value, o) => Math.min(value, o.offset), start);
+				const copyEnd = touched.reduce((value, o) => Math.max(value, o.offset + o.length), end);
 				let text = "";
-				let cursor = start;
+				let cursor = copyStart;
 				for (const o of touched) {
 					text += draft.slice(cursor, o.offset) + o.clipboardText;
-					cursor = o.offset + 1;
+					cursor = o.offset + o.length;
 				}
-				text += draft.slice(cursor, end);
+				text += draft.slice(cursor, copyEnd);
 				e.clipboardData.setData("text/plain", text);
 				if (cut && !machineBusy && !locked) {
-					keyboard.setDraft(draft.slice(0, start) + draft.slice(end), {
-						start,
-						end,
+					keyboard.setDraft(draft.slice(0, copyStart) + draft.slice(copyEnd), {
+						start: copyStart,
+						end: copyEnd,
 						insertedLength: 0
 					});
-					restoreCaret(el, start);
+					restoreCaret(el, copyStart);
 				}
 			};
 			const onPaste = (e) => {
@@ -3575,60 +3761,6 @@ window.__ModuleLoader__.load({
 				t
 			]);
 			const canAcceptDrop = !locked && !machineBusy && addImages !== void 0;
-			(0, react.useEffect)(() => {
-				const hasFiles = (event) => event.dataTransfer?.types.includes("Files") ?? false;
-				const reset = () => {
-					dragDepthRef.current = 0;
-					setDragActive(false);
-				};
-				const onDragEnter = (event) => {
-					if (!hasFiles(event)) return;
-					event.preventDefault();
-					dragDepthRef.current += 1;
-					setDragActive(true);
-				};
-				const onDragOver = (event) => {
-					if (!hasFiles(event) || event.dataTransfer === null) return;
-					event.preventDefault();
-					event.dataTransfer.dropEffect = canAcceptDrop ? "copy" : "none";
-				};
-				const onDragLeave = (event) => {
-					if (!hasFiles(event)) return;
-					dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-					if (dragDepthRef.current === 0) setDragActive(false);
-					const leavingViewport = event.clientX <= 0 || event.clientY <= 0 || event.clientX >= window.innerWidth || event.clientY >= window.innerHeight;
-					if ((event.target === document.documentElement || event.target === document.body) && leavingViewport) reset();
-				};
-				const onDrop = (event) => {
-					if (!hasFiles(event)) return;
-					event.preventDefault();
-					reset();
-					if (!canAcceptDrop) return;
-					intakeImages([...event.dataTransfer?.files ?? []]);
-				};
-				document.addEventListener("dragenter", onDragEnter);
-				document.addEventListener("dragover", onDragOver);
-				document.addEventListener("dragleave", onDragLeave);
-				document.addEventListener("drop", onDrop);
-				window.addEventListener("dragend", reset);
-				return () => {
-					document.removeEventListener("dragenter", onDragEnter);
-					document.removeEventListener("dragover", onDragOver);
-					document.removeEventListener("dragleave", onDragLeave);
-					document.removeEventListener("drop", onDrop);
-					window.removeEventListener("dragend", reset);
-				};
-			}, [canAcceptDrop, intakeImages]);
-			const closePreview = (0, react.useCallback)(() => {
-				setPreview(null);
-			}, []);
-			const railItems = (0, react.useMemo)(() => attachments.map((attachment) => ({
-				id: attachment.id,
-				previewUrl: attachment.previewUrl,
-				alt: attachment.file.name || t("image.pending"),
-				removeLabel: t("image.remove", { name: attachment.file.name }),
-				attachment
-			})), [attachments, t]);
 			const onSelect = (e) => {
 				if (keyboard !== void 0 && keyboard.snapshot.paste !== void 0) keyboard.invalidatePaste();
 			};
@@ -3688,23 +3820,42 @@ window.__ModuleLoader__.load({
 					pushPlain(b.at);
 					if (b.kind === "chip") {
 						const chip = b.chip;
-						backdrop.push((0, react_jsx_runtime.jsx)("span", {
+						backdrop.push((0, react_jsx_runtime.jsxs)("span", {
 							className: clsx(InputBar_module_css_default.chip, chip.invalid && InputBar_module_css_default.chipInvalid),
 							"data-decoration": "chip",
+							"data-reference-appearance": chip.appearance,
 							"data-occurrence": chip.occurrenceId,
 							"data-invalid": chip.invalid || void 0,
 							title: chip.label,
-							children: (0, react_jsx_runtime.jsx)("span", {
-								className: InputBar_module_css_default.chipLabel,
-								children: chip.label
-							})
+							children: [chip.appearance === void 0 ? chip.text[0] : (0, react_jsx_runtime.jsxs)("span", {
+								className: InputBar_module_css_default.chipTrigger,
+								children: [(0, react_jsx_runtime.jsx)("span", {
+									className: InputBar_module_css_default.chipTriggerGlyph,
+									children: chip.text[0]
+								}), (0, react_jsx_runtime.jsx)(ReferenceIcon, {
+									kind: chip.appearance,
+									size: 16,
+									className: InputBar_module_css_default.chipIcon
+								})]
+							}), (0, react_jsx_runtime.jsx)("span", { children: chip.text.slice(1) })]
 						}, `chip-${chip.occurrenceId}`));
-						cursor = chip.offset + 1;
+						cursor = chip.offset + chip.length;
 					} else {
+						const text = draft.slice(b.ref.start, b.ref.end);
 						backdrop.push((0, react_jsx_runtime.jsx)("mark", {
 							className: InputBar_module_css_default.textRef,
 							"data-decoration": "text-ref",
-							children: draft.slice(b.ref.start, b.ref.end)
+							children: b.ref.appearance === "folder" ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [(0, react_jsx_runtime.jsxs)("span", {
+								className: InputBar_module_css_default.textRefTrigger,
+								children: [(0, react_jsx_runtime.jsx)("span", {
+									className: InputBar_module_css_default.textRefTriggerGlyph,
+									children: text[0]
+								}), (0, react_jsx_runtime.jsx)(ReferenceIcon, {
+									kind: "folder",
+									size: 16,
+									className: InputBar_module_css_default.textRefIcon
+								})]
+							}), text.slice(1)] }) : text
 						}, `ref-${b.ref.start}`));
 						cursor = b.ref.end;
 					}
@@ -3725,21 +3876,14 @@ window.__ModuleLoader__.load({
 			return (0, react_jsx_runtime.jsxs)("div", {
 				className: clsx(InputBar_module_css_default.root, variant === "hero" && InputBar_module_css_default.hero),
 				children: [
-					dragActive && (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_attachment.DropOverlay, {
-						disabled: !canAcceptDrop,
-						labels: dropOverlayLabels(t, canAcceptDrop, imageLimits === void 0 ? void 0 : {
-							count: imageLimits.maxImagesPerMessage,
-							size: imageSizeText(imageLimits.maxImageBytes)
-						})
-					}),
 					toast !== null && (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Toast, {
 						text: toast.text,
 						icon: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconWarningOutline16, {}),
 						anchor: cardRef.current,
 						onDone: dismissToast
 					}, toast.seq),
-					notice !== null && (0, react_jsx_runtime.jsx)("div", {
-						className: clsx(InputBar_module_css_default.notice, notice.level === "error" && InputBar_module_css_default.noticeError),
+					notice?.level === "info" && (0, react_jsx_runtime.jsx)("div", {
+						className: InputBar_module_css_default.notice,
 						role: "status",
 						children: notice.text
 					}),
@@ -3760,18 +3904,17 @@ window.__ModuleLoader__.load({
 								className: InputBar_module_css_default.accessory,
 								children: accessory
 							}),
-							railItems.length > 0 && (0, react_jsx_runtime.jsx)("div", {
-								className: InputBar_module_css_default.attachments,
-								children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_attachment.AttachmentRail, {
-									items: railItems,
-									labels: attachmentRailLabels(t),
-									onOpen: (item) => {
-										setPreview(item.attachment);
-									},
-									onRemove: (item) => {
-										removeImage?.(item.attachment.id);
-									}
-								})
+							renderSlot("conversation.input.attachments", {
+								attachments,
+								canAcceptDrop,
+								onAddImages: intakeImages,
+								onRemoveImage: (id) => {
+									removeImage?.(id);
+								},
+								dropLimits: imageLimits === void 0 ? void 0 : {
+									count: imageLimits.maxImagesPerMessage,
+									size: imageSizeText(imageLimits.maxImageBytes)
+								}
 							}),
 							(0, react_jsx_runtime.jsx)("div", {
 								ref: scrollRef,
@@ -3782,8 +3925,9 @@ window.__ModuleLoader__.load({
 									children: [
 										(0, react_jsx_runtime.jsx)("div", {
 											"aria-hidden": true,
-											className: InputBar_module_css_default.backdrop,
+											className: clsx(InputBar_module_css_default.backdrop, textareaDisabled && InputBar_module_css_default.backdropDisabled),
 											"data-input-backdrop": true,
+											"data-disabled": textareaDisabled || void 0,
 											children: backdrop
 										}),
 										(0, react_jsx_runtime.jsx)("textarea", {
@@ -3925,12 +4069,6 @@ window.__ModuleLoader__.load({
 							})
 						]
 					}),
-					preview !== null && (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_attachment.ImageLightbox, {
-						src: preview.previewUrl,
-						alt: preview.file.name || t("image.original"),
-						labels: lightboxLabels(t),
-						onClose: closePreview
-					}),
 					footer
 				]
 			});
@@ -3947,12 +4085,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var EnterBehaviorRow_module_css_default = {
+			"chevron": "-xxOca_chevron",
 			"desc": "-xxOca_desc",
 			"row": "-xxOca_row",
-			"title": "-xxOca_title",
+			"rowText": "-xxOca_rowText",
 			"selector": "-xxOca_selector",
-			"chevron": "-xxOca_chevron",
-			"rowText": "-xxOca_rowText"
+			"title": "-xxOca_title"
 		};
 		//#endregion
 		//#region lib/types/client/settings/EnterBehaviorRow.js
@@ -4015,7 +4153,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-conversation\src\client\chat\MessageItem.module.css.mjs
-		const css$15 = ".m3HOmW_userRow{flex-direction:column;align-items:flex-end;gap:6px;display:flex}.m3HOmW_userStack{flex-direction:column;align-items:flex-end;gap:8px;min-width:0;max-width:min(525px,82%);display:flex}.m3HOmW_bubble{background:var(--dsw-specific-bubble);max-width:100%;color:var(--dsw-alias-label-primary);border-radius:22px;padding:10px 16px;font-size:16px;line-height:24px}.m3HOmW_contextRow,.m3HOmW_compactionRow{padding:2px 0}.m3HOmW_compactionButton{width:100%;min-width:0;height:24px;color:inherit;font:inherit;text-align:left;background:0 0;border:none;border-radius:6px;align-items:center;padding:0;display:flex}.m3HOmW_compactionButton:not(:disabled){cursor:pointer}.m3HOmW_compactionButton:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}.m3HOmW_compactionLeading{width:16px;height:16px;color:var(--dsw-alias-label-secondary);flex:none;place-items:center;margin-right:6px;display:inline-grid}.m3HOmW_compactionContextIcon,.m3HOmW_compactionDisclosureIcon{grid-area:1/1;justify-content:center;align-items:center;display:inline-flex}.m3HOmW_compactionDisclosureIcon,.m3HOmW_compactionButton:not(:disabled):hover .m3HOmW_compactionContextIcon,.m3HOmW_compactionButton:not(:disabled):focus-visible .m3HOmW_compactionContextIcon{opacity:0}.m3HOmW_compactionButton:not(:disabled):hover .m3HOmW_compactionDisclosureIcon,.m3HOmW_compactionButton:not(:disabled):focus-visible .m3HOmW_compactionDisclosureIcon{opacity:1}.m3HOmW_compactionTitle{color:var(--dsw-alias-label-primary-dimmed);flex:none;font-size:14px;line-height:24px}.m3HOmW_compactionSep{background:var(--dsw-alias-label-caption);border-radius:1px;flex:none;width:2px;height:2px;margin:0 8px}.m3HOmW_compactionSummary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}.m3HOmW_compactionBody{color:var(--dsw-alias-label-tertiary);padding:4px 0 4px 22px;font-size:14px;line-height:24px}.m3HOmW_retryRow{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.m3HOmW_retrySummary{width:fit-content;color:inherit;cursor:pointer;user-select:none;border-radius:3px;align-items:center;gap:7px;padding:2px 0;list-style:none;display:inline-flex}.m3HOmW_retrySummary::-webkit-details-marker{display:none}.m3HOmW_retrySummary:after{content:\"\";opacity:.8;border-bottom:1.5px solid;border-right:1.5px solid;width:6px;height:6px;transition:transform .12s;transform:rotate(-45deg)}.m3HOmW_retrySummary:hover{color:var(--dsw-alias-label-secondary)}.m3HOmW_retrySummary:focus-visible{outline:1.5px solid var(--dsw-alias-button-info-fill);outline-offset:2px}.m3HOmW_retryText{color:inherit}.m3HOmW_retryRow[data-active] .m3HOmW_retryText{background:linear-gradient(90deg, var(--dsw-alias-label-tertiary) 0%, var(--dsw-alias-label-tertiary) 40%, var(--dsw-alias-label-secondary) 50%, var(--dsw-alias-label-tertiary) 60%, var(--dsw-alias-label-tertiary) 100%);color:#0000;background-position:100%;background-size:200% 100%;background-clip:text;animation:1.6s ease-in-out infinite m3HOmW_retry-shimmer}.m3HOmW_retryRow[open] .m3HOmW_retrySummary:after{transform:rotate(45deg)}.m3HOmW_retryDetails{overflow-wrap:anywhere;gap:2px;margin-top:3px;padding-left:14px;font-size:12px;line-height:18px;display:grid}.m3HOmW_retryDetailLabel{color:var(--dsw-alias-label-secondary)}.m3HOmW_turnErrorRow{grid-template-columns:10px minmax(0,1fr) auto;align-items:start;gap:8px;padding:2px 0;font-size:13px;line-height:20px;display:grid}.m3HOmW_turnErrorDot{margin-top:5px}.m3HOmW_turnErrorCopy{overflow-wrap:anywhere;min-width:0}.m3HOmW_turnErrorTitle{color:var(--dsw-alias-state-error-primary);margin-right:6px;font-weight:600}.m3HOmW_turnErrorMessage{color:var(--dsw-alias-label-secondary)}.m3HOmW_turnErrorCode{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-markdown-code-block-small)}.m3HOmW_maxTokensTitle{color:var(--dsw-alias-state-warn-primary);margin-right:6px;font-weight:600}@keyframes m3HOmW_retry-shimmer{0%{background-position:100%}to{background-position:0}}@media (prefers-reduced-motion:reduce){.m3HOmW_retryRow[data-active] .m3HOmW_retryText{color:inherit;background:0 0;animation:none}}.m3HOmW_refChip{color:var(--dsw-alias-label-primary);white-space:nowrap;vertical-align:baseline;background:#6187d838;border-radius:6px;margin:0 2px;padding:0 8px;font-size:.85em;line-height:1.6;display:inline-block}";
+		const css$15 = ".m3HOmW_userRow{flex-direction:column;align-items:flex-end;gap:6px;display:flex}.m3HOmW_userStack{flex-direction:column;align-items:flex-end;gap:8px;min-width:0;max-width:min(525px,82%);display:flex}.m3HOmW_bubble{background:var(--dsw-specific-bubble);max-width:100%;color:var(--dsw-alias-label-primary);border-radius:22px;padding:10px 16px;font-size:16px;line-height:24px}.m3HOmW_referenceSummary{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.m3HOmW_contextRow,.m3HOmW_compactionRow{padding:2px 0}.m3HOmW_compactionButton{width:100%;min-width:0;height:24px;color:inherit;font:inherit;text-align:left;background:0 0;border:none;border-radius:6px;align-items:center;padding:0;display:flex}.m3HOmW_compactionButton:not(:disabled){cursor:pointer}.m3HOmW_compactionButton:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}.m3HOmW_compactionLeading{width:16px;height:16px;color:var(--dsw-alias-label-secondary);flex:none;place-items:center;margin-right:6px;display:inline-grid}.m3HOmW_compactionContextIcon,.m3HOmW_compactionDisclosureIcon{grid-area:1/1;justify-content:center;align-items:center;display:inline-flex}.m3HOmW_compactionDisclosureIcon,.m3HOmW_compactionButton:not(:disabled):hover .m3HOmW_compactionContextIcon,.m3HOmW_compactionButton:not(:disabled):focus-visible .m3HOmW_compactionContextIcon{opacity:0}.m3HOmW_compactionButton:not(:disabled):hover .m3HOmW_compactionDisclosureIcon,.m3HOmW_compactionButton:not(:disabled):focus-visible .m3HOmW_compactionDisclosureIcon{opacity:1}.m3HOmW_compactionTitle{color:var(--dsw-alias-label-primary-dimmed);flex:none;font-size:14px;line-height:24px}.m3HOmW_compactionSep{background:var(--dsw-alias-label-caption);border-radius:1px;flex:none;width:2px;height:2px;margin:0 8px}.m3HOmW_compactionSummary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}.m3HOmW_compactionBody{color:var(--dsw-alias-label-tertiary);padding:4px 0 4px 22px;font-size:14px;line-height:24px}.m3HOmW_retryRow{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.m3HOmW_retrySummary{width:fit-content;color:inherit;cursor:pointer;user-select:none;border-radius:3px;align-items:center;gap:7px;padding:2px 0;list-style:none;display:inline-flex}.m3HOmW_retrySummary::-webkit-details-marker{display:none}.m3HOmW_retrySummary:after{content:\"\";opacity:.8;border-bottom:1.5px solid;border-right:1.5px solid;width:6px;height:6px;transition:transform .12s;transform:rotate(-45deg)}.m3HOmW_retrySummary:hover{color:var(--dsw-alias-label-secondary)}.m3HOmW_retrySummary:focus-visible{outline:1.5px solid var(--dsw-alias-button-info-fill);outline-offset:2px}.m3HOmW_retryText{color:inherit}.m3HOmW_retryRow[data-active] .m3HOmW_retryText{background:linear-gradient(90deg, var(--dsw-alias-label-tertiary) 0%, var(--dsw-alias-label-tertiary) 40%, var(--dsw-alias-label-secondary) 50%, var(--dsw-alias-label-tertiary) 60%, var(--dsw-alias-label-tertiary) 100%);color:#0000;background-position:100%;background-size:200% 100%;background-clip:text;animation:1.6s ease-in-out infinite m3HOmW_retry-shimmer}.m3HOmW_retryRow[open] .m3HOmW_retrySummary:after{transform:rotate(45deg)}.m3HOmW_retryDetails{overflow-wrap:anywhere;gap:2px;margin-top:3px;padding-left:14px;font-size:12px;line-height:18px;display:grid}.m3HOmW_retryDetailLabel{color:var(--dsw-alias-label-secondary)}.m3HOmW_turnErrorRow{grid-template-columns:10px minmax(0,1fr) auto;align-items:start;gap:8px;padding:2px 0;font-size:13px;line-height:20px;display:grid}.m3HOmW_turnErrorDot{margin-top:5px}.m3HOmW_turnErrorCopy{overflow-wrap:anywhere;min-width:0}.m3HOmW_turnErrorTitle{color:var(--dsw-alias-state-error-primary);margin-right:6px;font-weight:600}.m3HOmW_turnErrorMessage{color:var(--dsw-alias-label-secondary)}.m3HOmW_turnErrorCode{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-markdown-code-block-small)}.m3HOmW_maxTokensTitle{color:var(--dsw-alias-state-warn-primary);margin-right:6px;font-weight:600}@keyframes m3HOmW_retry-shimmer{0%{background-position:100%}to{background-position:0}}@media (prefers-reduced-motion:reduce){.m3HOmW_retryRow[data-active] .m3HOmW_retryText{color:inherit;background:0 0;animation:none}}.m3HOmW_refChip{color:var(--dsw-alias-state-business-primary);white-space:nowrap;vertical-align:baseline;align-items:center;gap:4px;margin:0 2px;font-weight:500;display:inline-flex}.m3HOmW_refIcon{flex:none}";
 		const tagId$15 = "@deepseek-ai/dsh-client-ui-conversation/MessageItem.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$15) + "]") === null) {
 			const tag = document.createElement("style");
@@ -4025,33 +4163,35 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageItem_module_css_default = {
-			"turnErrorTitle": "m3HOmW_turnErrorTitle",
-			"retrySummary": "m3HOmW_retrySummary",
-			"retryText": "m3HOmW_retryText",
-			"retry-shimmer": "m3HOmW_retry-shimmer",
-			"refChip": "m3HOmW_refChip",
-			"compactionContextIcon": "m3HOmW_compactionContextIcon",
-			"userStack": "m3HOmW_userStack",
-			"retryRow": "m3HOmW_retryRow",
 			"bubble": "m3HOmW_bubble",
-			"compactionTitle": "m3HOmW_compactionTitle",
 			"compactionBody": "m3HOmW_compactionBody",
-			"retryDetails": "m3HOmW_retryDetails",
-			"retryDetailLabel": "m3HOmW_retryDetailLabel",
-			"turnErrorCode": "m3HOmW_turnErrorCode",
-			"contextRow": "m3HOmW_contextRow",
-			"compactionSummary": "m3HOmW_compactionSummary",
-			"turnErrorCopy": "m3HOmW_turnErrorCopy",
+			"compactionButton": "m3HOmW_compactionButton",
+			"compactionContextIcon": "m3HOmW_compactionContextIcon",
+			"compactionDisclosureIcon": "m3HOmW_compactionDisclosureIcon",
+			"compactionLeading": "m3HOmW_compactionLeading",
 			"compactionRow": "m3HOmW_compactionRow",
 			"compactionSep": "m3HOmW_compactionSep",
-			"compactionButton": "m3HOmW_compactionButton",
-			"turnErrorRow": "m3HOmW_turnErrorRow",
-			"turnErrorDot": "m3HOmW_turnErrorDot",
-			"userRow": "m3HOmW_userRow",
-			"compactionDisclosureIcon": "m3HOmW_compactionDisclosureIcon",
-			"turnErrorMessage": "m3HOmW_turnErrorMessage",
+			"compactionSummary": "m3HOmW_compactionSummary",
+			"compactionTitle": "m3HOmW_compactionTitle",
+			"contextRow": "m3HOmW_contextRow",
 			"maxTokensTitle": "m3HOmW_maxTokensTitle",
-			"compactionLeading": "m3HOmW_compactionLeading"
+			"refChip": "m3HOmW_refChip",
+			"refIcon": "m3HOmW_refIcon",
+			"referenceSummary": "m3HOmW_referenceSummary",
+			"retry-shimmer": "m3HOmW_retry-shimmer",
+			"retryDetailLabel": "m3HOmW_retryDetailLabel",
+			"retryDetails": "m3HOmW_retryDetails",
+			"retryRow": "m3HOmW_retryRow",
+			"retrySummary": "m3HOmW_retrySummary",
+			"retryText": "m3HOmW_retryText",
+			"turnErrorCode": "m3HOmW_turnErrorCode",
+			"turnErrorCopy": "m3HOmW_turnErrorCopy",
+			"turnErrorDot": "m3HOmW_turnErrorDot",
+			"turnErrorMessage": "m3HOmW_turnErrorMessage",
+			"turnErrorRow": "m3HOmW_turnErrorRow",
+			"turnErrorTitle": "m3HOmW_turnErrorTitle",
+			"userRow": "m3HOmW_userRow",
+			"userStack": "m3HOmW_userStack"
 		};
 		//#endregion
 		//#region lib/types/client/chat/CompactionItem.js
@@ -4123,29 +4263,29 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ContextBody_module_css_default = {
-			"sectionName": "xmRVlG_sectionName",
-			"sectionText": "xmRVlG_sectionText",
-			"recalls": "xmRVlG_recalls",
 			"catalogNotice": "xmRVlG_catalogNotice",
-			"entry": "xmRVlG_entry",
-			"entryName": "xmRVlG_entryName",
 			"entries": "xmRVlG_entries",
+			"entry": "xmRVlG_entry",
 			"entryDescription": "xmRVlG_entryDescription",
-			"fields": "xmRVlG_fields",
-			"relaySender": "xmRVlG_relaySender",
-			"recall": "xmRVlG_recall",
-			"filePath": "xmRVlG_filePath",
-			"fileAction": "xmRVlG_fileAction",
-			"recallCounts": "xmRVlG_recallCounts",
-			"file": "xmRVlG_file",
-			"recallLabel": "xmRVlG_recallLabel",
-			"text": "xmRVlG_text",
+			"entryName": "xmRVlG_entryName",
+			"field": "xmRVlG_field",
 			"fieldKey": "xmRVlG_fieldKey",
 			"fieldValue": "xmRVlG_fieldValue",
+			"fields": "xmRVlG_fields",
+			"file": "xmRVlG_file",
+			"fileAction": "xmRVlG_fileAction",
+			"filePath": "xmRVlG_filePath",
 			"files": "xmRVlG_files",
-			"field": "xmRVlG_field",
+			"recall": "xmRVlG_recall",
+			"recallCounts": "xmRVlG_recallCounts",
+			"recallLabel": "xmRVlG_recallLabel",
+			"recalls": "xmRVlG_recalls",
+			"relaySender": "xmRVlG_relaySender",
+			"section": "xmRVlG_section",
+			"sectionName": "xmRVlG_sectionName",
+			"sectionText": "xmRVlG_sectionText",
 			"sections": "xmRVlG_sections",
-			"section": "xmRVlG_section"
+			"text": "xmRVlG_text"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ContextBody.js
@@ -4680,11 +4820,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ContextInjectionRow_module_css_default = {
-			"chevron": "_6ncqMa_chevron",
-			"source": "_6ncqMa_source",
 			"body": "_6ncqMa_body",
-			"sep": "_6ncqMa_sep",
+			"chevron": "_6ncqMa_chevron",
 			"root": "_6ncqMa_root",
+			"sep": "_6ncqMa_sep",
+			"source": "_6ncqMa_source",
 			"summary": "_6ncqMa_summary"
 		};
 		//#endregion
@@ -4709,7 +4849,10 @@ window.__ModuleLoader__.load({
 			});
 			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.DisclosureRow, {
 				className: ContextInjectionRow_module_css_default.root,
-				icon: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconBrowseOutline16, { size: 14 }),
+				icon: provenance.role === "recall" ? (0, react_jsx_runtime.jsx)("span", {
+					"data-context-recall-icon": true,
+					children: (0, react_jsx_runtime.jsx)(ReferenceIcon, { kind: "session" })
+				}) : (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconBrowseOutline16, { size: 14 }),
 				chevronClassName: ContextInjectionRow_module_css_default.chevron,
 				title: t(provenance.role === "recall" ? "message.contextRecall" : "message.contextInjection"),
 				collapsedContent: provenance.label === null ? void 0 : (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
@@ -4780,11 +4923,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MessageIconActions_module_css_default = {
-			"actions": "E7EeGa_actions",
-			"timeStart": "E7EeGa_timeStart",
-			"runTimeDot": "E7EeGa_runTimeDot",
 			"action": "E7EeGa_action",
+			"actions": "E7EeGa_actions",
+			"runTimeDot": "E7EeGa_runTimeDot",
 			"timeEnd": "E7EeGa_timeEnd",
+			"timeStart": "E7EeGa_timeStart",
 			"visuallyHidden": "E7EeGa_visuallyHidden"
 		};
 		//#endregion
@@ -5033,28 +5176,62 @@ window.__ModuleLoader__.load({
 		* scan as the composer, minus the lexicon: sent tokens were validated at
 		* compose time, so shape alone decorates).
 		*/
-		function projectUserText(text) {
-			const re = /(^|\s)([/@][\w-]+)(?=\s|$)/g;
-			const parts = [];
-			let cursor = 0;
+		function projectUserText(text, sessionLabels) {
+			const ranges = [];
+			for (const rawLabel of [...new Set(sessionLabels)].sort((a, b) => b.length - a.length)) {
+				const label = `@${rawLabel}`;
+				let start = text.indexOf(label);
+				while (start >= 0) {
+					ranges.push({
+						start,
+						end: start + label.length,
+						label,
+						kind: "session"
+					});
+					start = text.indexOf(label, start + label.length);
+				}
+			}
+			const re = /(^|\s)(\/[\w-]+|@"[^"\n]+"|@[^\s]+)/gu;
 			let m;
 			while ((m = re.exec(text)) !== null) {
 				const tokenStart = m.index + (m[1]?.length ?? 0);
-				const label = m[2] ?? "";
+				const rawLabel = m[2] ?? "";
+				const label = rawLabel.startsWith("@\"") ? rawLabel : rawLabel.replace(/[.,;:!?，。；：！？]+$/gu, "");
+				if (label.length <= 1) continue;
+				ranges.push({
+					start: tokenStart,
+					end: tokenStart + label.length,
+					label,
+					kind: "plain"
+				});
+			}
+			ranges.sort((a, b) => a.start - b.start || (a.kind === b.kind ? b.end - a.end : a.kind === "session" ? -1 : 1));
+			const parts = [];
+			let cursor = 0;
+			for (const range of ranges) {
+				if (range.start < cursor) continue;
+				const { start: tokenStart, end, label, kind } = range;
 				if (tokenStart > cursor) parts.push((0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MessageText, { text: text.slice(cursor, tokenStart) }, cursor));
-				parts.push((0, react_jsx_runtime.jsx)("span", {
+				const referenceKind = kind === "session" ? "session" : label.startsWith("@") ? label.endsWith("/") ? "folder" : "file" : void 0;
+				const displayLabel = referenceKind === void 0 ? label : referenceKind === "session" ? label.slice(1) : label.slice(1).replace(/^"|"$/gu, "").split(/[\\/]/u).filter(Boolean).at(-1) ?? label.slice(1);
+				parts.push((0, react_jsx_runtime.jsxs)("span", {
 					className: MessageItem_module_css_default.refChip,
-					"data-ref-chip": label.startsWith("@") ? "subagent" : "skill",
-					children: label
+					"data-ref-chip": referenceKind ?? "skill",
+					title: label,
+					children: [referenceKind !== void 0 && (0, react_jsx_runtime.jsx)(ReferenceIcon, {
+						kind: referenceKind,
+						size: 16,
+						className: MessageItem_module_css_default.refIcon
+					}), displayLabel]
 				}, tokenStart));
-				cursor = tokenStart + label.length;
+				cursor = end;
 			}
 			if (parts.length === 0) return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MessageText, { text });
 			if (cursor < text.length) parts.push((0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MessageText, { text: text.slice(cursor) }, cursor));
 			return (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: parts });
 		}
 		/** Right-aligned bubble shared by user and steering rows. */
-		function UserStyleBubble({ content, imageLoader, actions, pending = false, t }) {
+		function UserStyleBubble({ content, renderMessageImages, actions, pending = false, referenceLabels = [], t }) {
 			const { text, images, rest } = contentParts(content);
 			const truncated = (total) => t("json.truncated", { total });
 			const showBubble = text !== "" || rest.length > 0;
@@ -5064,19 +5241,24 @@ window.__ModuleLoader__.load({
 				"data-time-hover-root": true,
 				children: [(0, react_jsx_runtime.jsxs)("div", {
 					className: MessageItem_module_css_default.userStack,
-					children: [(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_attachment.ImageGallery, {
-						images,
-						load: imageLoader,
-						align: "end",
-						labels: messageImageLabels(t)
-					}), showBubble && (0, react_jsx_runtime.jsxs)("div", {
-						className: MessageItem_module_css_default.bubble,
-						children: [projectUserText(text), rest.map((block, i) => (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.JsonBlock, {
-							label: t("message.extraBlock"),
-							payload: block,
-							truncatedLabel: truncated
-						}, i))]
-					})]
+					children: [
+						renderMessageImages({
+							images,
+							align: "end"
+						}),
+						showBubble && (0, react_jsx_runtime.jsxs)("div", {
+							className: MessageItem_module_css_default.bubble,
+							children: [projectUserText(text, referenceLabels), rest.map((block, i) => (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.JsonBlock, {
+								label: t("message.extraBlock"),
+								payload: block,
+								truncatedLabel: truncated
+							}, i))]
+						}),
+						referenceLabels.length > 0 && (0, react_jsx_runtime.jsx)("div", {
+							className: MessageItem_module_css_default.referenceSummary,
+							children: t("message.referenceSummary", { labels: referenceLabels.join(t("message.referenceSeparator")) })
+						})
+					]
 				}), actions?.(text)]
 			});
 		}
@@ -5086,10 +5268,10 @@ window.__ModuleLoader__.load({
 		* @param props - Pending message content and conversation translator.
 		* @returns the pending steering bubble.
 		*/
-		function PendingSteeringBubble({ content, loadImage, t }) {
+		function PendingSteeringBubble({ content, renderMessageImages, t }) {
 			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
 				content,
-				imageLoader: loadImage ?? (() => Promise.reject(new Error(t("image.serviceUnavailable")))),
+				renderMessageImages,
 				pending: true,
 				t,
 				actions: (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
@@ -5101,11 +5283,12 @@ window.__ModuleLoader__.load({
 			});
 		}
 		/** User and admitted-steering keyed Chat renderer. */
-		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, loadImage, t }) {
+		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t }) {
 			const data = node.data;
 			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
 				content: data.content,
-				imageLoader: loadImage,
+				renderMessageImages,
+				...data.referenceLabels === void 0 ? {} : { referenceLabels: data.referenceLabels },
 				t,
 				actions: (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
 					text,
@@ -5168,7 +5351,7 @@ window.__ModuleLoader__.load({
 		});
 		//#endregion
 		//#region \0dsh-css:D:\Github\AIBook-Info\deepseek-harness\packages\client\ui-conversation\src\client\chat\ChatView.module.css.mjs
-		const css$11 = ".fk-mTa_root{flex-direction:column;flex:auto;min-height:0;display:flex;position:relative}.fk-mTa_scroll{min-height:0;padding:16px calc(var(--dsh-composer-side-clearance) + 16px);flex:auto;overflow-y:auto}[data-conversation-scroll] .fk-mTa_root{flex:none;height:auto;min-height:auto}[data-conversation-scroll] .fk-mTa_scroll{flex:none;min-height:auto;overflow:visible}.fk-mTa_column{max-width:var(--dsh-chat-content-width);flex-direction:column;gap:16px;width:100%;margin:0 auto;display:flex}.fk-mTa_flowItem{min-width:0}.fk-mTa_flowItem:empty{display:none}.fk-mTa_callRow{border-radius:6px}.fk-mTa_turnStatus{height:26px;font:var(--dsw-font-s-strong-14);white-space:nowrap;background:linear-gradient(90deg, var(--dsw-static-deepseek-500) 0%, var(--dsw-static-deepseek-500) 40%, var(--dsw-static-deepseek-200) 50%, var(--dsw-static-deepseek-500) 60%, var(--dsw-static-deepseek-500) 100%);color:#0000;-webkit-text-fill-color:transparent;background-position:100% 0;background-size:250% 100%;-webkit-background-clip:text;background-clip:text;flex:none;align-self:flex-start;align-items:center;animation:1.8s linear infinite fk-mTa_dsh-turn-status-shimmer;display:inline-flex}.fk-mTa_turnStatusClock{font:var(--dsw-font-xs-13);font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-caption);-webkit-text-fill-color:var(--dsw-alias-label-caption);margin-left:8px;font-weight:400}@keyframes fk-mTa_dsh-turn-status-shimmer{to{background-position:0 0}}@media (prefers-reduced-motion:reduce){.fk-mTa_turnStatus{background-position:0 0;background-size:100% 100%;animation:none}}.fk-mTa_hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.fk-mTa_openError{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.fk-mTa_older{justify-content:center;display:flex}.fk-mTa_older button{color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover-solid);cursor:pointer;border:none;border-radius:14px;padding:4px 12px;font-size:12px}.fk-mTa_older button:disabled{cursor:default;opacity:.6}.fk-mTa_toBottomSlot{z-index:8;height:0;padding-right:max(0px, calc((100% - var(--dsh-chat-content-width)) / 2));pointer-events:none;justify-content:flex-end;display:flex;position:sticky;bottom:16px}[data-conversation-scroll] .fk-mTa_toBottomSlot{bottom:calc(var(--dsh-composer-height,152px) + 16px)}.fk-mTa_toBottom{border:1px solid var(--dsw-alias-border-l2);width:34px;height:34px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-button-floating-fill);box-shadow:var(--dsw-shadow-lv2);cursor:pointer;pointer-events:auto;border-radius:100px;justify-content:center;align-items:center;margin-top:-34px;padding:0;display:flex}.fk-mTa_toBottom:hover{background:var(--dsw-alias-button-floating-hover)}";
+		const css$11 = ".fk-mTa_root{flex-direction:column;flex:auto;min-height:0;display:flex;position:relative}.fk-mTa_scroll{min-height:0;padding:16px calc(var(--dsh-composer-side-clearance) + 16px);flex:auto;overflow-y:auto}[data-conversation-scroll] .fk-mTa_root{flex:none;height:auto;min-height:auto}[data-conversation-scroll] .fk-mTa_scroll{flex:none;min-height:auto;overflow:visible}.fk-mTa_column{max-width:var(--dsh-chat-content-width);flex-direction:column;gap:16px;width:100%;margin:0 auto;display:flex}.fk-mTa_flowItem{min-width:0}.fk-mTa_flowItem:empty{display:none}.fk-mTa_callRow{border-radius:6px}.fk-mTa_turnStatus{height:26px;font:var(--dsw-font-s-strong-14);white-space:nowrap;background:linear-gradient(90deg, var(--dsw-static-deepseek-500) 0%, var(--dsw-static-deepseek-500) 40%, var(--dsw-static-deepseek-200) 50%, var(--dsw-static-deepseek-500) 60%, var(--dsw-static-deepseek-500) 100%);color:#0000;-webkit-text-fill-color:transparent;background-position:100% 0;background-size:250% 100%;-webkit-background-clip:text;background-clip:text;flex:none;align-self:flex-start;align-items:center;animation:1.8s linear infinite fk-mTa_dsh-turn-status-shimmer;display:inline-flex}.fk-mTa_turnStatusClock{font:var(--dsw-font-xs-13);font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-caption);-webkit-text-fill-color:var(--dsw-alias-label-caption);margin-left:8px;font-weight:400}@keyframes fk-mTa_dsh-turn-status-shimmer{to{background-position:0 0}}@media (prefers-reduced-motion:reduce){.fk-mTa_turnStatus{background-position:0 0;background-size:100% 100%;animation:none}}.fk-mTa_hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.fk-mTa_openError{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.fk-mTa_older{justify-content:center;display:flex}.fk-mTa_older button{color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover-solid);cursor:pointer;border:none;border-radius:14px;padding:4px 12px;font-size:12px}.fk-mTa_older button:disabled{cursor:default;opacity:.6}.fk-mTa_toBottomSlot{z-index:8;height:0;padding-right:max(0px, calc((100% - var(--dsh-chat-content-width)) / 2));pointer-events:none;justify-content:flex-end;display:flex;position:sticky;bottom:16px}[data-conversation-scroll] .fk-mTa_toBottomSlot{bottom:calc(var(--dsh-composer-height,152px) + 16px)}.fk-mTa_toBottom{border:1px solid var(--dsw-alias-border-l2);width:34px;height:34px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-button-floating-fill);box-shadow:var(--dsw-shadow-lv2);cursor:pointer;pointer-events:auto;border-radius:100px;justify-content:center;align-items:center;margin-top:-34px;padding:0;display:flex}.fk-mTa_toBottom:hover{background:var(--dsw-alias-button-floating-hover)}.fk-mTa_modalAction{min-width:72px}";
 		const tagId$11 = "@deepseek-ai/dsh-client-ui-conversation/ChatView.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$11) + "]") === null) {
 			const tag = document.createElement("style");
@@ -5178,24 +5361,25 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ChatView_module_css_default = {
-			"flowItem": "fk-mTa_flowItem",
-			"turnStatusClock": "fk-mTa_turnStatusClock",
-			"toBottom": "fk-mTa_toBottom",
+			"callRow": "fk-mTa_callRow",
+			"column": "fk-mTa_column",
 			"dsh-turn-status-shimmer": "fk-mTa_dsh-turn-status-shimmer",
-			"toBottomSlot": "fk-mTa_toBottomSlot",
+			"flowItem": "fk-mTa_flowItem",
+			"hint": "fk-mTa_hint",
+			"modalAction": "fk-mTa_modalAction",
+			"older": "fk-mTa_older",
+			"openError": "fk-mTa_openError",
 			"root": "fk-mTa_root",
 			"scroll": "fk-mTa_scroll",
-			"column": "fk-mTa_column",
+			"toBottom": "fk-mTa_toBottom",
+			"toBottomSlot": "fk-mTa_toBottomSlot",
 			"turnStatus": "fk-mTa_turnStatus",
-			"openError": "fk-mTa_openError",
-			"callRow": "fk-mTa_callRow",
-			"hint": "fk-mTa_hint",
-			"older": "fk-mTa_older"
+			"turnStatusClock": "fk-mTa_turnStatusClock"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ChatNodeSeat.js
 		/** Subscribe and dispatch one stable Context key without observing sibling Nodes. */
-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions, useSession, renderSlot, t }) {
+		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useSession, renderSlot, t }) {
 			const node = useSession((snapshot) => snapshot.chat.nodes.get(nodeKey));
 			const routedNode = node;
 			const owner = (0, react.useMemo)(() => node === void 0 ? null : {
@@ -5204,7 +5388,7 @@ window.__ModuleLoader__.load({
 				openFile,
 				inspectCall,
 				forkAt,
-				loadImage,
+				renderMessageImages,
 				fileMentions
 			}, [
 				node,
@@ -5213,7 +5397,7 @@ window.__ModuleLoader__.load({
 				openFile,
 				inspectCall,
 				forkAt,
-				loadImage,
+				renderMessageImages,
 				fileMentions
 			]);
 			if (routedNode === void 0 || owner === null) return null;
@@ -5291,6 +5475,15 @@ window.__ModuleLoader__.load({
 				scrollTop: scrollport.scrollTop
 			};
 		}
+		/** Host/OS refusal text for the file-open dialog; empty throws keep a locale fallback. */
+		function openFailureMessage(error, fallback) {
+			const message = error instanceof Error ? error.message : String(error);
+			return message === "" ? fallback : message;
+		}
+		/** ProducedFiles opens the session workspace as `.`. */
+		function isFolderOpenPath(path) {
+			return path === ".";
+		}
 		function runningTurnStartTime(timeline) {
 			let latest = null;
 			for (const turn of timeline.turns.values()) if (turn.status === "open" && turn.start !== void 0) latest = turn.start.time;
@@ -5339,7 +5532,35 @@ window.__ModuleLoader__.load({
 			const hasMore = useSession((s) => s.hasMore);
 			const loadingOlder = useSession((s) => s.loadingOlder);
 			const selectedCallId = useStore((s) => s.selection?.callId);
+			const [fileOpenError, setFileOpenError] = (0, react.useState)(null);
+			const [fileOpenBusy, setFileOpenBusy] = (0, react.useState)(false);
+			const fileOpenRequest = (0, react.useRef)(0);
+			const requestOpenFile = (0, react.useCallback)((path) => {
+				const id = ++fileOpenRequest.current;
+				setFileOpenBusy(true);
+				openFile(path).then(() => {
+					if (id !== fileOpenRequest.current) return;
+					setFileOpenError(null);
+					setFileOpenBusy(false);
+				}, (error) => {
+					if (id !== fileOpenRequest.current) return;
+					setFileOpenError({
+						path,
+						message: openFailureMessage(error, t(isFolderOpenPath(path) ? "fileOpen.folderUnknown" : "fileOpen.unknown"))
+					});
+					setFileOpenBusy(false);
+				});
+			}, [openFile, t]);
+			const closeFileOpenError = (0, react.useCallback)(() => {
+				fileOpenRequest.current += 1;
+				setFileOpenError(null);
+				setFileOpenBusy(false);
+			}, []);
 			const pendingSteering = (0, react.useMemo)(() => inbox.filter((item) => item.placement === "steering"), [inbox]);
+			const renderMessageImages = (0, react.useCallback)((owner) => renderSlot("conversation.message.images", {
+				...owner,
+				loadImage
+			}), [loadImage, renderSlot]);
 			const runningTurnStart = (0, react.useMemo)(() => runningTurnStartTime(timeline), [timeline]);
 			const listRef = (0, react.useRef)(null);
 			const columnRef = (0, react.useRef)(null);
@@ -5499,9 +5720,9 @@ window.__ModuleLoader__.load({
 				}
 				loadOlder();
 			};
-			return (0, react_jsx_runtime.jsx)("div", {
+			return (0, react_jsx_runtime.jsxs)("div", {
 				className: ChatView_module_css_default.root,
-				children: (0, react_jsx_runtime.jsxs)("div", {
+				children: [(0, react_jsx_runtime.jsxs)("div", {
 					ref: listRef,
 					className: ChatView_module_css_default.scroll,
 					children: [(0, react_jsx_runtime.jsxs)("div", {
@@ -5534,10 +5755,10 @@ window.__ModuleLoader__.load({
 								useSession,
 								selectedCallId,
 								cwd,
-								openFile,
+								openFile: requestOpenFile,
 								inspectCall,
 								forkAt,
-								loadImage,
+								renderMessageImages,
 								fileMentions,
 								renderSlot,
 								t
@@ -5548,7 +5769,7 @@ window.__ModuleLoader__.load({
 							}),
 							pendingSteering.map((item) => (0, react_jsx_runtime.jsx)(PendingSteeringBubble, {
 								content: item.content,
-								loadImage,
+								renderMessageImages,
 								t
 							}, item.id))
 						]
@@ -5566,7 +5787,38 @@ window.__ModuleLoader__.load({
 							children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutline14, {})
 						})
 					})]
-				})
+				}), fileOpenError !== null && (0, react_jsx_runtime.jsx)(FileOpenErrorDialog, {
+					path: fileOpenError.path,
+					message: fileOpenError.message,
+					busy: fileOpenBusy,
+					onClose: closeFileOpenError,
+					onRetry: () => {
+						requestOpenFile(fileOpenError.path);
+					},
+					t
+				})]
+			});
+		}
+		/** In-page Host open-path refusal: the wire reason plus a retry of the same path. */
+		function FileOpenErrorDialog({ path, message, busy, onClose, onRetry, t }) {
+			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Modal, {
+				open: true,
+				onClose,
+				closeLabel: t("close"),
+				title: t(isFolderOpenPath(path) ? "fileOpen.folderTitle" : "fileOpen.title"),
+				description: message,
+				footer: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+					variant: "outline",
+					className: ChatView_module_css_default.modalAction,
+					onClick: onClose,
+					children: t("cancel")
+				}), (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+					variant: "primary",
+					className: ChatView_module_css_default.modalAction,
+					disabled: busy,
+					onClick: onRetry,
+					children: t("retry")
+				})] })
 			});
 		}
 		//#endregion
@@ -5667,14 +5919,14 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ApprovalPanel_module_css_default = {
-			"root": "phN0Uq_root",
-			"headline": "phN0Uq_headline",
 			"actionRow": "phN0Uq_actionRow",
-			"command": "phN0Uq_command",
 			"body": "phN0Uq_body",
 			"card": "phN0Uq_card",
+			"command": "phN0Uq_command",
 			"dot": "phN0Uq_dot",
+			"headline": "phN0Uq_headline",
 			"reject": "phN0Uq_reject",
+			"root": "phN0Uq_root",
 			"strip": "phN0Uq_strip"
 		};
 		//#endregion
@@ -5810,6 +6062,7 @@ window.__ModuleLoader__.load({
 			"image.fileTooLarge": "单张图片不能超过 {size}",
 			"image.totalTooLarge": "图片总大小超过 {size}，请移除部分图片",
 			"image.tooManyPixels": "图片分辨率过大，请压缩后重试",
+			"image.dimensionTooLarge": "图片宽高不能超过 {size}px，请缩小后重试",
 			"image.modelUnsupported": "当前模型不支持图片，请切换支持图片的模型",
 			"image.subagentUnsupported": "子智能体会话暂不支持图片",
 			"image.sendFailed": "图片发送失败（{reason}），请重新添加图片后再试",
@@ -5855,9 +6108,15 @@ window.__ModuleLoader__.load({
 			"chat.loadError": "历史加载失败：{message}（{code}）",
 			"chat.loadOlder": "加载更早",
 			"chat.toBottom": "回到底部",
+			"fileOpen.title": "无法打开文件",
+			"fileOpen.unknown": "无法打开此文件",
+			"fileOpen.folderTitle": "无法打开文件夹",
+			"fileOpen.folderUnknown": "无法打开此文件夹",
 			"message.extraBlock": "附加内容块",
 			"message.contextInjection": "上下文注入",
 			"message.contextRecall": "跨会话召回",
+			"message.referenceSummary": "引用会话 · {labels}",
+			"message.referenceSeparator": "、",
 			"message.context.instructions.loaded": "已载入",
 			"message.context.instructions.added": "已新增",
 			"message.context.instructions.updated": "已更新",
@@ -5897,6 +6156,7 @@ window.__ModuleLoader__.load({
 			"command.failed": "命令失败",
 			"command.done": "已完成",
 			"command.title": "命令",
+			"command.imagesUnsupported": "/{command} 不接受图片附件，请先移除图片",
 			"approval.waiting": "等待审批",
 			"approval.detail.aria": "审批详情",
 			"approval.escalation": "工具 {toolName} 请求越权执行",
@@ -5975,6 +6235,7 @@ window.__ModuleLoader__.load({
 			"image.fileTooLarge": "Each image must be smaller than {size}",
 			"image.totalTooLarge": "Images exceed {size} in total; remove some and try again",
 			"image.tooManyPixels": "Image resolution is too high; compress it and try again",
+			"image.dimensionTooLarge": "Image sides must be at most {size}px; downscale it and try again",
 			"image.modelUnsupported": "The current model does not support images; switch to a model that does",
 			"image.subagentUnsupported": "Subagent sessions do not support images yet",
 			"image.sendFailed": "Sending images failed ({reason}); re-add them and try again",
@@ -6020,9 +6281,15 @@ window.__ModuleLoader__.load({
 			"chat.loadError": "Failed to load history: {message} ({code})",
 			"chat.loadOlder": "Load earlier",
 			"chat.toBottom": "Back to bottom",
+			"fileOpen.title": "Couldn’t open file",
+			"fileOpen.unknown": "Couldn’t open this file",
+			"fileOpen.folderTitle": "Couldn’t open folder",
+			"fileOpen.folderUnknown": "Couldn’t open this folder",
 			"message.extraBlock": "Extra content block",
 			"message.contextInjection": "Context injection",
 			"message.contextRecall": "Session recall",
+			"message.referenceSummary": "Referenced session · {labels}",
+			"message.referenceSeparator": ", ",
 			"message.context.instructions.loaded": "loaded",
 			"message.context.instructions.added": "added",
 			"message.context.instructions.updated": "updated",
@@ -6062,6 +6329,7 @@ window.__ModuleLoader__.load({
 			"command.failed": "Command failed",
 			"command.done": "Completed",
 			"command.title": "Command",
+			"command.imagesUnsupported": "/{command} does not accept image attachments; remove them first",
 			"approval.waiting": "Waiting for approval",
 			"approval.detail.aria": "Approval details",
 			"approval.escalation": "Tool {toolName} requests privileged execution",
@@ -6114,21 +6382,21 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TodoPanel_module_css_default = {
-			"list": "fMd3wW_list",
-			"root": "fMd3wW_root",
-			"progress": "fMd3wW_progress",
-			"glyphPending": "fMd3wW_glyphPending",
-			"todo-progress-spin": "fMd3wW_todo-progress-spin",
-			"content": "fMd3wW_content",
 			"body": "fMd3wW_body",
-			"glyphCompleted": "fMd3wW_glyphCompleted",
-			"title": "fMd3wW_title",
-			"header": "fMd3wW_header",
-			"glyph": "fMd3wW_glyph",
-			"glyphProgress": "fMd3wW_glyphProgress",
-			"lead": "fMd3wW_lead",
 			"chevron": "fMd3wW_chevron",
-			"item": "fMd3wW_item"
+			"content": "fMd3wW_content",
+			"glyph": "fMd3wW_glyph",
+			"glyphCompleted": "fMd3wW_glyphCompleted",
+			"glyphPending": "fMd3wW_glyphPending",
+			"glyphProgress": "fMd3wW_glyphProgress",
+			"header": "fMd3wW_header",
+			"item": "fMd3wW_item",
+			"lead": "fMd3wW_lead",
+			"list": "fMd3wW_list",
+			"progress": "fMd3wW_progress",
+			"root": "fMd3wW_root",
+			"title": "fMd3wW_title",
+			"todo-progress-spin": "fMd3wW_todo-progress-spin"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/TodoPanel.js
@@ -6284,9 +6552,8 @@ window.__ModuleLoader__.load({
 		}
 		/** Dock adapter: reads the host-computed 'todos' projection (whole list; absent or null renders nothing). */
 		function TodoDock({ useProjection, t }) {
-			const todos = useProjection("todos");
 			return (0, react_jsx_runtime.jsx)(TodoPanel, {
-				todos: todos ?? [],
+				todos: useProjection("todos") ?? [],
 				t
 			});
 		}
@@ -6322,17 +6589,17 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var QueueDock_module_css_default = {
-			"lead": "kzy8fG_lead",
-			"chevron": "kzy8fG_chevron",
-			"header": "kzy8fG_header",
-			"panel": "kzy8fG_panel",
-			"editor": "kzy8fG_editor",
 			"action": "kzy8fG_action",
-			"preview": "kzy8fG_preview",
 			"actions": "kzy8fG_actions",
-			"list": "kzy8fG_list",
+			"chevron": "kzy8fG_chevron",
 			"count": "kzy8fG_count",
 			"dock": "kzy8fG_dock",
+			"editor": "kzy8fG_editor",
+			"header": "kzy8fG_header",
+			"lead": "kzy8fG_lead",
+			"list": "kzy8fG_list",
+			"panel": "kzy8fG_panel",
+			"preview": "kzy8fG_preview",
 			"row": "kzy8fG_row"
 		};
 		//#endregion
@@ -6591,23 +6858,23 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var HeroShell_module_css_default = {
-			"modalError": "Rp-JhG_modalError",
 			"body": "Rp-JhG_body",
-			"workspace": "Rp-JhG_workspace",
-			"stack": "Rp-JhG_stack",
-			"previewBadge": "Rp-JhG_previewBadge",
-			"folder": "Rp-JhG_folder",
-			"modalAction": "Rp-JhG_modalAction",
-			"modalInput": "Rp-JhG_modalInput",
-			"fishHitbox": "Rp-JhG_fishHitbox",
-			"hero-fish-swim": "Rp-JhG_hero-fish-swim",
-			"headline": "Rp-JhG_headline",
 			"chevron": "Rp-JhG_chevron",
-			"workspaceRow": "Rp-JhG_workspaceRow",
-			"workspaceLabel": "Rp-JhG_workspaceLabel",
-			"root": "Rp-JhG_root",
+			"fish": "Rp-JhG_fish",
+			"fishHitbox": "Rp-JhG_fishHitbox",
+			"folder": "Rp-JhG_folder",
+			"headline": "Rp-JhG_headline",
 			"headlineText": "Rp-JhG_headlineText",
-			"fish": "Rp-JhG_fish"
+			"hero-fish-swim": "Rp-JhG_hero-fish-swim",
+			"modalAction": "Rp-JhG_modalAction",
+			"modalError": "Rp-JhG_modalError",
+			"modalInput": "Rp-JhG_modalInput",
+			"previewBadge": "Rp-JhG_previewBadge",
+			"root": "Rp-JhG_root",
+			"stack": "Rp-JhG_stack",
+			"workspace": "Rp-JhG_workspace",
+			"workspaceLabel": "Rp-JhG_workspaceLabel",
+			"workspaceRow": "Rp-JhG_workspaceRow"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/EmptyHero.js
@@ -6717,7 +6984,7 @@ window.__ModuleLoader__.load({
 		* @param props - see {@link HeroShellProps}.
 		* @returns the centered hero element tree.
 		*/
-		function HeroShell({ t, children }) {
+		function HeroShell({ t, renderSlot, children }) {
 			return (0, react_jsx_runtime.jsxs)("div", {
 				className: HeroShell_module_css_default.root,
 				children: [(0, react_jsx_runtime.jsxs)("div", {
@@ -6727,10 +6994,13 @@ window.__ModuleLoader__.load({
 						children: [
 							(0, react_jsx_runtime.jsx)("span", {
 								className: HeroShell_module_css_default.fishHitbox,
-								children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.FishLogo, {
+								children: renderSlot("conversation.hero.brand.mark", {
 									size: 34,
 									className: HeroShell_module_css_default.fish
-								})
+								}, { fallback: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.FishLogo, {
+									size: 34,
+									className: HeroShell_module_css_default.fish
+								}) })
 							}),
 							(0, react_jsx_runtime.jsx)("span", {
 								className: HeroShell_module_css_default.headlineText,
@@ -6757,28 +7027,28 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ConversationRoot_module_css_default = {
-			"viewArea": "_9auDpG_viewArea",
-			"header": "_9auDpG_header",
-			"crumbs": "_9auDpG_crumbs",
-			"crumbSep": "_9auDpG_crumbSep",
-			"crumbCurrent": "_9auDpG_crumbCurrent",
-			"headerActions": "_9auDpG_headerActions",
-			"titleRow": "_9auDpG_titleRow",
-			"tabActive": "_9auDpG_tabActive",
-			"composerStack": "_9auDpG_composerStack",
 			"composerHero": "_9auDpG_composerHero",
+			"composerSeat": "_9auDpG_composerSeat",
+			"composerStack": "_9auDpG_composerStack",
+			"crumb": "_9auDpG_crumb",
+			"crumbCurrent": "_9auDpG_crumbCurrent",
+			"crumbSeg": "_9auDpG_crumbSeg",
+			"crumbSep": "_9auDpG_crumbSep",
+			"crumbs": "_9auDpG_crumbs",
+			"header": "_9auDpG_header",
+			"headerActions": "_9auDpG_headerActions",
+			"headerHidden": "_9auDpG_headerHidden",
+			"headerUtilities": "_9auDpG_headerUtilities",
+			"heroGlow": "_9auDpG_heroGlow",
+			"heroWorkspaceRow": "_9auDpG_heroWorkspaceRow",
+			"root": "_9auDpG_root",
 			"scrollBody": "_9auDpG_scrollBody",
 			"tab": "_9auDpG_tab",
-			"headerHidden": "_9auDpG_headerHidden",
+			"tabActive": "_9auDpG_tabActive",
+			"tabs": "_9auDpG_tabs",
 			"titleCluster": "_9auDpG_titleCluster",
-			"headerUtilities": "_9auDpG_headerUtilities",
-			"crumbSeg": "_9auDpG_crumbSeg",
-			"composerSeat": "_9auDpG_composerSeat",
-			"heroWorkspaceRow": "_9auDpG_heroWorkspaceRow",
-			"heroGlow": "_9auDpG_heroGlow",
-			"crumb": "_9auDpG_crumb",
-			"root": "_9auDpG_root",
-			"tabs": "_9auDpG_tabs"
+			"titleRow": "_9auDpG_titleRow",
+			"viewArea": "_9auDpG_viewArea"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/ConversationRoot.js
@@ -6877,7 +7147,10 @@ window.__ModuleLoader__.load({
 				className: clsx(ConversationRoot_module_css_default.composerStack, hero && ConversationRoot_module_css_default.composerHero),
 				children: [
 					hero && (0, react_jsx_runtime.jsx)(HeroGlow, { className: ConversationRoot_module_css_default.heroGlow }),
-					hero && (0, react_jsx_runtime.jsx)(HeroShell, { t }),
+					hero && (0, react_jsx_runtime.jsx)(HeroShell, {
+						t,
+						renderSlot
+					}),
 					hero && heroWorkspaceRow,
 					zone !== void 0 && renderSlot("conversation.input.dock", zone),
 					inputBar
@@ -7054,15 +7327,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var DetailsPanel_module_css_default = {
-			"header": "ig1DZq_header",
-			"root": "ig1DZq_root",
 			"body": "ig1DZq_body",
-			"section": "ig1DZq_section",
+			"close": "ig1DZq_close",
 			"code": "ig1DZq_code",
 			"empty": "ig1DZq_empty",
+			"header": "ig1DZq_header",
+			"root": "ig1DZq_root",
+			"section": "ig1DZq_section",
 			"sectionLabel": "ig1DZq_sectionLabel",
-			"title": "ig1DZq_title",
-			"close": "ig1DZq_close"
+			"title": "ig1DZq_title"
 		};
 		//#endregion
 		//#region lib/types/client/skeleton/DetailsPanel.js
@@ -7336,7 +7609,8 @@ window.__ModuleLoader__.load({
 						stepStartTime: context.start?.event.time ?? null,
 						firstTokenTime: state.firstTokenTime ?? null,
 						completedTime: event.time
-					}
+					},
+					...event.data.interrupted === true ? { interrupted: true } : {}
 				};
 			}
 			const location = context.start?.location ?? context.matches.at(-1)?.location;
@@ -7581,7 +7855,7 @@ window.__ModuleLoader__.load({
 		};
 		function updateIndex(previous, nextMutable) {
 			const next = /* @__PURE__ */ new Map();
-			const keys = /* @__PURE__ */ new Set([...previous.keys(), ...nextMutable.keys()]);
+			const keys = new Set([...previous.keys(), ...nextMutable.keys()]);
 			for (const key of keys) {
 				const before = previous.get(key) ?? EMPTY_KEYS;
 				const candidate = nextMutable.get(key) ?? EMPTY_KEYS;
@@ -7604,6 +7878,76 @@ window.__ModuleLoader__.load({
 		function orderedVisible(nodes) {
 			return nodes.filter((node) => node.visibility === "visible").sort((left, right) => left.anchorSeq - right.anchorSeq || left.key.localeCompare(right.key));
 		}
+		function referenceMessageSeq(node) {
+			const candidate = node;
+			return candidate.kind === "user" || candidate.kind === "steering" ? candidate.data.seq : void 0;
+		}
+		function followingRecall(node) {
+			const candidate = node;
+			if (candidate.kind !== "context") return void 0;
+			return {
+				messageSeq: candidate.data.seq - 1,
+				labels: (0, _deepseek_ai_dsh_client_runtime_client.sessionRecallLabels)(candidate.data.source)
+			};
+		}
+		function withReferenceLabels(node, labels) {
+			const candidate = node;
+			if (candidate.kind !== "user" && candidate.kind !== "steering") return node;
+			const current = candidate.data.referenceLabels ?? EMPTY_KEYS;
+			const hasLabels = Object.hasOwn(candidate.data, "referenceLabels");
+			if (sameReferences$1(current, labels) && hasLabels === labels.length > 0) return node;
+			const data = { ...candidate.data };
+			if (labels.length === 0) delete data.referenceLabels;
+			else data.referenceLabels = labels;
+			return {
+				...candidate,
+				data
+			};
+		}
+		/** Associates a direct message with the sourced recall event that immediately follows it. */
+		var ReferenceLabelProjector = class {
+			messagesBySeq = /* @__PURE__ */ new Map();
+			labelsByMessageSeq = /* @__PURE__ */ new Map();
+			replace(nodes) {
+				this.messagesBySeq.clear();
+				this.labelsByMessageSeq.clear();
+				for (const node of nodes) {
+					const messageSeq = referenceMessageSeq(node);
+					if (messageSeq !== void 0) this.messagesBySeq.set(messageSeq, node.key);
+					const recall = followingRecall(node);
+					if (recall !== void 0 && recall.labels.length > 0) this.labelsByMessageSeq.set(recall.messageSeq, recall.labels);
+				}
+				return nodes.map((node) => {
+					const messageSeq = referenceMessageSeq(node);
+					return messageSeq === void 0 ? node : withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS);
+				});
+			}
+			apply(upserts, store) {
+				const byKey = new Map(upserts.map((node) => [node.key, node]));
+				const affected = /* @__PURE__ */ new Set();
+				for (const node of upserts) {
+					const messageSeq = referenceMessageSeq(node);
+					if (messageSeq !== void 0) {
+						this.messagesBySeq.set(messageSeq, node.key);
+						affected.add(messageSeq);
+					}
+					const recall = followingRecall(node);
+					if (recall === void 0) continue;
+					const current = this.labelsByMessageSeq.get(recall.messageSeq);
+					if (recall.labels.length === 0) this.labelsByMessageSeq.delete(recall.messageSeq);
+					else this.labelsByMessageSeq.set(recall.messageSeq, current !== void 0 && sameReferences$1(current, recall.labels) ? current : recall.labels);
+					affected.add(recall.messageSeq);
+				}
+				for (const messageSeq of affected) {
+					const key = this.messagesBySeq.get(messageSeq);
+					if (key === void 0) continue;
+					const node = byKey.get(key) ?? store.get(key);
+					if (node === void 0) continue;
+					byKey.set(key, withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS));
+				}
+				return [...byKey.values()];
+			}
+		};
 		const EMPTY_CONTRIBUTION = {
 			anchorSeq: 0,
 			nodes: EMPTY_LIST,
@@ -7794,6 +8138,7 @@ window.__ModuleLoader__.load({
 			store = new MutableChatNodeStore();
 			locations = new MutableChatLocationIndex();
 			legacy = new LegacySliceBuilder();
+			referenceLabels = new ReferenceLabelProjector();
 			order = EMPTY_KEYS;
 			empty;
 			constructor() {
@@ -7803,28 +8148,30 @@ window.__ModuleLoader__.load({
 				});
 			}
 			replace(input) {
-				this.store.replace(input.nodes);
-				this.order = orderedVisible(input.nodes).map((node) => node.key);
+				const nodes = this.referenceLabels.replace(input.nodes);
+				this.store.replace(nodes);
+				this.order = orderedVisible(nodes).map((node) => node.key);
 				this.locations.rebuild(this.order, this.store);
-				return this.snapshot(input.timeline, this.legacy.replace(input.nodes, input.timeline));
+				return this.snapshot(input.timeline, this.legacy.replace(nodes, input.timeline));
 			}
 			apply(input) {
+				const upserts = this.referenceLabels.apply(input.upserts, this.store);
 				let structural = false;
 				const contentOnly = [];
-				for (const node of input.upserts) {
+				for (const node of upserts) {
 					const previous = this.store.get(node.key);
 					const nodeStructural = previous === void 0 || previous.anchorSeq !== node.anchorSeq || previous.visibility !== node.visibility || locationIdentity(previous.location) !== locationIdentity(node.location);
 					structural ||= nodeStructural;
 					if (!nodeStructural) contentOnly.push(node);
 				}
-				this.store.upsert(input.upserts);
+				this.store.upsert(upserts);
 				if (structural) {
 					const next = orderedVisible(this.store.values()).map((node) => node.key);
 					this.order = sameReferences$1(this.order, next) ? this.order : next;
 					this.locations.rebuild(this.order, this.store);
 				}
 				this.locations.touch(contentOnly);
-				return this.snapshot(input.timeline, this.legacy.apply(input.upserts, input.timeline));
+				return this.snapshot(input.timeline, this.legacy.apply(upserts, input.timeline));
 			}
 			snapshot(timeline, legacy = this.legacy.replace(EMPTY_LIST, timeline)) {
 				return {
@@ -8915,15 +9262,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var ReasoningRow_module_css_default = {
+			"chevron": "PjqOGa_chevron",
+			"dsh-reasoning-row-sweep": "PjqOGa_dsh-reasoning-row-sweep",
+			"leading": "PjqOGa_leading",
+			"root": "PjqOGa_root",
+			"row": "PjqOGa_row",
+			"separator": "PjqOGa_separator",
 			"summary": "PjqOGa_summary",
 			"thinkBody": "PjqOGa_thinkBody",
-			"title": "PjqOGa_title",
-			"dsh-reasoning-row-sweep": "PjqOGa_dsh-reasoning-row-sweep",
-			"separator": "PjqOGa_separator",
-			"root": "PjqOGa_root",
-			"leading": "PjqOGa_leading",
-			"row": "PjqOGa_row",
-			"chevron": "PjqOGa_chevron"
+			"title": "PjqOGa_title"
 		};
 		//#endregion
 		//#region lib/types/client/chat/ReasoningRow.js
@@ -9009,15 +9356,14 @@ window.__ModuleLoader__.load({
 		}
 		var AssistantMarkdown_module_css_default = {
 			"actions": "dqz0pq_actions",
-			"root": "dqz0pq_root",
 			"body": "dqz0pq_body",
+			"root": "dqz0pq_root",
 			"stopped": "dqz0pq_stopped"
 		};
 		//#endregion
 		//#region lib/types/client/chat/AssistantMarkdown.js
 		/** Reasoning block as the Think variant summary row (figma 39:28304). */
-		const AssistantMarkdown = (0, react.memo)(function AssistantMarkdown({ blocks, streaming, interrupted, loadImage, mentions, t }) {
-			const imageLoader = loadImage ?? (() => Promise.reject(new Error(t("image.serviceUnavailable"))));
+		const AssistantMarkdown = (0, react.memo)(function AssistantMarkdown({ blocks, streaming, interrupted, renderMessageImages, mentions, t }) {
 			const codeLabels = (0, react.useMemo)(() => ({
 				copyLabel: t("copy"),
 				copiedLabel: t("copied")
@@ -9053,12 +9399,10 @@ window.__ModuleLoader__.load({
 							group.push(next);
 							i += 1;
 						}
-						rendered.push((0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_attachment.ImageGallery, {
-							images: group,
-							load: imageLoader,
-							align: "start",
-							labels: messageImageLabels(t)
-						}, start));
+						rendered.push((0, react_jsx_runtime.jsx)(react.Fragment, { children: renderMessageImages({
+							images: group.map(({ attachment }) => ({ attachment })),
+							align: "start"
+						}) }, start));
 						break;
 					}
 					case "tool-call": break;
@@ -9084,7 +9428,7 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region lib/types/client/chat/AssistantNodeView.js
 		/** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
-		const AssistantNodeView = (0, react.memo)(function AssistantNodeView({ node, useTurnData, openFile, loadImage, fileMentions, t }) {
+		const AssistantNodeView = (0, react.memo)(function AssistantNodeView({ node, useTurnData, openFile, renderMessageImages, fileMentions, t }) {
 			const data = node.data;
 			const turn = node.location.kind === "turn" || node.location.kind === "step" ? node.location.turn : void 0;
 			const tail = useTurnData("turn-tail");
@@ -9107,7 +9451,7 @@ window.__ModuleLoader__.load({
 				blocks: data.blocks,
 				streaming: data.status === "running",
 				interrupted: data.status === "interrupted",
-				loadImage,
+				renderMessageImages,
 				mentions,
 				t
 			});
@@ -9124,15 +9468,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var GenericCommandCard_module_css_default = {
-			"row": "Ix6fWq_row",
-			"root": "Ix6fWq_root",
-			"leading": "Ix6fWq_leading",
-			"title": "Ix6fWq_title",
+			"body": "Ix6fWq_body",
+			"chevron": "Ix6fWq_chevron",
 			"dsh-command-row-sweep": "Ix6fWq_dsh-command-row-sweep",
+			"leading": "Ix6fWq_leading",
+			"root": "Ix6fWq_root",
+			"row": "Ix6fWq_row",
 			"separator": "Ix6fWq_separator",
 			"summary": "Ix6fWq_summary",
-			"body": "Ix6fWq_body",
-			"chevron": "Ix6fWq_chevron"
+			"title": "Ix6fWq_title"
 		};
 		//#endregion
 		//#region lib/types/client/chat/GenericCommandCard.js
@@ -9267,8 +9611,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var TurnTailNodeView_module_css_default = {
-			"root": "DeENmq_root",
-			"actions": "DeENmq_actions"
+			"actions": "DeENmq_actions",
+			"root": "DeENmq_root"
 		};
 		//#endregion
 		//#region lib/types/client/chat/TurnTailNodeView.js
@@ -9551,6 +9895,10 @@ window.__ModuleLoader__.load({
 						kind: "list",
 						scope: "session"
 					},
+					"conversation.hero.brand.mark": {
+						kind: "single",
+						scope: "root"
+					},
 					"conversation.hero.workspace": {
 						kind: "single",
 						scope: "root"
@@ -9624,6 +9972,10 @@ window.__ModuleLoader__.load({
 				name: "conversation.composer.bar",
 				locale: NS,
 				children: {
+					"conversation.input.attachments": {
+						kind: "single",
+						scope: "session-maybe"
+					},
 					"conversation.input.plan": {
 						kind: "single",
 						scope: "session"
@@ -9676,6 +10028,7 @@ window.__ModuleLoader__.load({
 							inputTriggers.toggleSource("command", {
 								trigger: "/",
 								query: "",
+								quoted: false,
 								position: snapshot.draft.slice(0, selection.start).trim() === "" ? "leading" : "inline",
 								span: {
 									...selection,
@@ -9712,11 +10065,17 @@ window.__ModuleLoader__.load({
 				order: 0,
 				label: () => t("view.chat"),
 				locale: NS,
-				children: { "conversation.chat.node": {
-					kind: "keyed",
-					scope: "session",
-					inject: CHAT_NODE_INJECT
-				} },
+				children: {
+					"conversation.chat.node": {
+						kind: "keyed",
+						scope: "session",
+						inject: CHAT_NODE_INJECT
+					},
+					"conversation.message.images": {
+						kind: "single",
+						scope: "session"
+					}
+				},
 				store: chatStore,
 				inject: (sessionId, actions) => {
 					const conversation = concreteConversation(ctx);
@@ -9729,7 +10088,7 @@ window.__ModuleLoader__.load({
 						fileMentions: (owner) => ctx.get("chatFileMentions")?.forClosing(owner),
 						openFile: (path) => {
 							const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
-							workspaces.openPath((0, _deepseek_ai_dsh_client_runtime_client.resolveWorkspacePath)(cwd, path)).catch(() => {});
+							return workspaces.openPath((0, _deepseek_ai_dsh_client_runtime_client.resolveWorkspacePath)(cwd, path));
 						},
 						loadOlder: () => {
 							scoped.loadOlder();

@@ -18,15 +18,15 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var GoalBar_module_css_default = {
-			"dock": "GGZ1iW_dock",
 			"actions": "GGZ1iW_actions",
 			"bar": "GGZ1iW_bar",
-			"objective": "GGZ1iW_objective",
-			"goalGlyph": "GGZ1iW_goalGlyph",
+			"dock": "GGZ1iW_dock",
 			"error": "GGZ1iW_error",
-			"objectiveInput": "GGZ1iW_objectiveInput",
+			"goalGlyph": "GGZ1iW_goalGlyph",
 			"iconBtn": "GGZ1iW_iconBtn",
-			"label": "GGZ1iW_label"
+			"label": "GGZ1iW_label",
+			"objective": "GGZ1iW_objective",
+			"objectiveInput": "GGZ1iW_objectiveInput"
 		};
 		//#endregion
 		//#region lib/types/client/GoalBar.js
@@ -261,9 +261,9 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var GoalCommandInputView_module_css_default = {
+			"bubble": "PrnIrW_bubble",
 			"row": "PrnIrW_row",
-			"stack": "PrnIrW_stack",
-			"bubble": "PrnIrW_bubble"
+			"stack": "PrnIrW_stack"
 		};
 		//#endregion
 		//#region lib/types/client/GoalCommandInputView.js
