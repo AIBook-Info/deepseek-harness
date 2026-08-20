@@ -1,3 +1,19 @@
+/**
+ * Pure derivation of the read-card props from a frozen call slice: the
+ * `card:'read'` render intent the read tool declares arrives on the snapshot as
+ * the settled result node's `resultView`, and this is the one place that turns
+ * it into what {@link ReadBlock} draws. Both conversation render sites (the chat
+ * tool row's resident body and the details panel's Output section) call this, so
+ * the path, lines, total, and language they show are derived once.
+ *
+ * The read card is result-side only ([read card note](../../../../../../.agents/notes/implemented/feature/2026-07-30-web-read-card.md)):
+ * a call carries no file content until `execute` returns, so the pending call
+ * stays a generic card (`kind: 'read'`). A running read therefore has no read
+ * card, and this returns null for it — the row keeps its args-derived summary
+ * until the result arrives.
+ * @module
+ */
+import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client';
 import { relativizeToCwd } from "./tool-call-model.js";
 /**
  * Content lines the chat row's resident read body shows before collapsing the
@@ -27,14 +43,15 @@ export const CHAT_READ_MAX_LINES = 8;
  *
  * The label is the read view's `title` when the tool supplied one (the
  * presentation contract's replacement-title rule), otherwise the file path
- * relativized to the session workspace so a workspace-rooted absolute path
- * displays the same short form the row summary shows.
+ * shortened the same way the row summary is: workspace-relative first, then
+ * POSIX `~` for a leftover host-home path.
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param sessionCwd - the session workspace root; a workspace-rooted absolute
  *   path label displays relative to it. Absent leaves the path as authored.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the read-card props, or null for the generic path.
  */
-export function readCardModel(block, sessionCwd) {
+export function readCardModel(block, sessionCwd, home) {
     // Running has no result view; a read carries no content until execute returns.
     if (!('kind' in block))
         return null;
@@ -45,7 +62,7 @@ export function readCardModel(block, sessionCwd) {
     // shape so the card never holds a reference into the runtime's cache.
     const lines = result.lines.map(line => ({ number: line.number, text: line.text }));
     return {
-        label: result.title ?? relativizeToCwd(result.path, sessionCwd),
+        label: result.title ?? abbreviateHomePath(relativizeToCwd(result.path, sessionCwd), home),
         lines,
         totalLines: result.totalLines,
         lang: result.lang,

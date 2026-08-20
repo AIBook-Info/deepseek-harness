@@ -29,7 +29,7 @@ var GoalError = class extends HarnessError {
 //#endregion
 //#region lib/types/fold.js
 /** Pure replay fold and strict decoder for durable goal changes. */
-const SNAPSHOT_OPERATIONS = /* @__PURE__ */ new Set([
+const SNAPSHOT_OPERATIONS = new Set([
 	"create",
 	"edit",
 	"pause",
@@ -37,7 +37,7 @@ const SNAPSHOT_OPERATIONS = /* @__PURE__ */ new Set([
 	"complete",
 	"block"
 ]);
-const PHASES = /* @__PURE__ */ new Set([
+const PHASES = new Set([
 	"active",
 	"paused",
 	"blocked",
@@ -189,11 +189,11 @@ function validateSnapshotTransition(state, change, current) {
 			break;
 		case "resume":
 			requireSameDefinition(current, next, change.operation);
-			if (!(/* @__PURE__ */ new Set([
+			if (!new Set([
 				"active",
 				"paused",
 				"blocked"
-			])).has(current.phase) || next.phase !== "active" || state.roundsStarted >= next.maxGoalRounds) throw new Error("goal resume has an invalid phase transition or exhausted round budget");
+			]).has(current.phase) || next.phase !== "active" || state.roundsStarted >= next.maxGoalRounds) throw new Error("goal resume has an invalid phase transition or exhausted round budget");
 			break;
 		case "complete":
 			requireSameDefinition(current, next, change.operation);
@@ -332,10 +332,8 @@ var __esDecorate = function(ctor, descriptorIn, decorators, contextIn, initializ
 			if (_ = accept(result.get)) descriptor.get = _;
 			if (_ = accept(result.set)) descriptor.set = _;
 			if (_ = accept(result.init)) initializers.unshift(_);
-		} else if (_ = accept(result)) {
-			if (kind === "field") initializers.unshift(_);
-			else descriptor[key] = _;
-		}
+		} else if (_ = accept(result)) if (kind === "field") initializers.unshift(_);
+		else descriptor[key] = _;
 	}
 	if (target) Object.defineProperty(target, contextIn.name, descriptor);
 	done = true;

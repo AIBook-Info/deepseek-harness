@@ -1,5 +1,5 @@
 import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
-import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImages, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
 import { deepEqualJson, installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 import { createModels, createProvider, getSupportedThinkingLevels, isContextOverflow } from "@earendil-works/pi-ai";
 import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
@@ -46,19 +46,24 @@ function emptyPiUsage() {
 }
 /**
 * Project a successful pi-ai response into the minimal durable replay state.
+* The per-block half is index-aligned with the streamed blocks (pi-ai content
+* order), so `BlockAssembler` prunes an entry with its block whenever assembly
+* removes one.
 * @param message - completed native pi-ai assistant response.
 * @returns the versioned lossless-JSON replay projection.
 */
 function toPiReplayState(message) {
 	return {
-		kind: "pi-ai",
-		version: 1,
-		api: message.api,
-		provider: message.provider,
-		model: message.model,
-		...message.responseModel === void 0 ? {} : { responseModel: message.responseModel },
-		...message.responseId === void 0 ? {} : { responseId: message.responseId },
-		stopReason: message.stopReason,
+		response: {
+			kind: "pi-ai",
+			version: 2,
+			api: message.api,
+			provider: message.provider,
+			model: message.model,
+			...message.responseModel === void 0 ? {} : { responseModel: message.responseModel },
+			...message.responseId === void 0 ? {} : { responseId: message.responseId },
+			stopReason: message.stopReason
+		},
 		blocks: message.content.map((block) => {
 			switch (block.type) {
 				case "text": return {
@@ -81,28 +86,32 @@ function toPiReplayState(message) {
 function invalidReplay(message) {
 	throw new LlmError(`invalid pi-ai replay state: ${message}`, "INVALID_REPLAY_STATE");
 }
-/** Validate the adapter-private state before it reaches pi-ai. */
+/** Validate the durable adapter-private envelope before it reaches pi-ai. */
 function readReplayState(value) {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) return invalidReplay("expected an object");
-	const state = value;
-	if (state["kind"] !== "pi-ai") return invalidReplay("unknown state kind");
-	if (state["version"] !== 1) return invalidReplay(`unsupported version ${String(state["version"])}`);
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return invalidReplay("expected a replay envelope");
+	const envelope = value;
+	const rawResponse = envelope["response"];
+	if (typeof rawResponse !== "object" || rawResponse === null || Array.isArray(rawResponse)) return invalidReplay("expected a response object");
+	const response = rawResponse;
+	if (response["kind"] !== "pi-ai") return invalidReplay("unknown state kind");
+	if (response["version"] !== 2) return invalidReplay(`unsupported version ${String(response["version"])}`);
 	for (const key of [
 		"api",
 		"provider",
 		"model"
-	]) if (typeof state[key] !== "string" || state[key].length === 0) return invalidReplay(`${key} must be a non-empty string`);
+	]) if (typeof response[key] !== "string" || response[key].length === 0) return invalidReplay(`${key} must be a non-empty string`);
 	if (![
 		"stop",
 		"length",
 		"toolUse",
 		"error",
 		"aborted"
-	].includes(String(state["stopReason"]))) return invalidReplay("unknown stopReason");
-	if (state["responseModel"] !== void 0 && typeof state["responseModel"] !== "string") return invalidReplay("responseModel must be a string");
-	if (state["responseId"] !== void 0 && typeof state["responseId"] !== "string") return invalidReplay("responseId must be a string");
-	if (!Array.isArray(state["blocks"])) return invalidReplay("blocks must be an array");
-	for (const [index, value] of state["blocks"].entries()) {
+	].includes(String(response["stopReason"]))) return invalidReplay("unknown stopReason");
+	if (response["responseModel"] !== void 0 && typeof response["responseModel"] !== "string") return invalidReplay("responseModel must be a string");
+	if (response["responseId"] !== void 0 && typeof response["responseId"] !== "string") return invalidReplay("responseId must be a string");
+	const blocks = envelope["blocks"];
+	if (!Array.isArray(blocks)) return invalidReplay("blocks must be an array");
+	for (const [index, value] of blocks.entries()) {
 		if (typeof value !== "object" || value === null || Array.isArray(value)) return invalidReplay(`block ${index} must be an object`);
 		const block = value;
 		if (![
@@ -117,7 +126,10 @@ function readReplayState(value) {
 		]) if (block[signature] !== void 0 && typeof block[signature] !== "string") return invalidReplay(`block ${index} ${signature} must be a string`);
 		if (block["redacted"] !== void 0 && typeof block["redacted"] !== "boolean") return invalidReplay(`block ${index} redacted must be boolean`);
 	}
-	return state;
+	return {
+		response,
+		blocks
+	};
 }
 /** Convert provider-neutral blocks without trusting them as same-model replay. */
 function foreignAssistant(message) {
@@ -145,6 +157,7 @@ function foreignAssistant(message) {
 			});
 			break;
 		case "image": throw new LlmError("pi-ai chat history cannot represent structured assistant image output", "UNSUPPORTED_CONTENT");
+		default: break;
 	}
 	return {
 		role: "assistant",
@@ -160,8 +173,8 @@ function foreignAssistant(message) {
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
 function replayedAssistant(message, source, rawState) {
 	const state = readReplayState(rawState);
-	if (state.provider !== source.provider) return invalidReplay("provider does not match assistant source");
-	if (state.model !== source.model) return invalidReplay("model does not match assistant source");
+	if (state.response.provider !== source.provider) return invalidReplay("provider does not match assistant source");
+	if (state.response.model !== source.model) return invalidReplay("model does not match assistant source");
 	if (state.blocks.length !== message.content.length) return invalidReplay("block count does not match assistant content");
 	return {
 		role: "assistant",
@@ -191,24 +204,41 @@ function replayedAssistant(message, source, rawState) {
 				default: return invalidReplay(`block ${index} has an unsupported Harness type`);
 			}
 		}),
-		api: state.api,
-		provider: state.provider,
-		model: state.model,
-		...state.responseModel === void 0 ? {} : { responseModel: state.responseModel },
-		...state.responseId === void 0 ? {} : { responseId: state.responseId },
+		api: state.response.api,
+		provider: state.response.provider,
+		model: state.response.model,
+		...state.response.responseModel === void 0 ? {} : { responseModel: state.response.responseModel },
+		...state.response.responseId === void 0 ? {} : { responseId: state.response.responseId },
 		usage: emptyPiUsage(),
-		stopReason: state.stopReason,
+		stopReason: state.response.stopReason,
 		timestamp: 0
 	};
 }
 /**
 * Convert one durable Harness assistant message into pi-ai history.
+*
+* Durable content is the authoritative record; replay metadata only restores
+* native fidelity (ids, signatures). A replay state this build cannot use —
+* another adapter's kind, another version, a malformed value, or metadata that
+* no longer matches the content — therefore degrades the one message to
+* provider-neutral history instead of failing the request.
 * @param message - assistant content with required source and optional adapter-owned replay metadata.
+* @param onDegrade - called with the diagnostic reason when an unusable replay
+*   state falls back to provider-neutral conversion.
 * @returns a native pi-ai assistant message reconstructed from durable content.
 */
-function toPiAssistant(message) {
+function toPiAssistant(message, onDegrade) {
 	const source = message.source;
-	return source.kind !== "model" || source.replayState === void 0 ? foreignAssistant(message) : replayedAssistant(message, source, source.replayState);
+	if (source.kind !== "model" || source.replayState === void 0) return foreignAssistant(message);
+	try {
+		return replayedAssistant(message, source, source.replayState);
+	} catch (error) {
+		/* v8 ignore next -- replayedAssistant throws only INVALID_REPLAY_STATE LlmErrors today; the
+		guard keeps a future non-replay failure loud instead of silently degrading it */
+		if (!(error instanceof LlmError) || error.code !== "INVALID_REPLAY_STATE") throw error;
+		onDegrade?.(error.message);
+		return foreignAssistant(message);
+	}
 }
 //#endregion
 //#region lib/types/context.js
@@ -224,6 +254,10 @@ function flattenText(message) {
 /** Flatten text recursively inside one tool result. */
 function toolResultText(blocks) {
 	return blocks.map((block) => block.type === "text" ? block.text : block.type === "tool-result" ? toolResultText(block.content) : "").join("");
+}
+/** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
+function assertSupportedImageRoles(messages) {
+	for (const message of messages) if (message.role !== "user" && contentHasImage(message.content)) throw new LlmError(`pi-ai cannot represent an image in an in-history ${message.role} message`, "UNSUPPORTED_CONTENT");
 }
 async function userContent(blocks, attachments) {
 	const content = [];
@@ -243,15 +277,18 @@ async function userContent(blocks, attachments) {
 			});
 			break;
 		}
-		case "tool-result": {
-			const nested = await userContent(block.content, attachments);
-			if (typeof nested === "string") {
-				if (nested.length > 0) content.push({
-					type: "text",
-					text: nested
-				});
-			} else content.push(...nested);
-		}
+		case "tool-result":
+			{
+				const nested = await userContent(block.content, attachments);
+				if (typeof nested === "string") {
+					if (nested.length > 0) content.push({
+						type: "text",
+						text: nested
+					});
+				} else content.push(...nested);
+			}
+			break;
+		default: break;
 	}
 	if (content.every((block) => block.type === "text")) return content.map((block) => block.text).join("");
 	return content;
@@ -272,7 +309,7 @@ function piContext(options, messages) {
 		...tools !== void 0 && tools.length > 0 ? { tools } : {}
 	};
 }
-function textOnlyContext(options) {
+function textOnlyContext(options, onReplayDegrade) {
 	const toolNames = /* @__PURE__ */ new Map();
 	const messages = [];
 	for (const message of options.messages) {
@@ -286,7 +323,7 @@ function textOnlyContext(options) {
 			continue;
 		}
 		if (message.role === "assistant") {
-			const assistant = toPiAssistant(message);
+			const assistant = toPiAssistant(message, onReplayDegrade);
 			for (const block of assistant.content) if (block.type === "toolCall") toolNames.set(CallId(block.id), block.name);
 			messages.push(assistant);
 			continue;
@@ -312,15 +349,16 @@ function textOnlyContext(options) {
 	}
 	return piContext(options, messages);
 }
-function toPiContext(options, attachments) {
-	return attachments === void 0 ? textOnlyContext(options) : toPiContextWithImages(options, attachments);
+function toPiContext(options, attachments, onReplayDegrade, maxRequestImageBytes) {
+	return attachments === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes);
 }
-async function toPiContextWithImages(options, attachments) {
+async function toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes) {
+	assertSupportedImageRoles(options.messages);
+	const requestMessages = offloadRequestImages(options.messages, maxRequestImageBytes);
 	const toolNames = /* @__PURE__ */ new Map();
 	const messages = [];
-	for (const message of options.messages) {
+	for (const message of requestMessages) {
 		if (message.role === "system") {
-			if (contentHasImage(message.content)) throw new LlmError("pi-ai cannot represent an image in an in-history system message", "UNSUPPORTED_CONTENT");
 			messages.push({
 				role: "user",
 				content: flattenText(message),
@@ -329,7 +367,7 @@ async function toPiContextWithImages(options, attachments) {
 			continue;
 		}
 		if (message.role === "assistant") {
-			const assistant = toPiAssistant(message);
+			const assistant = toPiAssistant(message, onReplayDegrade);
 			for (const block of assistant.content) if (block.type === "toolCall") toolNames.set(CallId(block.id), block.name);
 			messages.push(assistant);
 			continue;
@@ -386,6 +424,7 @@ function classifyPiAiError(message) {
 	if (/\b(?:401|403)\b/.test(message)) return "AUTH";
 	if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE;
 	if (/\b429\b|rate.?limit/i.test(message)) return "RATE_LIMIT";
+	if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return "INVALID_REQUEST";
 	if (/\b400\b|invalid.?request/i.test(message)) return "INVALID_REQUEST";
 	if (/\b5\d\d\b/.test(message)) return "SERVER";
 	if (/\btime(?:d)?\s*out\b|timeout/i.test(message)) return "TIMEOUT";
@@ -823,7 +862,14 @@ var PiAiAdapter = class extends LlmAdapter {
 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
-				const context = attachments === void 0 ? toPiContext(options) : await toPiContext(options, attachments);
+				const onReplayDegrade = (reason) => {
+					this.config.onReplayDegrade?.({
+						provider: options.provider,
+						model: options.model,
+						reason
+					});
+				};
+				const context = attachments === void 0 ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext(options, attachments, onReplayDegrade, profile.maxRequestImageBytes);
 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
 					...profileOptions(profile, reasoning, apiKey),
 					...options.temperature === void 0 ? {} : { temperature: options.temperature },
@@ -928,8 +974,22 @@ const SUPPORTED_THINKING_FORMATS = Object.keys({
 	"together": true,
 	"zai": true,
 	"qwen": true,
+	"chat-template": true,
+	"qwen-chat-template": true,
 	"string-thinking": true,
 	"ant-ling": true
+});
+/** The output-cap field spellings a profile may name. */
+const MAX_TOKENS_FIELDS = Object.keys({
+	max_completion_tokens: true,
+	max_tokens: true
+});
+/** The prompt-cache marker conventions a profile may name. */
+const CACHE_CONTROL_FORMATS = Object.keys({ anthropic: true });
+/** The request-state placeholders a profile may name. */
+const CHAT_TEMPLATE_VARS = Object.keys({
+	"thinking.enabled": true,
+	"thinking.effort": true
 });
 let providerIndex;
 /**
@@ -985,6 +1045,149 @@ function catalogModels(provider) {
 	if (!catalogProviders().has(provider)) return /* @__PURE__ */ new Map();
 	const models = getBuiltinModels(provider);
 	return new Map(models.map((model) => [model.id, model]));
+}
+/**
+* Disposition of every `OpenAICompletionsCompat` field. The `Record` key type
+* is a drift gate: a pi-ai upgrade that adds a field fails compilation here
+* until it is classified, so the offer never silently lags the upstream set.
+*/
+const COMPLETIONS_COMPAT_GATE = {
+	supportsStore: "offer",
+	supportsDeveloperRole: "offer",
+	supportsReasoningEffort: "offer",
+	supportsUsageInStreaming: "offer",
+	maxTokensField: "offer",
+	requiresToolResultName: "offer",
+	requiresAssistantAfterToolResult: "offer",
+	requiresThinkingAsText: "offer",
+	requiresReasoningContentOnAssistantMessages: "offer",
+	thinkingFormat: "offer",
+	chatTemplateKwargs: "offer",
+	supportsStrictMode: "offer",
+	cacheControlFormat: "offer",
+	supportsLongCacheRetention: "offer",
+	openRouterRouting: "withhold",
+	vercelGatewayRouting: "withhold",
+	zaiToolStream: "withhold",
+	supportsOpenAIGrammarTools: "withhold",
+	sendSessionAffinityHeaders: "withhold",
+	deferredToolsMode: "withhold",
+	sessionAffinityFormat: "withhold"
+};
+/** Disposition of every `OpenAIResponsesCompat` field; a drift gate like the one above. */
+const RESPONSES_COMPAT_GATE = {
+	supportsDeveloperRole: "offer",
+	supportsStrictMode: "offer",
+	supportsLongCacheRetention: "offer",
+	sessionAffinityFormat: "withhold",
+	supportsOpenAIGrammarTools: "withhold",
+	supportsToolSearch: "withhold",
+	supportsExplicitPromptCacheMode: "withhold"
+};
+/**
+* The compat gate of every wire protocol a profile may configure.
+*
+* Keyed by protocol, but grouped by pi-ai's compat *type*: the three Responses
+* protocols share `OpenAIResponsesCompat`, so a switch settable on one is
+* settable on all three. Keying by protocol alone would refuse
+* `azure-openai-responses` and `openai-codex-responses` the fields their own
+* models declare.
+*/
+const COMPAT_GATES = {
+	"openai-completions": COMPLETIONS_COMPAT_GATE,
+	"openai-responses": RESPONSES_COMPAT_GATE,
+	"azure-openai-responses": RESPONSES_COMPAT_GATE,
+	"openai-codex-responses": RESPONSES_COMPAT_GATE,
+	"anthropic-messages": {
+		supportsEagerToolInputStreaming: "offer",
+		supportsLongCacheRetention: "offer",
+		supportsCacheControlOnTools: "offer",
+		supportsTemperature: "offer",
+		forceAdaptiveThinking: "offer",
+		allowEmptySignature: "offer",
+		supportsStrictTools: "offer",
+		sendSessionAffinityHeaders: "withhold",
+		supportsToolReferences: "withhold"
+	},
+	"bedrock-converse-stream": { supportsStrictMode: "offer" }
+};
+/**
+* The compat gate of one resolved protocol. A `string` lookup rather than a
+* keyed read: a route's `api` is configuration, so it may name a protocol
+* pi-ai gives no compat type — or none at all.
+* @param api - resolved wire protocol.
+* @returns that protocol's field gate, or `undefined` when it takes no compat.
+*/
+function compatGate(api) {
+	return COMPAT_GATES[api];
+}
+/**
+* The compat entries a profile actually set.
+*
+* schemastery materializes an absent dict as `{}` — the behavior
+* `reasoningEfforts` works around with a union — so every parsed profile
+* carries a `chatTemplateKwargs` key whether or not anyone wrote one. An empty
+* one states nothing here: it would send no kwargs, which is exactly what
+* leaving the field out does, so absent and empty are the same request and
+* neither may make a route look like it configured a switch. A valueless
+* scalar is the other thing schemastery lets through, and it is refused by
+* {@link assertOfferedCompatFields} before this runs rather than filtered.
+* @param compat - the configured switches, when any.
+* @returns the entries carrying a value, in declaration order.
+*/
+function configuredCompatEntries(compat) {
+	return Object.entries(compat ?? {}).flatMap(([field, value]) => {
+		return typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0 ? [] : [[field, value]];
+	});
+}
+/**
+* The protocols offering one compat field, in {@link COMPAT_GATES} order.
+* @param field - configured compat field name.
+* @returns the protocols whose compat takes it; empty when none does, which
+*   is either a withheld field or a name no upstream compat type declares.
+*/
+function compatProtocols(field) {
+	return Object.entries(COMPAT_GATES).flatMap(([api, gate]) => gate[field] === "offer" ? [api] : []);
+}
+/**
+* The compat fields one protocol offers, for a diagnostic that has to show
+* what was available instead of the name that missed.
+* @param api - wire protocol.
+* @returns the offered field names, or an empty list for a protocol taking no compat.
+*/
+function offeredCompatFields(api) {
+	return Object.entries(compatGate(api) ?? {}).flatMap(([field, disposition]) => disposition === "offer" ? [field] : []);
+}
+/**
+* Every offered field name, deduplicated, for the one diagnostic that cannot
+* narrow by protocol: the vocabulary check runs before any protocol resolves,
+* which is what lets it refuse a misspelling on a route whose models would
+* never have reached the protocol that declares the intended field.
+* @returns the offered field names across every protocol, in gate order.
+*/
+function allOfferedCompatFields() {
+	const fields = /* @__PURE__ */ new Set();
+	for (const api of Object.keys(COMPAT_GATES)) for (const field of offeredCompatFields(api)) fields.add(field);
+	return [...fields];
+}
+/**
+* Reject a compat key no protocol offers. Runs before any protocol is
+* resolved, so a withheld field or a misspelling fails even on a route whose
+* models never reach the protocol that would have taken it — the alternative
+* being the silent drop that let an unreadable switch look applied.
+* @param provider - provider route key, for diagnostics.
+* @param site - the configuration site, for diagnostics.
+* @param compat - the configured switches, when any.
+* @throws Error naming the offending key.
+*/
+function assertOfferedCompatFields(provider, site, compat) {
+	for (const [field, value] of Object.entries(compat ?? {})) {
+		if (compatProtocols(field).length === 0) {
+			if (Object.values(COMPAT_GATES).some((gate) => gate[field] !== void 0)) invalid(provider, `${site} sets compat "${field}", which is not configurable here: pi-ai's installed catalog sets it for the vendors that need it, so name that provider as the route instead`);
+			invalid(provider, `${site} sets compat "${field}", which no wire protocol declares; the configurable switches are ${allOfferedCompatFields().join(", ")}`);
+		}
+		if (value == null) invalid(provider, `${site} sets compat "${field}" with no value; give it one, or remove the key to leave the field to the next layer — the installed catalog entry, then pi-ai's own detection`);
+	}
 }
 /** Report a route the deployment cannot serve, naming the settings key at fault. */
 function invalid(provider, detail) {
@@ -1045,15 +1248,16 @@ function resolveModelReasoning(provider, entry, base) {
 	};
 }
 /**
-* Resolve one model's compat block from the profile's reasoning switches.
+* Resolve one model's compat block from the profile's switches.
 *
-* A model switch wins over the route switch; whatever neither sets keeps the
-* installed entry's value, and a field no layer decides falls through to
-* pi-ai's baseURL-derived detection. Only an `openai-completions` model takes
-* the switches at all: a model-level switch on any other protocol fails
-* resolution, while a route-level default skips past such models — the same
-* posture as the route-level `reasoning` default, which also must not fail
-* models it does not fit.
+* A model switch wins over the route switch field by field; whatever neither
+* sets keeps the installed entry's value, and a field no layer decides falls
+* through to pi-ai's own detection. A model-level switch its protocol does not
+* take fails resolution — about one named model it can only be a mistake —
+* while a route-level one skips past such models, since a route default must
+* stay settable on a route whose models do not all speak one protocol. Every
+* field reaching here is offered by some protocol; {@link
+* assertOfferedCompatFields} has already refused the rest.
 * @param provider - provider route key, for diagnostics.
 * @param entry - the configured model entry.
 * @param route - the route-level switches, when any.
@@ -1062,17 +1266,23 @@ function resolveModelReasoning(provider, entry, base) {
 * @returns a `compat` field to spread into the model, or nothing.
 */
 function resolveModelCompat(provider, entry, route, base, api) {
-	const thinkingFormat = entry.compat?.thinkingFormat ?? route?.thinkingFormat;
-	const supportsReasoningEffort = entry.compat?.supportsReasoningEffort ?? route?.supportsReasoningEffort;
-	if (thinkingFormat === void 0 && supportsReasoningEffort === void 0) return {};
-	if (api !== "openai-completions") {
-		if (entry.compat?.thinkingFormat !== void 0 || entry.compat?.supportsReasoningEffort !== void 0) invalid(provider, `model "${entry.id}" sets compat reasoning switches, but its api is "${api}"; thinkingFormat and supportsReasoningEffort exist only on openai-completions`);
-		return {};
+	const gate = compatGate(api);
+	const configured = {};
+	for (const [field, value] of configuredCompatEntries(route)) {
+		if (gate?.[field] !== "offer") continue;
+		configured[field] = value;
 	}
+	for (const [field, value] of configuredCompatEntries(entry.compat)) {
+		if (gate?.[field] !== "offer") {
+			const offered = offeredCompatFields(api);
+			invalid(provider, `model "${entry.id}" sets compat "${field}", but its api is "${api}", which does not take it; that switch exists on ${compatProtocols(field).join(", ")}, and "${api}" offers ${offered.length === 0 ? "no configurable compat" : offered.join(", ")}`);
+		}
+		configured[field] = value;
+	}
+	if (Object.keys(configured).length === 0) return {};
 	return { compat: {
 		...base?.api === api ? base.compat : void 0,
-		...thinkingFormat === void 0 ? {} : { thinkingFormat },
-		...supportsReasoningEffort === void 0 ? {} : { supportsReasoningEffort }
+		...configured
 	} };
 }
 /**
@@ -1102,7 +1312,8 @@ function resolveRouteModels(request) {
 	}));
 	if (entries.length === 0) invalid(provider, "resolves no models; the installed catalog does not describe this route, so its models must be listed in configuration");
 	const routeApi = sharedCatalogApi(defaults);
-	const routeCompatDefined = request.compat?.thinkingFormat !== void 0 || request.compat?.supportsReasoningEffort !== void 0;
+	assertOfferedCompatFields(provider, "route", request.compat);
+	for (const entry of entries) assertOfferedCompatFields(provider, `model "${entry.id}"`, entry.compat);
 	const seen = /* @__PURE__ */ new Set();
 	const configuredMaxTokens = /* @__PURE__ */ new Map();
 	const models = entries.map((entry) => {
@@ -1134,7 +1345,11 @@ function resolveRouteModels(request) {
 			...resolveModelCompat(provider, entry, request.compat, base, api)
 		};
 	});
-	if (routeCompatDefined && !models.some((model) => model.api === "openai-completions")) invalid(provider, "sets compat reasoning switches, but no model on the route speaks openai-completions; thinkingFormat and supportsReasoningEffort exist only on that protocol");
+	for (const [field] of configuredCompatEntries(request.compat)) {
+		const takers = compatProtocols(field);
+		if (models.some((model) => takers.includes(model.api))) continue;
+		invalid(provider, `sets compat "${field}", but no model on the route speaks a protocol that takes it; it exists on ${takers.join(", ")}`);
+	}
 	return {
 		models,
 		configuredMaxTokens
@@ -1305,6 +1520,16 @@ function buildProvider(spec) {
 */
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 3e5;
+/**
+* Default request-level bound on base64-encoded image payload. Every image in
+* history is re-encoded into every request body, so an unbounded conversation
+* eventually exceeds a provider or gateway request-size cap and the session
+* can never complete another request. The 20MiB default admits four images at
+* the attachment store's 3.5MiB raw-image default after base64 expansion and
+* reserves request capacity for system prompts, history, tools, and JSON.
+* Deployments behind stricter gateways lower it per route.
+*/
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024;
 /** Context capacity assumed for a model neither configuration nor the catalog sizes. */
 const DEFAULT_CONTEXT_WINDOW = 262144;
 /** Output capability assumed for a model neither configuration nor the catalog sizes. */
@@ -1326,9 +1551,42 @@ const thinkingBudgets = z.object({
 	medium: z.number(),
 	high: z.number()
 });
+/**
+* One `chat_template_kwargs` value. The `$var` member is pi-ai's placeholder
+* for a value dispatch fills from the request's thinking state, which is what
+* makes a chat-template gateway configurable without restating its template.
+*/
+const chatTemplateKwarg = z.union([
+	z.string(),
+	z.number(),
+	z.boolean(),
+	z.const(null),
+	z.object({
+		$var: z.union(CHAT_TEMPLATE_VARS).required(),
+		omitWhenOff: z.boolean()
+	})
+]);
 const compatProfile = z.object({
+	supportsStore: z.boolean(),
+	supportsDeveloperRole: z.boolean(),
+	supportsReasoningEffort: z.boolean(),
+	supportsUsageInStreaming: z.boolean(),
+	maxTokensField: z.union(MAX_TOKENS_FIELDS),
+	requiresToolResultName: z.boolean(),
+	requiresAssistantAfterToolResult: z.boolean(),
+	requiresThinkingAsText: z.boolean(),
+	requiresReasoningContentOnAssistantMessages: z.boolean(),
 	thinkingFormat: z.union(SUPPORTED_THINKING_FORMATS),
-	supportsReasoningEffort: z.boolean()
+	chatTemplateKwargs: z.dict(chatTemplateKwarg),
+	supportsStrictMode: z.boolean(),
+	cacheControlFormat: z.union(CACHE_CONTROL_FORMATS),
+	supportsLongCacheRetention: z.boolean(),
+	supportsEagerToolInputStreaming: z.boolean(),
+	supportsCacheControlOnTools: z.boolean(),
+	supportsTemperature: z.boolean(),
+	forceAdaptiveThinking: z.boolean(),
+	allowEmptySignature: z.boolean(),
+	supportsStrictTools: z.boolean()
 });
 /**
 * Keys are the offered levels, values their wire spellings. A valueless key
@@ -1384,6 +1642,7 @@ const profile = z.object({
 	timeoutMs: z.natural(),
 	websocketConnectTimeoutMs: z.natural(),
 	streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
+	maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
 	retryPolicy: RetryPolicySchema
 });
 /** Runtime schema for {@link Config}. */
@@ -1428,6 +1687,8 @@ function resolveProfiles(providers) {
 		if (source.displayName !== void 0 && source.displayName.length === 0) throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`);
 		const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? 3e5;
 		if (!Number.isFinite(streamIdleTimeoutMs) || streamIdleTimeoutMs <= 0 || streamIdleTimeoutMs > MAX_TIMER_DELAY_MS) throw new Error(`llm-pi-ai: provider "${provider}" streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`);
+		const maxRequestImageBytes = source.maxRequestImageBytes ?? 20971520;
+		if (!Number.isInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) throw new Error(`llm-pi-ai: provider "${provider}" maxRequestImageBytes must be a positive integer`);
 		const defaultInput = [...source.defaultInput ?? DEFAULT_INPUT];
 		if (defaultInput.length === 0) throw new Error(`llm-pi-ai: provider "${provider}" defaultInput must name at least one modality`);
 		const displayName = source.displayName ?? provider;
@@ -1449,6 +1710,7 @@ function resolveProfiles(providers) {
 			displayName,
 			...apiKeyEnv === void 0 ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
 			streamIdleTimeoutMs,
+			maxRequestImageBytes,
 			retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
 			...rest.headers === void 0 ? {} : { headers: { ...rest.headers } },
 			...rest.thinkingBudgets === void 0 ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
@@ -1498,7 +1760,7 @@ function resolveProfiles(providers) {
 * either would report an authentication failure as a provider with no models.
 * pi-ai's remaining protocols are absent for the same reason.
 */
-const LISTABLE_PROTOCOLS = /* @__PURE__ */ new Set(["openai-completions", "openai-responses"]);
+const LISTABLE_PROTOCOLS = new Set(["openai-completions", "openai-responses"]);
 /**
 * Endpoint replies larger than this are refused. The endpoint is whatever URL
 * the user typed, so the ceiling holds on the bytes actually read rather than
@@ -1506,7 +1768,7 @@ const LISTABLE_PROTOCOLS = /* @__PURE__ */ new Set(["openai-completions", "opena
 * uses for its own caller-supplied URLs, except that a truncated model listing
 * is not parseable, so overflow rejects instead of truncating.
 */
-const MAX_RESPONSE_BYTES = 4194304;
+const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
 function capacity(...candidates) {
 	for (const candidate of candidates) if (typeof candidate === "number" && Number.isInteger(candidate) && candidate > 0) return candidate;
@@ -1797,7 +2059,10 @@ function apply(ctx, config) {
 	const adapter = new PiAiAdapter({
 		profiles,
 		resolveApiKey,
-		resolveAttachments: () => ctx.get("attachments")
+		resolveAttachments: () => ctx.get("attachments"),
+		onReplayDegrade: ({ provider, model, reason }) => {
+			ctx.logger.warn(`llm-pi-ai: unusable replay state on assistant history for route "${provider}/${model}"; sending that message as provider-neutral content (${reason})`);
+		}
 	});
 	let directory;
 	let directoryFacts;

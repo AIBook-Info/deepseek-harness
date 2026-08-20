@@ -61,8 +61,10 @@ export const THINKING_LEVELS = Object.keys(THINKING_LEVEL_GATE);
 /**
  * The nameable reasoning-dispatch formats, most-reached first. The `Record`
  * key type is a drift gate: a pi-ai upgrade that adds a format (0.84 added
- * `baseten`) fails compilation here until the format is classified as offered
- * here or withheld above, so the offer never silently lags the upstream set.
+ * `baseten`) fails compilation here until the new format is named, so the
+ * offer never silently lags the upstream set. The two `chat-template` variants
+ * are nameable because {@link PiAiCompatProfile.chatTemplateKwargs} carries
+ * the kwargs they dispatch through.
  */
 const THINKING_FORMAT_GATE = {
     'openai': true,
@@ -71,11 +73,33 @@ const THINKING_FORMAT_GATE = {
     'together': true,
     'zai': true,
     'qwen': true,
+    'chat-template': true,
+    'qwen-chat-template': true,
     'string-thinking': true,
     'ant-ling': true,
 };
 /** Reasoning-dispatch wire formats a profile may name, most-reached first. */
 export const SUPPORTED_THINKING_FORMATS = Object.keys(THINKING_FORMAT_GATE);
+/** Drift gate over {@link PiAiMaxTokensField}; an upstream spelling added here fails compilation until named. */
+const MAX_TOKENS_FIELD_GATE = {
+    max_completion_tokens: true,
+    max_tokens: true,
+};
+/** The output-cap field spellings a profile may name. */
+export const MAX_TOKENS_FIELDS = Object.keys(MAX_TOKENS_FIELD_GATE);
+/** Drift gate over {@link PiAiCacheControlFormat}; a new upstream convention fails compilation until named. */
+const CACHE_CONTROL_FORMAT_GATE = {
+    anthropic: true,
+};
+/** The prompt-cache marker conventions a profile may name. */
+export const CACHE_CONTROL_FORMATS = Object.keys(CACHE_CONTROL_FORMAT_GATE);
+/** Drift gate over {@link PiAiChatTemplateVar}; a new upstream placeholder fails compilation until named. */
+const CHAT_TEMPLATE_VAR_GATE = {
+    'thinking.enabled': true,
+    'thinking.effort': true,
+};
+/** The request-state placeholders a profile may name. */
+export const CHAT_TEMPLATE_VARS = Object.keys(CHAT_TEMPLATE_VAR_GATE);
 let providerIndex;
 /**
  * Installed catalog providers by id, constructed once. Each entry owns the API
@@ -131,6 +155,182 @@ export function catalogModels(provider) {
         return new Map();
     const models = getBuiltinModels(provider);
     return new Map(models.map(model => [model.id, model]));
+}
+/**
+ * Disposition of every `OpenAICompletionsCompat` field. The `Record` key type
+ * is a drift gate: a pi-ai upgrade that adds a field fails compilation here
+ * until it is classified, so the offer never silently lags the upstream set.
+ */
+const COMPLETIONS_COMPAT_GATE = {
+    supportsStore: 'offer',
+    supportsDeveloperRole: 'offer',
+    supportsReasoningEffort: 'offer',
+    supportsUsageInStreaming: 'offer',
+    maxTokensField: 'offer',
+    requiresToolResultName: 'offer',
+    requiresAssistantAfterToolResult: 'offer',
+    requiresThinkingAsText: 'offer',
+    requiresReasoningContentOnAssistantMessages: 'offer',
+    thinkingFormat: 'offer',
+    chatTemplateKwargs: 'offer',
+    supportsStrictMode: 'offer',
+    cacheControlFormat: 'offer',
+    supportsLongCacheRetention: 'offer',
+    openRouterRouting: 'withhold',
+    vercelGatewayRouting: 'withhold',
+    zaiToolStream: 'withhold',
+    supportsOpenAIGrammarTools: 'withhold',
+    sendSessionAffinityHeaders: 'withhold',
+    deferredToolsMode: 'withhold',
+    sessionAffinityFormat: 'withhold',
+};
+/** Disposition of every `OpenAIResponsesCompat` field; a drift gate like the one above. */
+const RESPONSES_COMPAT_GATE = {
+    supportsDeveloperRole: 'offer',
+    supportsStrictMode: 'offer',
+    supportsLongCacheRetention: 'offer',
+    sessionAffinityFormat: 'withhold',
+    supportsOpenAIGrammarTools: 'withhold',
+    supportsToolSearch: 'withhold',
+    supportsExplicitPromptCacheMode: 'withhold',
+};
+/** Disposition of every `AnthropicMessagesCompat` field; a drift gate like the one above. */
+const ANTHROPIC_COMPAT_GATE = {
+    supportsEagerToolInputStreaming: 'offer',
+    supportsLongCacheRetention: 'offer',
+    supportsCacheControlOnTools: 'offer',
+    supportsTemperature: 'offer',
+    forceAdaptiveThinking: 'offer',
+    allowEmptySignature: 'offer',
+    supportsStrictTools: 'offer',
+    sendSessionAffinityHeaders: 'withhold',
+    supportsToolReferences: 'withhold',
+};
+/** Disposition of every `BedrockCompat` field; a drift gate like the one above. */
+const BEDROCK_COMPAT_GATE = {
+    supportsStrictMode: 'offer',
+};
+/**
+ * The compat gate of every wire protocol a profile may configure.
+ *
+ * Keyed by protocol, but grouped by pi-ai's compat *type*: the three Responses
+ * protocols share `OpenAIResponsesCompat`, so a switch settable on one is
+ * settable on all three. Keying by protocol alone would refuse
+ * `azure-openai-responses` and `openai-codex-responses` the fields their own
+ * models declare.
+ */
+const COMPAT_GATES = {
+    'openai-completions': COMPLETIONS_COMPAT_GATE,
+    'openai-responses': RESPONSES_COMPAT_GATE,
+    'azure-openai-responses': RESPONSES_COMPAT_GATE,
+    'openai-codex-responses': RESPONSES_COMPAT_GATE,
+    'anthropic-messages': ANTHROPIC_COMPAT_GATE,
+    'bedrock-converse-stream': BEDROCK_COMPAT_GATE,
+};
+/**
+ * The compat gate of one resolved protocol. A `string` lookup rather than a
+ * keyed read: a route's `api` is configuration, so it may name a protocol
+ * pi-ai gives no compat type — or none at all.
+ * @param api - resolved wire protocol.
+ * @returns that protocol's field gate, or `undefined` when it takes no compat.
+ */
+function compatGate(api) {
+    return COMPAT_GATES[api];
+}
+/**
+ * The compat entries a profile actually set.
+ *
+ * schemastery materializes an absent dict as `{}` — the behavior
+ * `reasoningEfforts` works around with a union — so every parsed profile
+ * carries a `chatTemplateKwargs` key whether or not anyone wrote one. An empty
+ * one states nothing here: it would send no kwargs, which is exactly what
+ * leaving the field out does, so absent and empty are the same request and
+ * neither may make a route look like it configured a switch. A valueless
+ * scalar is the other thing schemastery lets through, and it is refused by
+ * {@link assertOfferedCompatFields} before this runs rather than filtered.
+ * @param compat - the configured switches, when any.
+ * @returns the entries carrying a value, in declaration order.
+ */
+function configuredCompatEntries(compat) {
+    return Object.entries(compat ?? {}).flatMap(([field, value]) => {
+        const empty = typeof value === 'object' && value !== null && !Array.isArray(value)
+            && Object.keys(value).length === 0;
+        return empty ? [] : [[field, value]];
+    });
+}
+/**
+ * The protocols offering one compat field, in {@link COMPAT_GATES} order.
+ * @param field - configured compat field name.
+ * @returns the protocols whose compat takes it; empty when none does, which
+ *   is either a withheld field or a name no upstream compat type declares.
+ */
+function compatProtocols(field) {
+    return Object.entries(COMPAT_GATES).flatMap(([api, gate]) => gate[field] === 'offer' ? [api] : []);
+}
+/**
+ * The compat fields one protocol offers, for a diagnostic that has to show
+ * what was available instead of the name that missed.
+ * @param api - wire protocol.
+ * @returns the offered field names, or an empty list for a protocol taking no compat.
+ */
+function offeredCompatFields(api) {
+    return Object.entries(compatGate(api) ?? {}).flatMap(([field, disposition]) => disposition === 'offer' ? [field] : []);
+}
+/**
+ * Every offered field name, deduplicated, for the one diagnostic that cannot
+ * narrow by protocol: the vocabulary check runs before any protocol resolves,
+ * which is what lets it refuse a misspelling on a route whose models would
+ * never have reached the protocol that declares the intended field.
+ * @returns the offered field names across every protocol, in gate order.
+ */
+function allOfferedCompatFields() {
+    const fields = new Set();
+    for (const api of Object.keys(COMPAT_GATES)) {
+        for (const field of offeredCompatFields(api))
+            fields.add(field);
+    }
+    return [...fields];
+}
+/**
+ * Reject a compat key no protocol offers. Runs before any protocol is
+ * resolved, so a withheld field or a misspelling fails even on a route whose
+ * models never reach the protocol that would have taken it — the alternative
+ * being the silent drop that let an unreadable switch look applied.
+ * @param provider - provider route key, for diagnostics.
+ * @param site - the configuration site, for diagnostics.
+ * @param compat - the configured switches, when any.
+ * @throws Error naming the offending key.
+ */
+function assertOfferedCompatFields(provider, site, compat) {
+    // Every key, not only the ones carrying a value: a withheld or undeclared
+    // name is never in the schema, so schemastery cannot have materialized it —
+    // whatever its value, a person wrote it and expects it to do something.
+    for (const [field, value] of Object.entries(compat ?? {})) {
+        // The name is judged before the value, so a withheld or misspelled key
+        // written bare is refused for being that name rather than for being empty:
+        // the other order sends someone to supply a value the key would be refused
+        // with anyway.
+        if (compatProtocols(field).length === 0) {
+            const declared = Object.values(COMPAT_GATES).some(gate => gate[field] !== undefined);
+            if (declared) {
+                invalid(provider, `${site} sets compat "${field}", which is not configurable here: pi-ai's installed`
+                    + ' catalog sets it for the vendors that need it, so name that provider as the route instead');
+            }
+            invalid(provider, `${site} sets compat "${field}", which no wire protocol declares; the configurable`
+                + ` switches are ${allOfferedCompatFields().join(', ')}`);
+        }
+        // A valueless key (`supportsDeveloperRole:`) survives schemastery, which
+        // passes nullable data through before any member schema runs — the same
+        // behavior `reasoningEfforts` documents — and a `cordis.yml` entry may
+        // reach the same state through `!!js undefined`. Either way the key is
+        // kept, so carrying it forward writes nothing over whatever the next layer
+        // resolved, leaving pi-ai's `??` at its baseURL detection: the "written but
+        // not applied" outcome this surface exists to refuse.
+        if (value == null) {
+            invalid(provider, `${site} sets compat "${field}" with no value; give it one, or remove the key to`
+                + ' leave the field to the next layer — the installed catalog entry, then pi-ai\'s own detection');
+        }
+    }
 }
 /** Report a route the deployment cannot serve, naming the settings key at fault. */
 function invalid(provider, detail) {
@@ -222,15 +422,16 @@ function resolveModelReasoning(provider, entry, base) {
     return { reasoning: true, thinkingLevelMap: map };
 }
 /**
- * Resolve one model's compat block from the profile's reasoning switches.
+ * Resolve one model's compat block from the profile's switches.
  *
- * A model switch wins over the route switch; whatever neither sets keeps the
- * installed entry's value, and a field no layer decides falls through to
- * pi-ai's baseURL-derived detection. Only an `openai-completions` model takes
- * the switches at all: a model-level switch on any other protocol fails
- * resolution, while a route-level default skips past such models — the same
- * posture as the route-level `reasoning` default, which also must not fail
- * models it does not fit.
+ * A model switch wins over the route switch field by field; whatever neither
+ * sets keeps the installed entry's value, and a field no layer decides falls
+ * through to pi-ai's own detection. A model-level switch its protocol does not
+ * take fails resolution — about one named model it can only be a mistake —
+ * while a route-level one skips past such models, since a route default must
+ * stay settable on a route whose models do not all speak one protocol. Every
+ * field reaching here is offered by some protocol; {@link
+ * assertOfferedCompatFields} has already refused the rest.
  * @param provider - provider route key, for diagnostics.
  * @param entry - the configured model entry.
  * @param route - the route-level switches, when any.
@@ -239,17 +440,24 @@ function resolveModelReasoning(provider, entry, base) {
  * @returns a `compat` field to spread into the model, or nothing.
  */
 function resolveModelCompat(provider, entry, route, base, api) {
-    const thinkingFormat = entry.compat?.thinkingFormat ?? route?.thinkingFormat;
-    const supportsReasoningEffort = entry.compat?.supportsReasoningEffort ?? route?.supportsReasoningEffort;
-    if (thinkingFormat === undefined && supportsReasoningEffort === undefined)
-        return {};
-    if (api !== 'openai-completions') {
-        if (entry.compat?.thinkingFormat !== undefined || entry.compat?.supportsReasoningEffort !== undefined) {
-            invalid(provider, `model "${entry.id}" sets compat reasoning switches, but its api is "${api}";`
-                + ' thinkingFormat and supportsReasoningEffort exist only on openai-completions');
-        }
-        return {};
+    const gate = compatGate(api);
+    const configured = {};
+    for (const [field, value] of configuredCompatEntries(route)) {
+        if (gate?.[field] !== 'offer')
+            continue;
+        configured[field] = value;
     }
+    for (const [field, value] of configuredCompatEntries(entry.compat)) {
+        if (gate?.[field] !== 'offer') {
+            const offered = offeredCompatFields(api);
+            invalid(provider, `model "${entry.id}" sets compat "${field}", but its api is "${api}", which does not`
+                + ` take it; that switch exists on ${compatProtocols(field).join(', ')}, and "${api}" offers`
+                + ` ${offered.length === 0 ? 'no configurable compat' : offered.join(', ')}`);
+        }
+        configured[field] = value;
+    }
+    if (Object.keys(configured).length === 0)
+        return {};
     // The installed entry's compat matches the entry's OWN api — a route-level
     // `api` repoint (an anthropic catalog served through an OpenAI-compatible
     // gateway) leaves `base.compat` in the other protocol's shape, so it is
@@ -257,13 +465,7 @@ function resolveModelCompat(provider, entry, route, base, api) {
     // model starts from pi-ai's baseURL-derived detection instead, which is
     // what a protocol change means for every other compat field too.
     const inherited = base?.api === api ? base.compat : undefined;
-    return {
-        compat: {
-            ...inherited,
-            ...thinkingFormat === undefined ? {} : { thinkingFormat },
-            ...supportsReasoningEffort === undefined ? {} : { supportsReasoningEffort },
-        },
-    };
+    return { compat: { ...inherited, ...configured } };
 }
 /**
  * Materialize one route's catalog by merging the installed catalog defaults
@@ -316,8 +518,13 @@ export function resolveRouteModels(request) {
             + ' must be listed in configuration');
     }
     const routeApi = sharedCatalogApi(defaults);
-    const routeCompatDefined = request.compat?.thinkingFormat !== undefined
-        || request.compat?.supportsReasoningEffort !== undefined;
+    // Vocabulary before protocols: a withheld or undeclared switch is refused
+    // wherever it is written, so it cannot look applied on a route whose models
+    // never reach the protocol that would have taken it.
+    assertOfferedCompatFields(provider, 'route', request.compat);
+    for (const entry of entries) {
+        assertOfferedCompatFields(provider, `model "${entry.id}"`, entry.compat);
+    }
     const seen = new Set();
     const configuredMaxTokens = new Map();
     const models = entries.map((entry) => {
@@ -372,9 +579,16 @@ export function resolveRouteModels(request) {
             ...resolveModelCompat(provider, entry, request.compat, base, api),
         };
     });
-    if (routeCompatDefined && !models.some(model => model.api === 'openai-completions')) {
-        invalid(provider, 'sets compat reasoning switches, but no model on the route speaks openai-completions;'
-            + ' thinkingFormat and supportsReasoningEffort exist only on that protocol');
+    // Per field, not per block: a route may default a switch its completions
+    // models take beside one only its anthropic models do, and neither should
+    // fail for the other's sake. What is refused is a route default no model on
+    // the route could ever read, which is a route that will not behave as written.
+    for (const [field] of configuredCompatEntries(request.compat)) {
+        const takers = compatProtocols(field);
+        if (models.some(model => takers.includes(model.api)))
+            continue;
+        invalid(provider, `sets compat "${field}", but no model on the route speaks a protocol that takes it;`
+            + ` it exists on ${takers.join(', ')}`);
     }
     return { models, configuredMaxTokens };
 }

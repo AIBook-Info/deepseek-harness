@@ -81,7 +81,10 @@ function validateEvent(trace, event, fail) {
 		case "session/end-seed": break;
 		case "todo/write":
 		case "request/header":
-		case "request/context": if (trace.openTurn === null) fail(`${event.type} appended outside any open turn (core execution events must be turn-enclosed)`);
+		case "request/context":
+			if (trace.openTurn === null) fail(`${event.type} appended outside any open turn (core execution events must be turn-enclosed)`);
+			break;
+		default: break;
 	}
 	return {
 		scalars: {

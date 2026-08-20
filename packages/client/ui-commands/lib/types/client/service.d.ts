@@ -33,6 +33,8 @@ export declare class CommandUiRuntime extends Service implements CommandUiContra
     static inject: string[];
     private readonly directory;
     private readonly live;
+    /** `command`-namespace translator (composer refusal notices). */
+    private readonly t;
     /**
      * @param ctx - owning root context (plugin fiber; the service registers
      * itself as `command` and follows that fiber's lifetime).
@@ -81,6 +83,12 @@ export declare class CommandUiRuntime extends Service implements CommandUiContra
      * warmup failure rejects — never a silent downgrade). Contributions and
      * bare host commands act on the bare token only; leadingInput claims
      * args-tolerant.
+     *
+     * Envelope policy: an enter submission carrying images resolves only
+     * through a command declaring image acceptance. Every other command route —
+     * popup, non-accepting claim, bare detached execute — throws the refusal
+     * so the machine surfaces one composer notice and the draft and images
+     * stay in place; nothing executes and nothing is dropped.
      */
     private matchEnter;
     /** Open the session's popup for one contribution or decoration (menu pick / bare enter). */
@@ -94,7 +102,9 @@ export declare class CommandUiRuntime extends Service implements CommandUiContra
      * plain success regardless of its handler outcome, because the host
      * executor durably logged the lifecycle (`command/run`/`command/done`) and
      * the outcome renders as a persistent flow node — the composer never
-     * echoes it. Transport failures throw.
+     * echoes it. A handler error result reports an error outcome so the
+     * composer keeps the submission (draft and images) for correction.
+     * Transport failures throw.
      */
     private execute;
     /** Publish the local acknowledgment without letting an observer change command admission. */

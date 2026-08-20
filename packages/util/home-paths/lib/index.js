@@ -72,8 +72,7 @@ function expandHomePath(path) {
 */
 function resolveDshHome(configured, env = process.env) {
 	const fromEnv = env[DSH_HOME_ENV];
-	const selected = configured ?? (fromEnv !== void 0 && fromEnv.trim().length > 0 ? fromEnv : defaultDshHome());
-	return resolve(expandHomePath(selected));
+	return resolve(expandHomePath(configured ?? (fromEnv !== void 0 && fromEnv.trim().length > 0 ? fromEnv : defaultDshHome())));
 }
 /**
 * Join path segments onto the resolved DeepSeek Harness home.

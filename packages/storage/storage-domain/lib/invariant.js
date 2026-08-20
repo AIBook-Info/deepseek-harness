@@ -31,6 +31,7 @@ const install = Object.assign((ctx, fail) => {
 			case "put":
 				if (current !== change.value) return fail(`domain/changed value for '${change.domain}'.'${change.table}'['${change.key}'] differs from the in-memory record`);
 				return;
+			default:
 		}
 	}, { global: true });
 }, { inject: ["storage"] });

@@ -12,20 +12,29 @@ import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-sub
 import { CodexAppServerWire } from './wire.ts';
 /** Default POSIX grace between subprocess termination tiers. */
 export declare const DEFAULT_DISPOSE_GRACE_MS = 3000;
+/** Profile-selectable non-interactive Codex permission mode. */
+export type CodexPermissionMode = 'never' | 'approve-for-me' | 'dangerously-bypass-approvals-and-sandbox';
+/** Native non-interactive Codex modes mapped to official `thread/start` fields. */
+export declare const CODEX_PERMISSION_MODES: readonly ["never", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"];
+/** Safe default for unattended Codex runs. */
+export declare const DEFAULT_CODEX_PERMISSION_MODE: CodexPermissionMode;
 /**
- * Resolve the fixed app-server command for a platform.
- *
- * Windows npm and pnpm installs expose `codex.cmd`, which requires `cmd.exe`;
- * the argv is constant so no task or configuration text enters the
- * shell boundary.
- * @param platform - host platform used to select the executable boundary.
- * @returns argv for the fixed Codex app-server command.
+ * Hide an unpublished Host failure behind fixed safe startup facts.
+ * @param cause Original Host failure retained for internal diagnostics.
+ * @returns A startup failure whose message contains only fixed safe facts.
  */
-export declare function codexAppServerArgv(platform?: NodeJS.Platform): string[];
+export declare function codexStartupFailure(cause: unknown): Error;
+/**
+ * Fixed package-local app-server command, independent of the host `PATH`.
+ * @returns Node, the official wrapper, and the fixed app-server arguments.
+ */
+export declare function codexAppServerArgv(): string[];
 /** Fully resolved inputs for one Codex app-server run. */
 export interface CodexRunSpec {
     /** Parent Session workspace, also supplied to `thread/start`. */
     readonly cwd: string;
+    /** Profile-selected native non-interactive permission mode. */
+    readonly permissionMode: CodexPermissionMode;
     /** Explicit deployment/test environment layered after the shared scrub. */
     readonly env: Record<string, string>;
     /** Subprocess termination grace passed to the shared process-tree owner. */

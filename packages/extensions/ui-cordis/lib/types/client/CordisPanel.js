@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 /** Frame-wide dynamic Plugin inventory, approvals, versions, and lifecycle actions. */
-import { useEffect, useRef, useState } from 'react';
-import { IconCheckOutline16, IconCloseOutline16, IconCordisPluginOutline14, IconPlayOutline16, IconStopFill16, IconTrashOutline16, Tooltip, } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { IconCheckOutline16, IconCloseOutline16, IconCordisPluginOutline14, IconPlayOutline16, IconStopFill16, IconTrashOutline16, Tooltip, useDismissOnOutsidePointer, } from '@deepseek-ai/dsh-client-ui-primitives';
 import { cordisVisibleStatus, packageOf } from "./status.js";
 import css from './CordisPanel.module.css';
 const STATUS_LABELS = {
@@ -62,6 +62,24 @@ export function CordisPanel({ wide, useSessions, useInventory, useActiveRuns, us
     const [pending, setPending] = useState(new Set());
     const [actionErrors, setActionErrors] = useState(new Map());
     const visibleRequests = useRef(new Set());
+    const rootRef = useRef(null);
+    const [anchor, setAnchor] = useState();
+    // The panel is position: fixed (the sidebar clips overflow), so it hugs the
+    // trigger through a measured offset instead of document flow.
+    useLayoutEffect(() => {
+        if (!open)
+            return;
+        const place = () => {
+            const rect = rootRef.current?.getBoundingClientRect();
+            if (rect !== undefined) {
+                setAnchor({ left: rect.left, bottom: window.innerHeight - rect.top + 8 });
+            }
+        };
+        place();
+        window.addEventListener('resize', place);
+        return () => { window.removeEventListener('resize', place); };
+    }, [open]);
+    useDismissOnOutsidePointer(rootRef, open, setOpen);
     useEffect(() => {
         const now = new Set();
         for (const activity of activeRuns.values()) {
@@ -220,6 +238,6 @@ export function CordisPanel({ wide, useSessions, useInventory, useActiveRuns, us
                         slot: renderFailure.slot,
                     })} ${renderFailure.message}` })), activePackage !== undefined && activePackage.packageId !== selectedPackageId && (_jsx("span", { className: css.activeVersion, children: `${t('status.running')}: ${activePackage.name} · ${activePackage.packageId}` }))] }, pluginId));
     };
-    return (_jsxs("div", { className: wide ? css.layer : `${css.layer} ${css.rail}`, children: [open && (_jsxs("section", { className: css.panel, "data-cordis-panel": true, "aria-label": t('panel.title'), children: [_jsx("header", { className: css.header, children: _jsx("span", { className: css.title, children: t('panel.title') }) }), _jsxs("div", { className: css.body, children: [inventory.error !== undefined && (_jsx("p", { className: css.readError, role: "alert", children: t('panel.readFailed', { message: inventory.error }) })), !inventory.read && inventory.error === undefined && _jsx("p", { className: css.note, children: t('panel.loading') }), inventory.read && all.length === 0 && _jsx("p", { className: css.note, children: t('panel.empty') }), mine.length > 0 && (_jsxs("section", { children: [_jsx("h3", { className: css.group, children: t('panel.group.current') }), _jsx("ul", { className: css.rows, children: mine.map(renderRow) })] })), theirs.length > 0 && (_jsxs("section", { children: [_jsx("h3", { className: css.group, children: t('panel.group.others') }), _jsx("ul", { className: css.rows, children: theirs.map(renderRow) })] }))] })] })), _jsx("div", { className: css.footerButtons, children: _jsxs("button", { type: "button", className: css.badge, "data-cordis-badge": all.length, "data-cordis-approval-badge": approvals, "data-active": approvals > 0 || undefined, "aria-label": t('panel.plugins.aria'), "aria-expanded": open, onClick: () => { setOpen(value => !value); }, children: [_jsx(IconCordisPluginOutline14, {}), wide && (_jsxs(_Fragment, { children: [_jsx("span", { className: css.badgeLabel, children: t('panel.trigger') }), _jsx("span", { className: css.badgeCount, children: t('panel.runningCount', { count: running }) })] }))] }) })] }));
+    return (_jsxs("div", { ref: rootRef, className: wide ? css.layer : `${css.layer} ${css.rail}`, children: [open && anchor !== undefined && (_jsxs("section", { className: css.panel, style: anchor, "data-cordis-panel": true, "aria-label": t('panel.title'), children: [_jsx("header", { className: css.header, children: _jsx("span", { className: css.title, children: t('panel.title') }) }), _jsxs("div", { className: css.body, children: [inventory.error !== undefined && (_jsx("p", { className: css.readError, role: "alert", children: t('panel.readFailed', { message: inventory.error }) })), !inventory.read && inventory.error === undefined && _jsx("p", { className: css.note, children: t('panel.loading') }), inventory.read && all.length === 0 && _jsx("p", { className: css.note, children: t('panel.empty') }), mine.length > 0 && (_jsxs("section", { children: [_jsx("h3", { className: css.group, children: t('panel.group.current') }), _jsx("ul", { className: css.rows, children: mine.map(renderRow) })] })), theirs.length > 0 && (_jsxs("section", { children: [_jsx("h3", { className: css.group, children: t('panel.group.others') }), _jsx("ul", { className: css.rows, children: theirs.map(renderRow) })] }))] })] })), _jsx("div", { className: css.footerButtons, children: _jsxs("button", { type: "button", className: css.badge, "data-cordis-badge": all.length, "data-cordis-approval-badge": approvals, "data-active": approvals > 0 || undefined, "aria-label": t('panel.plugins.aria'), "aria-expanded": open, onClick: () => { setOpen(value => !value); }, children: [_jsx(IconCordisPluginOutline14, { size: wide ? 16 : 18 }), wide && (_jsxs(_Fragment, { children: [_jsx("span", { className: css.badgeLabel, children: t('panel.trigger') }), _jsx("span", { className: css.badgeCount, children: t('panel.runningCount', { count: running }) })] }))] }) })] }));
 }
 //# sourceMappingURL=CordisPanel.js.map

@@ -8,7 +8,8 @@
  * @module dsh-llm-deepseek/adapter
  */
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import type { GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
+import type { GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, ModelModality, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
+import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials';
 import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id';
 import type { RequestDefaults } from './serialize.ts';
@@ -25,6 +26,8 @@ export interface DeepSeekCatalogModel {
     contextWindow?: number;
     /** Per-request output cap for this model; omission falls back to the profile's {@link DeepSeekConnectionOptions.maxTokens}. */
     maxTokens?: number;
+    /** Accepted request modalities; omission is text-only. */
+    inputModalities?: ModelModality[];
 }
 /**
  * Validated connection facts for one operation. The plugin's
@@ -52,6 +55,8 @@ export interface DeepSeekConnectionOptions {
     models: readonly DeepSeekCatalogModel[];
     /** Maximum provider idle time while one stream read is outstanding. */
     streamIdleTimeoutMs: number;
+    /** Maximum accumulated base64 image payload in one request. */
+    maxRequestImageBytes: number;
     /** Provider-owned model-request retry policy, already resolved. */
     retryPolicy: ResolvedRetryPolicy;
 }
@@ -68,6 +73,8 @@ export interface DeepSeekAdapterOptions {
     resolveApiKey: (connection: DeepSeekConnectionOptions) => Promise<string>;
     /** Resolve the harness-home anonymous id shared with telemetry and feedback. */
     resolveUserId: () => AnonymousUserId;
+    /** Resolve the current durable attachment service; absence rejects image input. */
+    resolveAttachments?: () => AttachmentStore | undefined;
 }
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
@@ -75,6 +82,8 @@ export declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
 export declare const DEFAULT_CONTEXT_WINDOW = 1000000;
 /** Default per-request output-token cap. */
 export declare const DEFAULT_MAX_TOKENS = 256000;
+/** Default bound on accumulated base64 image payload per request. */
+export declare const DEFAULT_MAX_REQUEST_IMAGE_BYTES: number;
 /**
  * Map an HTTP status to a stable LlmError code.
  * @param status - status of a non-2xx provider response.

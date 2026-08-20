@@ -387,7 +387,7 @@ var LocalCredentialProvider = class extends CredentialProvider {
 	/** Entries whose stored value changed; the parser has already proven every key addressable. */
 	changedRefs(prev, next) {
 		const changed = [];
-		for (const key of /* @__PURE__ */ new Set([...prev.keys(), ...next.keys()])) {
+		for (const key of new Set([...prev.keys(), ...next.keys()])) {
 			if (prev.get(key) === next.get(key)) continue;
 			changed.push(credentialRef(key));
 		}

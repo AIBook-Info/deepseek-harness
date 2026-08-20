@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 /** The default composer body: the 'conversation.composer.bar' slot entry.
  * Machine state arrives through the standard provide channel
  * (useInput + inputActions); the keyboard/DOM command face and stop arrive
@@ -6,14 +6,15 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
  * useNotices/useLexicon; layout-phase inputs (variant, placeholder,
  * region-slot content) ride the owner props. Session facts
  * (running/removed/promptError) are self-selected via useSession. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { IconPlusOutline16, IconWarningOutline16, Toast, Tooltip, } from '@deepseek-ai/dsh-client-ui-primitives';
-import { AttachmentRail, DropOverlay, ImageLightbox } from '@deepseek-ai/dsh-client-ui-attachment';
 import { deriveDecorations } from "../input/decorations.js";
-import { attachmentErrorText, attachmentRailLabels, dropOverlayLabels, imageSizeText, lightboxLabels, } from "../image-labels.js";
+import { attachmentErrorText, imageSizeText } from "../image-labels.js";
+import { ReferenceIcon } from "../reference/ReferenceIcon.js";
 import { ContextMeter } from "./ContextMeter.js";
 import { PermissionSelect } from "./PermissionSelect.js";
+import { isSafariBrowser, repairSafariTextareaLayout } from "./safari.js";
 import css from './InputBar.module.css';
 /** Decoration product of the no-session state (no machine, empty draft). */
 const INERT_DECORATIONS = { token: null, chips: [], textRefs: [], hint: null };
@@ -37,11 +38,9 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
     const draft = input?.draft ?? '';
     const attachments = useMemo(() => input === undefined || draftImages === undefined ? [] : draftImages(input.imageIds), [draftImages, input?.imageIds]);
     const empty = draft.trim() === '' && attachments.length === 0;
-    const [preview, setPreview] = useState(null);
-    const [dragActive, setDragActive] = useState(false);
-    // Transient error banner (image-intake rejections and prompt failures): the
-    // seq keys the Toast so an identical repeated message restarts the
-    // hold-then-fade cycle instead of silently reusing the faded one.
+    // Transient error banner (machine notices, image-intake rejections, and
+    // prompt failures): the seq keys the Toast so an identical repeated message
+    // restarts the hold-then-fade cycle instead of reusing the faded one.
     const [toast, setToast] = useState(null);
     const toastSeq = useRef(0);
     const showToast = useCallback((text) => {
@@ -66,11 +65,16 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
             ? attachmentErrorText(t, promptError.error.details.reason, imageLimits)
             : `${promptError.error.message} (${promptError.error.code})`);
     }, [promptError, showToast, t, imageLimits]);
+    useEffect(() => {
+        if (notice?.level === 'error')
+            showToast(notice.text);
+    }, [notice, showToast]);
     const inputRef = useRef(null);
     const cardRef = useRef(null);
-    const dragDepthRef = useRef(0);
     const scrollRef = useRef(null);
     const mirrorRef = useRef(null);
+    const safari = useMemo(() => isSafariBrowser(navigator), []);
+    const safariNativeShrinkRef = useRef(false);
     // IME guard: composition Enter picks a candidate, it must not send. The ref outlives renders;
     // clearing is deferred one tick because Safari delivers the closing keydown AFTER compositionend.
     const composingRef = useRef(false);
@@ -116,10 +120,18 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
             inputActions.pruneImages(attachments.map(attachment => attachment.id));
         }
     }, [attachments, input?.imageIds, inputActions]);
-    useEffect(() => {
-        if (preview !== null && !attachments.some(attachment => attachment.id === preview.id))
-            setPreview(null);
-    }, [attachments, preview]);
+    // A native Safari edit that shortens the draft may leave the previous
+    // soft-wrap layout behind after the mirror shrinks. The native-change signal
+    // keeps ordinary typing and programmatic draft updates from reading layout;
+    // the helper then repairs only measured overflow before paint while
+    // preserving native editing state. See
+    // .agents/notes/implemented/bug-fix/2026-08-13-safari-textarea-soft-wrap-reflow.md.
+    useLayoutEffect(() => {
+        const nativeShrink = safariNativeShrinkRef.current;
+        safariNativeShrinkRef.current = false;
+        if (safari && nativeShrink)
+            repairSafariTextareaLayout(inputRef.current);
+    }, [draft, safari]);
     // Scroll the draft scrollport the minimum that brings `caret` into view — the
     // browser's own behavior for typing, performed for the paths where it does
     // not act.
@@ -234,6 +246,13 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => { el.removeEventListener('wheel', onWheel); };
     }, []);
+    // selectionStart/End are number|null in lib.dom; the type-aware lint program narrows them.
+    /* oxlint-disable typescript/no-unnecessary-condition */
+    const selectionOf = (el) => ({
+        start: el.selectionStart ?? 0,
+        end: el.selectionEnd ?? el.selectionStart ?? 0,
+    });
+    /* oxlint-enable typescript/no-unnecessary-condition */
     const onKeyDown = (e) => {
         if (workspaceTrigger) {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -244,7 +263,7 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         }
         // Absent machine without a Workspace recovery action stays disabled; the
         // guard narrows the faces for the paths below.
-        if (keyboard === undefined || inputActions === undefined)
+        if (input === undefined || keyboard === undefined || inputActions === undefined)
             return;
         // Shift+Enter is the native newline UNCONDITIONALLY — decided before the
         // IME guard so a composition-closing Shift+Enter still breaks the line.
@@ -253,6 +272,24 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         // keyCode 229 is the legacy IME-composition signal engines emit without isComposing.
         // oxlint-disable-next-line typescript/no-deprecated
         const composing = composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+        if (!composing && !machineBusy && !locked
+            && (e.key === 'Backspace' || e.key === 'Delete')) {
+            const selection = selectionOf(e.currentTarget);
+            if (selection.start === selection.end) {
+                const occurrence = input.occurrences.find(o => e.key === 'Backspace'
+                    ? o.offset + o.length === selection.start
+                    : o.offset === selection.start);
+                if (occurrence !== undefined) {
+                    e.preventDefault();
+                    const start = occurrence.offset;
+                    const end = occurrence.offset + occurrence.length;
+                    keyboard.setDraft(draft.slice(0, start) + draft.slice(end), { start, end, insertedLength: 0 });
+                    restoreCaret(e.currentTarget, start);
+                    keyboard.track(keyboard.snapshot.draft, start);
+                    return;
+                }
+            }
+        }
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             if (keyboard.arbitrate(e.key === 'ArrowUp' ? 'up' : 'down', composing) === 'consumed')
                 e.preventDefault();
@@ -320,26 +357,12 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         if (machineBusy)
             return; // submitting is the read-only span; adjudicating holds the pending lock
         const next = e.target.value;
+        safariNativeShrinkRef.current = safari && next.length < draft.length;
         keyboard.setDraft(next);
         // selectionStart is number|null in lib.dom; the type-aware lint program narrows it.
         // oxlint-disable-next-line typescript/no-unnecessary-condition
         keyboard.track(next, e.target.selectionStart ?? next.length);
     };
-    // ---- chip atomicity (DOM layer; the machine sees only transactions) ----
-    // Placeholders occupy exactly one char, so caret positions are always
-    // BETWEEN them — what needs normalizing is deletion (whole chip per
-    // Backspace/Delete via native single-char semantics, which U+FFFC already
-    // gives us) and selection endpoints: Shift-extension snapping is native
-    // too (one char = one step). Mouse selection of a chip is handled in the
-    // backdrop click handler below. Undo/redo must NOT reach the browser: the
-    // machine owns the transaction log.
-    // selectionStart/End are number|null in lib.dom; the type-aware lint program narrows them.
-    /* oxlint-disable typescript/no-unnecessary-condition */
-    const selectionOf = (el) => ({
-        start: el.selectionStart ?? 0,
-        end: el.selectionEnd ?? el.selectionStart ?? 0,
-    });
-    /* oxlint-enable typescript/no-unnecessary-condition */
     const onCopyOrCut = (e, cut) => {
         if (input === undefined || keyboard === undefined)
             return; // absent machine: no draft can be copied or cut
@@ -347,25 +370,25 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         const { start, end } = selectionOf(el);
         if (start === end)
             return;
-        const slice = draft.slice(start, end);
-        const touched = input.occurrences.filter(o => o.offset >= start && o.offset < end);
+        const touched = input.occurrences.filter(o => o.offset < end && o.offset + o.length > start);
         if (touched.length === 0 && !cut)
             return; // plain copy of plain text: native path is fine
         e.preventDefault();
-        // Expand placeholders to their owner clipboard projections.
+        const copyStart = touched.reduce((value, o) => Math.min(value, o.offset), start);
+        const copyEnd = touched.reduce((value, o) => Math.max(value, o.offset + o.length), end);
+        // Expand structured ranges to their owner clipboard projections.
         let text = '';
-        let cursor = start;
+        let cursor = copyStart;
         for (const o of touched) {
             text += draft.slice(cursor, o.offset) + o.clipboardText;
-            cursor = o.offset + 1;
+            cursor = o.offset + o.length;
         }
-        text += draft.slice(cursor, end);
+        text += draft.slice(cursor, copyEnd);
         e.clipboardData.setData('text/plain', text);
         if (cut && !machineBusy && !locked) {
-            keyboard.setDraft(draft.slice(0, start) + draft.slice(end), { start, end, insertedLength: 0 });
-            restoreCaret(el, start);
+            keyboard.setDraft(draft.slice(0, copyStart) + draft.slice(copyEnd), { start: copyStart, end: copyEnd, insertedLength: 0 });
+            restoreCaret(el, copyStart);
         }
-        void slice;
     };
     const onPaste = (e) => {
         if (keyboard === undefined)
@@ -429,78 +452,7 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
         if (rejected !== null)
             showToast(rejected);
     }, [addImages, attachments, imageLimits, showToast, t]);
-    // Whole-page file-drop intake (DeepSeek Chat behavior): the listeners live
-    // on the document so a drop anywhere over the window adds images, not only
-    // over the composer card. Safe as document-level state: the composer-bar
-    // slot is `kind: 'single'`, so at most one bar is mounted to bind these.
-    // Text drags carry no 'Files' type and pass through untouched, keeping the
-    // native drop-text-into-textarea path. The overlay layer itself is
-    // pointer-inert, so it never disturbs the enter/leave count.
     const canAcceptDrop = !locked && !machineBusy && addImages !== undefined;
-    useEffect(() => {
-        const hasFiles = (event) => event.dataTransfer?.types.includes('Files') ?? false;
-        const reset = () => {
-            dragDepthRef.current = 0;
-            setDragActive(false);
-        };
-        const onDragEnter = (event) => {
-            if (!hasFiles(event))
-                return;
-            event.preventDefault();
-            dragDepthRef.current += 1;
-            setDragActive(true);
-        };
-        const onDragOver = (event) => {
-            if (!hasFiles(event) || event.dataTransfer === null)
-                return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = canAcceptDrop ? 'copy' : 'none';
-        };
-        const onDragLeave = (event) => {
-            if (!hasFiles(event))
-                return;
-            dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-            if (dragDepthRef.current === 0)
-                setDragActive(false);
-            // Leaving through the viewport edge does not balance the count on every
-            // engine; a page-root leave at the border means the drag left the window.
-            const leavingViewport = event.clientX <= 0 || event.clientY <= 0
-                || event.clientX >= window.innerWidth || event.clientY >= window.innerHeight;
-            if ((event.target === document.documentElement || event.target === document.body) && leavingViewport)
-                reset();
-        };
-        const onDrop = (event) => {
-            if (!hasFiles(event))
-                return;
-            event.preventDefault();
-            reset();
-            if (!canAcceptDrop)
-                return;
-            intakeImages([...(event.dataTransfer?.files ?? [])]);
-        };
-        document.addEventListener('dragenter', onDragEnter);
-        document.addEventListener('dragover', onDragOver);
-        document.addEventListener('dragleave', onDragLeave);
-        document.addEventListener('drop', onDrop);
-        window.addEventListener('dragend', reset);
-        return () => {
-            document.removeEventListener('dragenter', onDragEnter);
-            document.removeEventListener('dragover', onDragOver);
-            document.removeEventListener('dragleave', onDragLeave);
-            document.removeEventListener('drop', onDrop);
-            window.removeEventListener('dragend', reset);
-        };
-    }, [canAcceptDrop, intakeImages]);
-    const closePreview = useCallback(() => { setPreview(null); }, []);
-    // Rail thumbnails with their strings resolved here: the attachment atoms are
-    // zero-cordis and read no locale.
-    const railItems = useMemo(() => attachments.map(attachment => ({
-        id: attachment.id,
-        previewUrl: attachment.previewUrl,
-        alt: attachment.file.name || t('image.pending'),
-        removeLabel: t('image.remove', { name: attachment.file.name }),
-        attachment,
-    })), [attachments, t]);
     const onSelect = (e) => {
         // Any caret/selection gesture ends a live paste attempt (the machine
         // cannot observe DOM selection). Cheap no-op when none is live.
@@ -544,16 +496,15 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
     const accessSelect = command === undefined
         ? null
         : _jsx(PermissionSelect, { value: permissions, locked: locked, command: command, t: t }, sessionId);
-    // Mirror-layer decorations: a visible backdrop with transparent text. The
-    // claim token highlights through behind the textarea glyphs; each U+FFFC
-    // placeholder renders as a chip (the textarea's own glyph is invisible, the
-    // backdrop chip supplies the visual); the claim hint is ghost text.
+    // Mirror-layer decorations: a visible backdrop with transparent textarea
+    // text. Claim tokens and references retain the draft's own glyph metrics,
+    // so their decoration cannot drift from wrapping, selection, or the caret.
     const deco = input === undefined ? INERT_DECORATIONS : deriveDecorations(input, lexicon);
     const backdrop = [];
     {
-        // Segment boundaries: the token range end, every chip offset, and every
-        // text-ref range — merged in draft order (the sources never
-        // overlap: chips sit on placeholders, text-refs on plain tokens, the
+        // Segment boundaries: the token range end, every structured-reference
+        // offset, and every text-ref range — merged in draft order (the sources never
+        // overlap: structured references own their ranges, text-refs own plain tokens, the
         // claim token only leads).
         let cursor = 0;
         const pushPlain = (upTo) => {
@@ -575,13 +526,18 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
             pushPlain(b.at);
             if (b.kind === 'chip') {
                 const chip = b.chip;
-                backdrop.push(_jsx("span", { className: clsx(css.chip, chip.invalid && css.chipInvalid), "data-decoration": "chip", "data-occurrence": chip.occurrenceId, "data-invalid": chip.invalid || undefined, title: chip.label, children: _jsx("span", { className: css.chipLabel, children: chip.label }) }, `chip-${chip.occurrenceId}`));
-                cursor = chip.offset + 1; // the placeholder char the chip stands for
+                backdrop.push(_jsxs("span", { className: clsx(css.chip, chip.invalid && css.chipInvalid), "data-decoration": "chip", "data-reference-appearance": chip.appearance, "data-occurrence": chip.occurrenceId, "data-invalid": chip.invalid || undefined, title: chip.label, children: [chip.appearance === undefined
+                            ? chip.text[0]
+                            : (_jsxs("span", { className: css.chipTrigger, children: [_jsx("span", { className: css.chipTriggerGlyph, children: chip.text[0] }), _jsx(ReferenceIcon, { kind: chip.appearance, size: 16, className: css.chipIcon })] })), _jsx("span", { children: chip.text.slice(1) })] }, `chip-${chip.occurrenceId}`));
+                cursor = chip.offset + chip.length;
             }
             else {
                 // Plain-range highlight: the glyphs stay the
                 // textarea's (advance untouched); the mark paints the chip look.
-                backdrop.push(_jsx("mark", { className: css.textRef, "data-decoration": "text-ref", children: draft.slice(b.ref.start, b.ref.end) }, `ref-${b.ref.start}`));
+                const text = draft.slice(b.ref.start, b.ref.end);
+                backdrop.push(_jsx("mark", { className: css.textRef, "data-decoration": "text-ref", children: b.ref.appearance === 'folder'
+                        ? (_jsxs(_Fragment, { children: [_jsxs("span", { className: css.textRefTrigger, children: [_jsx("span", { className: css.textRefTriggerGlyph, children: text[0] }), _jsx(ReferenceIcon, { kind: "folder", size: 16, className: css.textRefIcon })] }), text.slice(1)] }))
+                        : text }, `ref-${b.ref.start}`));
                 cursor = b.ref.end;
             }
         }
@@ -597,10 +553,16 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
             backdrop.push(_jsx("span", { className: css.hint, "data-decoration": "hint", children: displayHint }, "hint"));
         }
     }
-    return (_jsxs("div", { className: clsx(css.root, variant === 'hero' && css.hero), children: [dragActive && (_jsx(DropOverlay, { disabled: !canAcceptDrop, labels: dropOverlayLabels(t, canAcceptDrop, imageLimits === undefined ? undefined : {
-                    count: imageLimits.maxImagesPerMessage,
-                    size: imageSizeText(imageLimits.maxImageBytes),
-                }) })), toast !== null && (_jsx(Toast, { text: toast.text, icon: _jsx(IconWarningOutline16, {}), anchor: cardRef.current, onDone: dismissToast }, toast.seq)), notice !== null && (_jsx("div", { className: clsx(css.notice, notice.level === 'error' && css.noticeError), role: "status", children: notice.text })), _jsxs("div", { ref: cardRef, className: clsx(css.card, workspaceTrigger && css.cardWorkspaceTrigger), "data-composer-card": true, onClick: workspaceTrigger ? onRequestWorkspace : undefined, onPointerDown: workspaceTrigger ? (e) => { e.stopPropagation(); } : undefined, children: [overlay !== undefined && _jsx("div", { className: css.overlayAnchor, children: overlay }), accessory !== undefined && _jsx("div", { className: css.accessory, children: accessory }), railItems.length > 0 && (_jsx("div", { className: css.attachments, children: _jsx(AttachmentRail, { items: railItems, labels: attachmentRailLabels(t), onOpen: (item) => { setPreview(item.attachment); }, onRemove: (item) => { removeImage?.(item.attachment.id); } }) })), _jsx("div", { ref: scrollRef, className: css.scroll, "data-input-scroll": true, children: _jsxs("div", { className: css.grow, children: [_jsx("div", { "aria-hidden": true, className: css.backdrop, "data-input-backdrop": true, children: backdrop }), _jsx("textarea", { ref: inputRef, className: css.input, value: draft, disabled: textareaDisabled, readOnly: machineBusy || workspaceTrigger, "aria-label": workspaceTrigger ? t('hero.chooseWorkspace') : undefined, "aria-haspopup": workspaceTrigger ? 'menu' : undefined, "aria-expanded": workspaceTrigger ? workspacePickerOpen : undefined, "data-phase": input?.phase ?? 'inert', placeholder: placeholder ?? (parentOffline
+    return (_jsxs("div", { className: clsx(css.root, variant === 'hero' && css.hero), children: [toast !== null && (_jsx(Toast, { text: toast.text, icon: _jsx(IconWarningOutline16, {}), anchor: cardRef.current, onDone: dismissToast }, toast.seq)), notice?.level === 'info' && (_jsx("div", { className: css.notice, role: "status", children: notice.text })), _jsxs("div", { ref: cardRef, className: clsx(css.card, workspaceTrigger && css.cardWorkspaceTrigger), "data-composer-card": true, onClick: workspaceTrigger ? onRequestWorkspace : undefined, onPointerDown: workspaceTrigger ? (e) => { e.stopPropagation(); } : undefined, children: [overlay !== undefined && _jsx("div", { className: css.overlayAnchor, children: overlay }), accessory !== undefined && _jsx("div", { className: css.accessory, children: accessory }), renderSlot('conversation.input.attachments', {
+                        attachments,
+                        canAcceptDrop,
+                        onAddImages: intakeImages,
+                        onRemoveImage: (id) => { removeImage?.(id); },
+                        dropLimits: imageLimits === undefined ? undefined : {
+                            count: imageLimits.maxImagesPerMessage,
+                            size: imageSizeText(imageLimits.maxImageBytes),
+                        },
+                    }), _jsx("div", { ref: scrollRef, className: css.scroll, "data-input-scroll": true, children: _jsxs("div", { className: css.grow, children: [_jsx("div", { "aria-hidden": true, className: clsx(css.backdrop, textareaDisabled && css.backdropDisabled), "data-input-backdrop": true, "data-disabled": textareaDisabled || undefined, children: backdrop }), _jsx("textarea", { ref: inputRef, className: css.input, value: draft, disabled: textareaDisabled, readOnly: machineBusy || workspaceTrigger, "aria-label": workspaceTrigger ? t('hero.chooseWorkspace') : undefined, "aria-haspopup": workspaceTrigger ? 'menu' : undefined, "aria-expanded": workspaceTrigger ? workspacePickerOpen : undefined, "data-phase": input?.phase ?? 'inert', placeholder: placeholder ?? (parentOffline
                                         ? t('placeholder.parentOffline')
                                         : disabled
                                             ? t('placeholder.unavailable')
@@ -609,6 +571,6 @@ export function InputBar({ useSession, useInput, inputActions, keyboard, addImag
                                             // (the gate never consults plan mode), so the actionable hint wins.
                                             : canSteerQueue
                                                 ? t('placeholder.steerQueue')
-                                                : planActive ? t('placeholder.plan') : t('placeholder.default')), rows: 2, onChange: onChange, onKeyDown: onKeyDown, onSelect: onSelect, onCopy: (e) => { onCopyOrCut(e, false); }, onCut: (e) => { onCopyOrCut(e, true); }, onPaste: onPaste, onCompositionStart: onCompositionStart, onCompositionEnd: onCompositionEnd }), _jsx("div", { ref: mirrorRef, "aria-hidden": true, className: css.mirror, "data-input-mirror": true, children: `${draft}\n` })] }) }), _jsxs("div", { className: css.row, children: [_jsxs("div", { className: css.tools, children: [_jsx(Tooltip, { label: t('input.commands'), side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.add, "aria-label": t('input.commands'), "aria-haspopup": "listbox", "aria-expanded": commandMenuOpen, disabled: locked || toggleCommandMenu === undefined, onMouseDown: keepFocus, onClick: onToggleCommandMenu, children: _jsx(IconPlusOutline16, { size: 14 }) }) }), _jsxs("div", { className: css.modes, children: [accessSelect, renderSlot('conversation.input.plan', { locked })] }), leftItems] }), _jsxs("div", { className: css.trailing, children: [rightItems, renderSlot('conversation.input.model', { locked: modelSeatLocked }), _jsx(ContextMeter, { useProjection: useProjection, t: t }), interruptible && (_jsx(Tooltip, { label: t('input.stop'), side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.primary, "aria-label": t('input.stop'), disabled: stop === undefined, onMouseDown: keepFocus, onClick: stop, children: _jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("rect", { x: "3", y: "3", width: "10", height: "10", rx: "3", fill: "currentColor" }) }) }) })), _jsx(Tooltip, { label: primaryLabel, side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.primary, "aria-label": primaryLabel, disabled: primaryStops ? stop === undefined : empty || disabled || machineBusy, onMouseDown: keepFocus, onClick: onPrimary, children: primaryStops ? (_jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("rect", { x: "3", y: "3", width: "10", height: "10", rx: "3", fill: "currentColor" }) })) : (_jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("path", { d: "M8.3125 0.980183C8.66767 1.0531 8.97902 1.20418 9.2627 1.43233C9.48724 1.61297 9.73029 1.85793 9.97949 2.10714L14.707 6.83468L13.293 8.24874L9 3.95577V15.0417H7V3.95577L2.70703 8.24874L1.29297 6.83468L6.02051 2.10714C6.26971 1.85793 6.51277 1.61297 6.7373 1.43233C6.97662 1.23986 7.28445 1.04402 7.6875 0.980183C7.8973 0.947006 8.1031 0.95516 8.3125 0.980183Z", fill: "currentColor" }) })) }) })] })] })] }), preview !== null && (_jsx(ImageLightbox, { src: preview.previewUrl, alt: preview.file.name || t('image.original'), labels: lightboxLabels(t), onClose: closePreview })), footer] }));
+                                                : planActive ? t('placeholder.plan') : t('placeholder.default')), rows: 2, onChange: onChange, onKeyDown: onKeyDown, onSelect: onSelect, onCopy: (e) => { onCopyOrCut(e, false); }, onCut: (e) => { onCopyOrCut(e, true); }, onPaste: onPaste, onCompositionStart: onCompositionStart, onCompositionEnd: onCompositionEnd }), _jsx("div", { ref: mirrorRef, "aria-hidden": true, className: css.mirror, "data-input-mirror": true, children: `${draft}\n` })] }) }), _jsxs("div", { className: css.row, children: [_jsxs("div", { className: css.tools, children: [_jsx(Tooltip, { label: t('input.commands'), side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.add, "aria-label": t('input.commands'), "aria-haspopup": "listbox", "aria-expanded": commandMenuOpen, disabled: locked || toggleCommandMenu === undefined, onMouseDown: keepFocus, onClick: onToggleCommandMenu, children: _jsx(IconPlusOutline16, { size: 14 }) }) }), _jsxs("div", { className: css.modes, children: [accessSelect, renderSlot('conversation.input.plan', { locked })] }), leftItems] }), _jsxs("div", { className: css.trailing, children: [rightItems, renderSlot('conversation.input.model', { locked: modelSeatLocked }), _jsx(ContextMeter, { useProjection: useProjection, t: t }), interruptible && (_jsx(Tooltip, { label: t('input.stop'), side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.primary, "aria-label": t('input.stop'), disabled: stop === undefined, onMouseDown: keepFocus, onClick: stop, children: _jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("rect", { x: "3", y: "3", width: "10", height: "10", rx: "3", fill: "currentColor" }) }) }) })), _jsx(Tooltip, { label: primaryLabel, side: "top", delayMs: 500, children: _jsx("button", { type: "button", className: css.primary, "aria-label": primaryLabel, disabled: primaryStops ? stop === undefined : empty || disabled || machineBusy, onMouseDown: keepFocus, onClick: onPrimary, children: primaryStops ? (_jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("rect", { x: "3", y: "3", width: "10", height: "10", rx: "3", fill: "currentColor" }) })) : (_jsx("svg", { viewBox: "0 0 16 16", width: "16", height: "16", "aria-hidden": true, children: _jsx("path", { d: "M8.3125 0.980183C8.66767 1.0531 8.97902 1.20418 9.2627 1.43233C9.48724 1.61297 9.73029 1.85793 9.97949 2.10714L14.707 6.83468L13.293 8.24874L9 3.95577V15.0417H7V3.95577L2.70703 8.24874L1.29297 6.83468L6.02051 2.10714C6.26971 1.85793 6.51277 1.61297 6.7373 1.43233C6.97662 1.23986 7.28445 1.04402 7.6875 0.980183C7.8973 0.947006 8.1031 0.95516 8.3125 0.980183Z", fill: "currentColor" }) })) }) })] })] })] }), footer] }));
 }
 //# sourceMappingURL=InputBar.js.map

@@ -125,7 +125,7 @@ export function ConversationRoot({ sessionId, useSession, useSessions, useWorksp
         // share one constraint (composer.dock = stats-line family).
         footer: !hero && zone !== undefined ? renderSlot('conversation.composer.dock', zone) : null,
     });
-    const composerBar = (_jsxs("div", { className: clsx(css.composerStack, hero && css.composerHero), children: [hero && _jsx(HeroGlow, { className: css.heroGlow }), hero && _jsx(HeroShell, { t: t }), hero && heroWorkspaceRow, zone !== undefined && renderSlot('conversation.input.dock', zone), inputBar] }));
+    const composerBar = (_jsxs("div", { className: clsx(css.composerStack, hero && css.composerHero), children: [hero && _jsx(HeroGlow, { className: css.heroGlow }), hero && _jsx(HeroShell, { t: t, renderSlot: renderSlot }), hero && heroWorkspaceRow, zone !== undefined && renderSlot('conversation.input.dock', zone), inputBar] }));
     const phase = settling ? 'settling' : hero ? 'hero' : 'active';
     const composer = renderSlotChain('conversation.composer', { interactions: pending, session }, { fallback: composerBar, overlay: true });
     // Sticky wraps the whole chain output (fallback + elected overlay), not

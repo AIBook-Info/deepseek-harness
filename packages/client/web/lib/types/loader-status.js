@@ -21,39 +21,4 @@ export const STATE_LABELS = {
     [FIBER_STATE.DISPOSED]: 'disposed',
     [FIBER_STATE.UNLOADING]: 'unloading',
 };
-/**
- * Create a writable kernel signal.
- * @param init - initial value.
- * @returns the signal.
- */
-export function createSignal(init) {
-    let value = init;
-    const listeners = new Set();
-    return {
-        getSnapshot: () => value,
-        subscribe: (fn) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
-        set: (next) => {
-            value = next;
-            for (const fn of [...listeners])
-                fn();
-        },
-    };
-}
-/**
- * Create the boot status store.
- * @returns the store (empty until the boot chain projects rows).
- */
-export function createLoaderStatusStore() {
-    let value = {};
-    const listeners = new Set();
-    return {
-        getSnapshot: () => value,
-        subscribe: (fn) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
-        set: (id, state) => {
-            value = { ...value, [id]: state };
-            for (const fn of [...listeners])
-                fn();
-        },
-    };
-}
 //# sourceMappingURL=loader-status.js.map

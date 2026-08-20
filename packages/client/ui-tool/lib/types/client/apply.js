@@ -8,13 +8,15 @@ import { readToolview } from "./tool/toolviews/read-row.js";
 import { searchToolview } from "./tool/toolviews/search-row.js";
 import { todoToolview } from "./tool/toolviews/todo-row.js";
 import { webToolview } from "./tool/toolviews/web-row.js";
-/** Required service: the slot registry that owns both Tool render seats. */
-export const inject = ['slots'];
+/** Required services: the slot registry and the Host description used for POSIX `~`. */
+export const inject = ['slots', 'connection'];
 /**
  * Mount the whole-Tool renderers and built-in atomic Tool registrations.
  * @param ctx - Client root context.
  */
 export function apply(ctx) {
+    const connection = ctx.get('connection');
+    const toolInject = () => ({ hooks: { hostDescription: connection.hostDescription } });
     ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
         name: 'conversation.chat.node',
         key: 'tool-call',
@@ -22,10 +24,12 @@ export function apply(ctx) {
         children: {
             'tool.call.toolview': { kind: 'keyed', scope: 'session' },
         },
+        inject: toolInject,
     }, ToolCallTree));
     ctx.slots.inject('conversation.details.tool', () => ctx.slots.register({
         name: 'conversation.details.tool',
         locale: NS,
+        inject: toolInject,
     }, ToolDetails));
     ctx.plugin(bashToolviewSample);
     ctx.plugin(readToolview);

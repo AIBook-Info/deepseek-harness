@@ -3,6 +3,11 @@ import { z } from 'zod'
 
 const _deepseek_ai_dsh_commands_commands_execute_parameter_0$schema = z.intersection(z.string(), z.unknown())
 const _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema = z.string()
+const _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema = z.array(z.object({
+  'mediaType': z.union([z.literal("image/png"), z.literal("image/jpeg"), z.literal("image/webp"), z.literal("image/gif")]),
+  'data': z.string(),
+  'name': z.string().optional(),
+}))
 const _deepseek_ai_dsh_commands_commands_execute_result$schema = z.union([z.undefined(), z.object({
   'commandId': z.intersection(z.string(), z.unknown()).readonly(),
   'result': z.union([z.object({
@@ -20,6 +25,7 @@ const _deepseek_ai_dsh_commands_commands_list_result$schema = z.array(z.object({
   'description': z.string().readonly(),
   'input': z.object({
   'hint': z.string().readonly(),
+  'images': z.boolean().readonly().optional(),
 }).readonly().optional(),
 }))
 
@@ -58,6 +64,16 @@ export const TYPERT_REMOTE = {
             schema: _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema,
           },
         },
+        {
+          name: 'images',
+          wire: 'images',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: '@deepseek-ai/dsh-commands#commands/execute:images',
+            schema: _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema,
+          },
+        },
       ],
       cancellation: { parameter: 'signal' },
       result: {
@@ -65,7 +81,7 @@ export const TYPERT_REMOTE = {
         typeSymbol: '@deepseek-ai/dsh-commands#commands/execute:result',
         schema: _deepseek_ai_dsh_commands_commands_execute_result$schema,
       },
-      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":297,"column":9},
+      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":329,"column":9},
     },
     {
       id: '@deepseek-ai/dsh-commands#commands/list',
@@ -95,7 +111,7 @@ export const TYPERT_REMOTE = {
         typeSymbol: '@deepseek-ai/dsh-commands#commands/list:result',
         schema: _deepseek_ai_dsh_commands_commands_list_result$schema,
       },
-      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":260,"column":3},
+      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":285,"column":3},
     },
   ],
 }

@@ -407,8 +407,7 @@ function ensureSymlink(link, target) {
 * @param home - the Harness home; defaults to {@link resolveDshHome}.
 */
 function healProfilesModuleFallback(installAnchor, home = resolveDshHome()) {
-	const profilesDir = join(home, PROFILES_DIR);
-	const modulesDir = join(profilesDir, "node_modules");
+	const modulesDir = join(join(home, PROFILES_DIR), "node_modules");
 	mkdirSync(modulesDir, { recursive: true });
 	const appManifest = JSON.parse(readFileSync(installAnchor, "utf8"));
 	const links = /* @__PURE__ */ new Map();
@@ -600,9 +599,7 @@ function composeEntries(layers, warn = () => {}) {
 function resolveConfigPath(configPath, snapshotMode, cwd = process.cwd()) {
 	const absolute = resolve(cwd, configPath);
 	if (snapshotMode !== "replay") return absolute;
-	const dir = dirname(absolute);
-	const replayName = basename(absolute).replace(/cordis\.ya?ml$/, "cordis.snapshot.yml");
-	return resolve(dir, replayName);
+	return resolve(dirname(absolute), basename(absolute).replace(/cordis\.ya?ml$/, "cordis.snapshot.yml"));
 }
 /**
 * Load the optional gitignored `.env` from `dir`. Missing files fall back to the
@@ -619,7 +616,7 @@ function loadEnv(binName, dir = process.cwd(), warn = (line) => void process.std
 	}
 }
 /** Exact names no discovered file may set. */
-const BOOTSTRAP_NAMES = /* @__PURE__ */ new Set([
+const BOOTSTRAP_NAMES = new Set([
 	"PATH",
 	"HOME",
 	"USERPROFILE",
@@ -657,6 +654,7 @@ const BOOTSTRAP_NAMES = /* @__PURE__ */ new Set([
 	"EDITOR",
 	"VISUAL",
 	"PAGER",
+	"BROWSER",
 	"DEEPSEEK_BASE_URL",
 	"DEEPSEEK_SEARCH_BASE_URL",
 	"SSL_CERT_FILE",
@@ -768,8 +766,7 @@ async function watchUserPatches(ctx, options) {
 	if (entry === void 0) throw new Error(`${binName}: user patch-layer watching requires the root Include entry`);
 	const register = hmr.registerConfig(filename, async () => {
 		const { patches: _previousPatches, ...includeConfig } = entry.options.config;
-		const userPatches = loadOptionalPatches(binName, filename) ?? [];
-		const patches = compose(userPatches);
+		const patches = compose(loadOptionalPatches(binName, filename) ?? []);
 		await entry.update({ config: {
 			...includeConfig,
 			patches
@@ -895,8 +892,7 @@ function renderConfigDump(binName, absoluteConfigPath, layers, warn = (line) => 
 	const baseLabel = basename(absoluteConfigPath);
 	const base = parsed;
 	const snapshot = (count, warnings) => {
-		const flattened = structuredClone(layers.slice(0, count).flatMap((layer) => layer.patches));
-		return applyEntryPatches(base, flattened, (message, ...args) => {
+		return applyEntryPatches(base, structuredClone(layers.slice(0, count).flatMap((layer) => layer.patches)), (message, ...args) => {
 			let index = 0;
 			warnings.push(message.replace(/%C/g, () => JSON.stringify(args[index++])));
 		});

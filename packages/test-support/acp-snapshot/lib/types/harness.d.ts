@@ -15,6 +15,7 @@
  *
  * @module @deepseek-ai/dsh-acp-snapshot/harness
  */
+import { type ContentBlock as AcpContentBlock } from '@agentclientprotocol/sdk';
 import { type AgentUnderTest } from './launcher.ts';
 export type { AgentUnderTest } from './launcher.ts';
 /**
@@ -55,6 +56,9 @@ export type InputStep = {
 } | {
     op: 'prompt';
     text: string;
+} | {
+    op: 'promptContent';
+    content: AcpContentBlock[];
 } | {
     op: 'promptAndWaitForAgentMessage';
     text: string;

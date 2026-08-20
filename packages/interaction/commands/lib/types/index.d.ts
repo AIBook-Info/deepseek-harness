@@ -4,6 +4,8 @@
  */
 import { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
+import type { EncodedImageAttachment } from '@deepseek-ai/dsh-attachment/types';
+import type { ImageBlock } from '@deepseek-ai/dsh-llm';
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { CommandId } from './brand.ts';
 import type { CommandDescriptor, CommandExecution, CommandInputDescriptor, CommandResult } from './types.ts';
@@ -18,6 +20,14 @@ export interface CommandInvocation {
     readonly agent: Agent;
     /** Exact text following the registered command name, including separator whitespace. */
     readonly rawInput: string;
+    /**
+     * Durably admitted image blocks accompanying this invocation, in submission
+     * order; empty unless the definition declares `input.images`. The handler
+     * owns their model-visible use — the registry never schedules them itself —
+     * and a handler whose grammar cannot use them in this invocation returns an
+     * error so the dispatching composer retains the originals.
+     */
+    readonly attachments: readonly ImageBlock[];
     /** Cancellation signal owned by the dispatching UI request. */
     readonly signal: AbortSignal;
 }
@@ -101,13 +111,22 @@ export declare class CommandRuntime extends TypertRemoteService {
      * handler-failure path is contained so the handler's own error stays the
      * reported failure.
      *
+     * Image admission is enforced here, not in the composer: images sent to a
+     * command that does not declare `input.images`, an absent attachment store,
+     * and an exceeded attachment limit each settle as an error result before
+     * the handler runs, and a rejected batch publishes no durable object.
+     *
      * @param agent - exact receiving agent.
      * @param line - complete slash-command line.
+     * @param images - base64-encoded composer images accompanying the line, in
+     *   submission order; empty for a plain invocation.
      * @param signal - cancellation signal owned by the UI request.
      * @returns the settled execution (result + lifecycle pairing id), or
      *   `undefined` when syntax or name does not resolve.
      */
-    execute(agent: Agent, line: string, signal: AbortSignal): Promise<CommandExecution | undefined>;
+    execute(agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal): Promise<CommandExecution | undefined>;
+    /** Contained `command/done` error append for a thrown handler or admission failure. */
+    private settleThrown;
     /** Mint the next pairing id (monotonic; instance-token-prefixed so a resumed log never repeats one). */
     private mintCommandId;
     /**

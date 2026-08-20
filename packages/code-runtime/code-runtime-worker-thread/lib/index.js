@@ -50,8 +50,7 @@ function takeLast$1(target) {
 }
 /** One code-point-aligned character from a string. */
 function characterAt(text, index) {
-	const width = intrinsicReflectApply$1(intrinsicStringCodePointAt, text, [index]) > 65535 ? 2 : 1;
-	return intrinsicReflectApply$1(intrinsicStringSlice, text, [index, index + width]);
+	return intrinsicReflectApply$1(intrinsicStringSlice, text, [index, index + (intrinsicReflectApply$1(intrinsicStringCodePointAt, text, [index]) > 65535 ? 2 : 1)]);
 }
 /** Serialized bytes contributed by one complete Unicode code point inside JSON quotes. */
 function serializedCharacterBytes(character) {
@@ -735,17 +734,16 @@ var WorkerThreadCodeRuntime = class extends CodeRuntime {
 	}
 	/** Spawn the worker for one validated, type-stripped run and drive it to settlement. */
 	execute(request, code, bindings) {
-		const bootData = {
-			code,
-			namespaces: [...bindings].map(([global, namespace]) => ({
-				global,
-				names: Object.keys(namespace.functions),
-				...namespace.errorClass ? { errorClass: namespace.errorClass } : {}
-			})),
-			maxOutputBytes: this.config.maxOutputBytes
-		};
 		const worker = new Worker(WORKER_PATH, {
-			workerData: bootData,
+			workerData: {
+				code,
+				namespaces: [...bindings].map(([global, namespace]) => ({
+					global,
+					names: Object.keys(namespace.functions),
+					...namespace.errorClass ? { errorClass: namespace.errorClass } : {}
+				})),
+				maxOutputBytes: this.config.maxOutputBytes
+			},
 			env: {},
 			execArgv: [],
 			resourceLimits: { maxOldGenerationSizeMb: this.config.maxOldGenerationSizeMb },
@@ -883,17 +881,15 @@ var WorkerThreadCodeRuntime = class extends CodeRuntime {
 				const message = parseWorkerMessage(raw);
 				if (!message) return;
 				if (message.type === "log" && !settled && !output.admit(message.text, logs)) {
-					const limited = output.limit([
+					finish(output.limit([
 						...logs,
 						...strayLogs,
 						message.text
-					]);
-					finish(limited);
+					]));
 					return;
 				}
 				if (message.type === "output-limit" && !settled) {
-					const limited = output.limit([...logs, ...strayLogs]);
-					finish(limited);
+					finish(output.limit([...logs, ...strayLogs]));
 					return;
 				}
 				onCall(message);

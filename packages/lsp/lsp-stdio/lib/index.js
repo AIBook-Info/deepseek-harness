@@ -917,7 +917,7 @@ var LspInstance = class {
 	}
 };
 /** Server→client request methods this host acknowledges with an empty result (no dynamic registration). */
-const LIFECYCLE_NOOP_METHODS = /* @__PURE__ */ new Set([
+const LIFECYCLE_NOOP_METHODS = new Set([
 	"window/workDoneProgress/create",
 	"client/registerCapability",
 	"client/unregisterCapability"

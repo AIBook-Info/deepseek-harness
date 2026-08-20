@@ -3,6 +3,7 @@
  * @module @deepseek-ai/dsh-command-goal
  */
 import { GoalError } from '@deepseek-ai/dsh-goal';
+import { createUserMessage } from '@deepseek-ai/dsh-llm';
 export const name = 'command-goal';
 export const inject = ['commands', 'goals'];
 const USAGE = 'Usage: /goal [<objective>|clear|edit <objective>|pause|resume]';
@@ -90,9 +91,29 @@ function missingGoal(action) {
         text: `No goal is currently set; /goal ${action} requires one. ${USAGE}`,
     };
 }
+/**
+ * Submit the invocation's admitted composer images as one model-visible user
+ * message ahead of the goal's next round. The images precede a fixed text
+ * block naming their role, so a later goal round reads them from ordinary
+ * session history without the goal domain storing attachment state.
+ */
+function submitObjectiveAttachments(invocation) {
+    if (invocation.attachments.length === 0)
+        return;
+    invocation.agent.followup(createUserMessage({
+        content: [...invocation.attachments, { type: 'text', text: 'Reference images for the goal objective.' }],
+        source: { kind: 'user' },
+    }));
+}
 /** Execute one parsed human command through the domain that owns persistence. */
 function executeGoalCommand(ctx, invocation) {
     const command = parseGoalCommand(invocation.rawInput);
+    if (invocation.attachments.length > 0 && command.kind !== 'create' && command.kind !== 'edit') {
+        return {
+            kind: 'error',
+            text: 'Image attachments only accompany a goal objective: /goal <objective> or /goal edit <objective>.',
+        };
+    }
     try {
         const current = ctx.goals.get(invocation.agent);
         switch (command.kind) {
@@ -102,21 +123,29 @@ function executeGoalCommand(ctx, invocation) {
                     : renderGoal('Goal', current);
             case 'invalid-edit':
                 return { kind: 'error', text: `Goal editing requires a replacement objective.\n${USAGE}` };
-            case 'create':
+            case 'create': {
                 if (current !== undefined && current.phase !== 'complete') {
                     return {
                         kind: 'error',
                         text: `A goal is already ${phaseLabel(current.phase)}. Use /goal edit <objective> to change it or /goal clear before replacing it.`,
                     };
                 }
-                return renderGoal('Goal created', ctx.goals.create(invocation.agent, { objective: command.objective }));
-            case 'edit':
+                const created = ctx.goals.create(invocation.agent, { objective: command.objective });
+                submitObjectiveAttachments(invocation);
+                return renderGoal('Goal created', created);
+            }
+            case 'edit': {
                 if (current === undefined)
                     return missingGoal('edit');
                 if (current.phase === 'complete') {
-                    return renderGoal('Goal created', ctx.goals.create(invocation.agent, { objective: command.objective }));
+                    const replaced = ctx.goals.create(invocation.agent, { objective: command.objective });
+                    submitObjectiveAttachments(invocation);
+                    return renderGoal('Goal created', replaced);
                 }
-                return renderGoal('Goal updated', ctx.goals.edit(invocation.agent, goalRef(current), { objective: command.objective }));
+                const edited = ctx.goals.edit(invocation.agent, goalRef(current), { objective: command.objective });
+                submitObjectiveAttachments(invocation);
+                return renderGoal('Goal updated', edited);
+            }
             case 'pause':
                 if (current === undefined)
                     return missingGoal('pause');
@@ -149,7 +178,7 @@ export function apply(ctx) {
     ctx.commands.register({
         name: 'goal',
         description: 'set or view the goal for a long-running task',
-        input: { hint: '[<objective>|clear|edit <objective>|pause|resume]' },
+        input: { hint: '[<objective>|clear|edit <objective>|pause|resume]', images: true },
         handler: invocation => executeGoalCommand(ctx, invocation),
     });
 }

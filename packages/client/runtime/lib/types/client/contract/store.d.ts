@@ -5,7 +5,7 @@ export interface ObservableSnapshot<T> {
     getSnapshot(): T;
     subscribe(fn: () => void): () => void;
 }
-/** Writable snapshot store (bare data face; React selector hooks are synthesized in web-react). */
+/** Writable snapshot store (bare data face; React selector hooks are synthesized in ui-renderer). */
 export interface SnapshotStore<T> extends ObservableSnapshot<T> {
     /**
      * Mutate the state through an immer draft.

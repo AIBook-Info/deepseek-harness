@@ -134,7 +134,7 @@ export declare class Session implements SessionFace {
      * @param mode - queue appends after the current turn; steer interrupts it.
      * @returns the prompt result (also mirrored into promptError on failure).
      */
-    prompt(content: PromptContentPart[], mode: 'queue' | 'steer'): Promise<RpcResult<{
+    prompt(content: PromptContentPart[], mode: 'queue' | 'steer', signal?: AbortSignal): Promise<RpcResult<{
         accepted: true;
     }>>;
     /**

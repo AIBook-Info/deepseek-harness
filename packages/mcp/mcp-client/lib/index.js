@@ -6,7 +6,9 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { scrubbedParentEnv } from "@deepseek-ai/dsh-subprocess";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { z as z$1 } from "zod";
+import { isImageAdmissionError } from "@deepseek-ai/dsh-attachment";
 import { assertSupportedJsonSchema } from "@deepseek-ai/dsh-tools";
 //#region lib/types/transport.js
 /**
@@ -71,6 +73,15 @@ const INVALID_NAME_CHARS = /[^A-Za-z0-9_-]/g;
 const HASH_LENGTH = 12;
 /** Raw result record: the bridge owns JSON-value validation after transport. */
 const RawCallToolResultSchema = z$1.record(z$1.string(), z$1.unknown());
+/** Raster formats supported by the durable attachment vocabulary. */
+const IMAGE_MEDIA_TYPES = [
+	"image/png",
+	"image/jpeg",
+	"image/webp",
+	"image/gif"
+];
+/** Canonical RFC 4648 base64, excluding whitespace and URL-safe aliases. */
+const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 /** List without mutating the SDK's per-page output-validator cache. */
 function listToolsUncached(client, cursor) {
 	return client.request({
@@ -110,7 +121,7 @@ function publicToolName(serverName, rawName) {
 	const normalized = joined.replace(INVALID_NAME_CHARS, "_");
 	if (normalized === joined && normalized.length <= MAX_PUBLIC_NAME_LENGTH) return normalized;
 	const hash = createHash("sha256").update(`${serverName}\0${rawName}`).digest("hex").slice(0, HASH_LENGTH);
-	return `${normalized.slice(0, 51)}_${hash}`;
+	return `${normalized.slice(0, MAX_PUBLIC_NAME_LENGTH - HASH_LENGTH - 1)}_${hash}`;
 }
 /**
 * Sync the MCP server's tool list into the harness ToolRuntime.
@@ -144,13 +155,7 @@ async function syncTools(client, ctx, opts, previous) {
 		for (const tool of response.tools) {
 			const publicName = publicToolName(opts.serverName, tool.name);
 			if (definitions.has(publicName)) throw new Error(`mcp-client(${opts.serverName}): server listed tool "${tool.name}" more than once — invalid tool list`);
-			definitions.set(publicName, {
-				name: publicName,
-				description: tool.description ?? "",
-				parameters: tool.inputSchema,
-				output: createOutput(tool.name, supportedOutputSchema(tool.outputSchema)),
-				execute: createExecutor(client, tool.name, tool.execution?.taskSupport === "required", opts)
-			});
+			definitions.set(publicName, createDefinition(client, ctx, publicName, tool.name, tool.description ?? "", tool.inputSchema, supportedOutputSchema(tool.outputSchema), tool.execution?.taskSupport === "required", opts));
 		}
 		cursor = response.nextCursor;
 	} while (cursor);
@@ -175,6 +180,38 @@ function supportedOutputSchema(candidate) {
 	} catch {
 		return;
 	}
+}
+/**
+* Build one generation-local tool definition and its execution-local rich projections.
+* @param client - connected MCP client used for calls.
+* @param ctx - plugin context carrying optional attachment and model services.
+* @param publicName - registry-qualified public tool name.
+* @param rawName - MCP wire tool name.
+* @param description - model-facing tool description.
+* @param parameters - MCP input schema.
+* @param structuredSchema - supported structured-output schema, when advertised.
+* @param taskRequired - whether this MCP tool requires unsupported task execution.
+* @param opts - bridge timeout and namespace options.
+* @returns a complete ToolRuntime definition.
+*/
+function createDefinition(client, ctx, publicName, rawName, description, parameters, structuredSchema, taskRequired, opts) {
+	const projections = /* @__PURE__ */ new WeakMap();
+	return {
+		name: publicName,
+		description,
+		parameters,
+		output: createOutput(rawName, structuredSchema),
+		execute: createExecutor(client, ctx, rawName, taskRequired, opts, projections),
+		finalizeContent(exec, result) {
+			const projection = projections.get(exec);
+			if (projection === void 0) return void 0;
+			projections.delete(exec);
+			if (result.isError) return void 0;
+			if (!isDeepStrictEqual(result.value, projection.value)) return void 0;
+			if (!isDeepStrictEqual(result.content, projection.fallback)) return void 0;
+			return projection.content;
+		}
+	};
 }
 /** Build the canonical result schema and existing Native text projection. */
 function createOutput(rawName, structuredSchema) {
@@ -209,7 +246,7 @@ function createOutput(rawName, structuredSchema) {
 * When the MCP server returns `isError: true`, the executor throws so that
 * the ToolRuntime's catch path produces an `isError` result for the model.
 */
-function createExecutor(client, rawName, taskRequired, opts) {
+function createExecutor(client, ctx, rawName, taskRequired, opts, projections) {
 	return async (args, exec) => {
 		if (taskRequired) throw new Error(`Tool "${rawName}" requires task-based execution, which this bridge does not support`);
 		const result = await callToolUncached(client, rawName, typeof args === "object" && args !== null ? args : {}, exec, opts);
@@ -228,11 +265,122 @@ function createExecutor(client, rawName, taskRequired, opts) {
 		const content = result.content;
 		const text = extractText(content, rawName);
 		if (result.isError === true) throw new Error(text);
-		return {
+		const value = {
 			content,
 			...result.structuredContent !== void 0 ? { structuredContent: result.structuredContent } : {}
 		};
+		if (containsImage(content)) {
+			const fallback = [{
+				type: "text",
+				text: extractText(content, rawName)
+			}];
+			const projected = await prepareImageProjection(ctx, exec, content, rawName);
+			projections.set(exec, {
+				value,
+				fallback,
+				content: projected
+			});
+		}
+		return value;
 	};
+}
+/** Whether an untrusted MCP content array contains a declared image block. */
+function containsImage(content) {
+	return content.some((value) => isRecord(value) && value.type === "image");
+}
+/** Narrow one JSON value to a string-keyed object. */
+function isRecord(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+/** Narrow a declared MIME string to the durable image vocabulary. */
+function isImageMediaType(value) {
+	return IMAGE_MEDIA_TYPES.includes(value);
+}
+/** Decode one untrusted MCP image block without accepting base64 aliases. */
+function decodeImage(block) {
+	if (block.mimeType === void 0 || !isImageMediaType(block.mimeType)) throw new Error("the declared media type is not PNG, JPEG, WebP, or GIF");
+	if (block.data === void 0 || !CANONICAL_BASE64.test(block.data)) throw new Error("the image data is not canonical base64");
+	const data = Buffer.from(block.data, "base64");
+	if (data.toString("base64") !== block.data) throw new Error("the image data is not canonical base64");
+	return {
+		data,
+		mediaType: block.mimeType
+	};
+}
+/**
+* Resolve the active model route and durable store for an image-bearing result.
+* @param ctx - plugin context with optional services.
+* @param exec - exact tool execution whose agent supplies the latest route.
+* @returns the attachment store after exact positive image-capability proof.
+*/
+async function resolveImageAdmission(ctx, exec) {
+	const attachments = ctx.get("attachments");
+	if (attachments === void 0) throw new Error("no attachment store is mounted");
+	const routed = exec.agent?.session.requestHeader()?.config;
+	const provider = routed?.provider ?? exec.agent?.options.provider;
+	const model = routed?.model ?? exec.agent?.options.model;
+	const llm = ctx.get("llm");
+	if (provider === void 0 || model === void 0 || llm === void 0) throw new Error("the current model route could not be resolved");
+	let info;
+	try {
+		info = await llm.resolveModelInfo(provider, model, exec.signal);
+	} catch {
+		throw new Error("the current model route could not be verified");
+	}
+	if (info.inputModalities === void 0 || !info.inputModalities.includes("image")) throw new Error(`model "${model}" does not declare image input`);
+	if (exec.signal.aborted) throw new Error("the tool call was canceled before image storage");
+	return attachments;
+}
+/** Stable diagnostic text for an image block that was not admitted. */
+function imageDiagnostic(block, reason) {
+	return `[image unavailable: ${block.mimeType ?? "unknown media type"}; ${reason}; raw image data remains available to programmatic callers]`;
+}
+/**
+* Decode, preflight, and durably save one MCP result's ordered image batch.
+* Any refusal projects every image as text while retaining the canonical raw
+* value for programmatic callers.
+*/
+async function prepareImageProjection(ctx, exec, content, toolName) {
+	const decoded = [];
+	const validationErrors = /* @__PURE__ */ new Map();
+	const imageIndexes = [];
+	for (const [index, value] of content.entries()) {
+		if (!isRecord(value) || value.type !== "image") continue;
+		imageIndexes.push(index);
+		try {
+			decoded.push(decodeImage(value));
+		} catch (error) {
+			validationErrors.set(index, error.message);
+		}
+	}
+	if (validationErrors.size > 0) return projectContent(content, toolName, (block, index) => ({
+		type: "text",
+		text: imageDiagnostic(block, validationErrors.get(index) ?? "another image in the same result was invalid")
+	}));
+	let attachments;
+	try {
+		attachments = await resolveImageAdmission(ctx, exec);
+	} catch (error) {
+		const reason = error.message;
+		return projectContent(content, toolName, (block) => ({
+			type: "text",
+			text: imageDiagnostic(block, reason)
+		}));
+	}
+	try {
+		const refs = await attachments.saveImages(decoded);
+		const byIndex = new Map(imageIndexes.map((index, offset) => [index, refs[offset]]));
+		return projectContent(content, toolName, (_block, index) => ({
+			type: "image",
+			attachment: byIndex.get(index)
+		}));
+	} catch (error) {
+		const reason = isImageAdmissionError(error) ? `image admission rejected the result: ${error.message}` : "durable image storage rejected the result";
+		return projectContent(content, toolName, (block) => ({
+			type: "text",
+			text: imageDiagnostic(block, reason)
+		}));
+	}
 }
 /**
 * Extract text from an MCP content array into a single string.
@@ -243,31 +391,58 @@ function createExecutor(client, rawName, taskRequired, opts) {
 * guarded with fallbacks because this is a network trust boundary.
 */
 function extractText(mcpContent, toolName) {
-	const parts = [];
-	for (const value of mcpContent) {
-		if (typeof value !== "object" || value === null || Array.isArray(value)) {
-			parts.push("[unsupported content type: unknown]");
+	return projectContent(mcpContent, toolName).map((block) => block.text).join("\n");
+}
+/**
+* Project ordered MCP blocks into the core content vocabulary.
+* Text-like runs are newline-coalesced; admitted images split those runs at
+* their original position.
+*/
+function projectContent(mcpContent, toolName, image = (block) => ({
+	type: "text",
+	text: imageDiagnostic(block, "this result was not admitted to durable model context")
+})) {
+	const projected = [];
+	const text = [];
+	const flushText = () => {
+		if (text.length === 0) return;
+		projected.push({
+			type: "text",
+			text: text.splice(0).join("\n")
+		});
+	};
+	for (const [index, value] of mcpContent.entries()) {
+		if (!isRecord(value)) {
+			text.push("[unsupported MCP content block: expected an object]");
 			continue;
 		}
 		const block = value;
 		switch (block.type) {
 			case "text":
-				if (block.text !== void 0) parts.push(block.text);
+				if (block.text !== void 0) text.push(block.text);
 				break;
 			case "image":
-				parts.push(`[image: ${block.mimeType ?? "unknown"}, content discarded]`);
+				flushText();
+				projected.push(image(block, index));
+				break;
+			case "resource_link":
+				if (block.name === void 0 || block.uri === void 0) text.push("[resource link unavailable: the MCP block is missing its name or URI]");
+				else text.push(`Resource link: ${block.name} (${block.uri})`);
 				break;
 			case "audio":
-				parts.push(`[audio: ${block.mimeType ?? "unknown"}, content discarded]`);
+				text.push(`[audio result unsupported: ${block.mimeType ?? "unknown media type"}; raw audio data remains available to programmatic callers]`);
 				break;
 			case "resource":
-			case "resource_link":
-				parts.push("[resource: content discarded]");
+				text.push("[embedded resource unsupported; raw resource data remains available to programmatic callers]");
 				break;
-			default: parts.push(`[unsupported content type: ${block.type}]`);
+			default: text.push(`[unsupported MCP content type: ${block.type}]`);
 		}
 	}
-	return parts.join("\n") || `(${toolName} returned no text content)`;
+	flushText();
+	return projected.length > 0 ? projected : [{
+		type: "text",
+		text: `(${toolName} returned no model-visible content)`
+	}];
 }
 //#endregion
 //#region lib/types/connection.js

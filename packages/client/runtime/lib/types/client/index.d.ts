@@ -24,7 +24,7 @@ export type { SessionProvideChannelHost } from './sessions/provide.ts';
 export { createScope } from './agents/scope.ts';
 export type { AgentScopeHandle } from './agents/scope.ts';
 export { DirectoryBrowseError, WorkspaceCreateError, WorkspaceRuntime } from './workspaces/service.ts';
-export { resolveWorkspacePath } from './workspaces/path.ts';
+export { abbreviateHomePath, resolveWorkspacePath } from './workspaces/path.ts';
 export type { SettingsScope, SettingsScopeSnapshot, SettingsScopeSpec, } from './contract/settings-scope.ts';
 export type { Session } from './sessions/session.ts';
 export type { ISession, ProjectionsFace, SessionFace } from './contract/session.ts';
@@ -42,7 +42,7 @@ export type { AssistantBlock, AssistantMessageNode, AssistantProvenanceView, Ass
 export { EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS, toAssistantBlock, toAssistantBlocks, } from './sessions/conversation.ts';
 export { emptyAssistantBlock } from './sessions/partial.ts';
 export { isTokenDelta } from './sessions/assistant-timing.ts';
-export { contextForm, contextProvenance } from './sessions/context-provenance.ts';
+export { contextForm, contextProvenance, sessionRecallLabels } from './sessions/context-provenance.ts';
 export { displayFailureMessage } from './sessions/failure-display.ts';
 export type { ConversationContext, ConversationContextOriginKind, } from './sessions/conversation-context.ts';
 export type { ContextProvenanceView, ContextRole, KnownContextForm, } from './sessions/context-provenance.ts';

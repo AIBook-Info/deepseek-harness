@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 /**
  * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
  * content freezes at its expanded width (inline style) and fades out in place
@@ -18,7 +18,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
  */
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { BrandWordmark, FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip, } from '@deepseek-ai/dsh-client-ui-primitives';
+import { FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip, } from '@deepseek-ai/dsh-client-ui-primitives';
 import css from './SidebarRoot.module.css';
 /** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
 const COLLAPSE_SETTLE_MS = 150;
@@ -108,7 +108,11 @@ export function SidebarRoot({ collapsed, width, startSession, toggleSidebar, t, 
     return (_jsxs("div", { ref: column, className: clsx(css.root, !wide && css.collapsed, !wide && everWide.current && css.railIn, collapsed && wide && css.fading, !pointerInside && css.quietBars), style: wide ? { width: collapsed ? lastWideWidth.current : width } : undefined, onPointerEnter: () => {
             cancelLinger();
             setPointerInside(true);
-        }, onPointerLeave: () => { armLinger(); }, children: [_jsxs("div", { className: css.logoRow, children: [wide && (_jsx("button", { type: "button", className: clsx(css.brand, css.wide), "aria-label": t('session.new.label'), onClick: () => { startSession(); }, children: _jsx(BrandWordmark, {}) })), _jsx(Tooltip, { label: collapsed ? t('toggle.open') : t('toggle.collapse'), delayMs: 500, children: _jsxs("button", { type: "button", className: clsx(css.iconButton, css.toggle), "aria-label": collapsed ? t('toggle.open') : t('toggle.collapse'), onClick: () => { toggleSidebar(); }, children: [!wide && _jsx(FishLogo, { className: css.railFish, size: 24 }), _jsx(IconPanelLeftOutline16, { className: css.panelIcon, size: wide ? 16 : 18 })] }) })] }), _jsx(Tooltip, { label: t('session.new.label'), delayMs: 500, disabled: wide, children: _jsxs("button", { type: "button", className: css.newSession, "aria-label": t('session.new.label'), onClick: () => { startSession(); }, children: [_jsx(IconNewChatOutline16, { size: wide ? 14 : 18 }), wide && _jsx("span", { className: clsx(css.newSessionLabel, css.wide), children: t('session.new') })] }) }), _jsx("div", { className: css.regionArea, children: renderSlot('sidebar.workspaces', {
+        }, onPointerLeave: () => { armLinger(); }, children: [_jsxs("div", { className: css.logoRow, children: [wide && (_jsx("button", { type: "button", className: clsx(css.brand, css.wide), "aria-label": t('session.new.label'), onClick: () => { startSession(); }, children: _jsxs("span", { className: css.brandIdentity, "aria-hidden": "true", children: [_jsx("span", { className: css.brandMark, children: renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: _jsx(FishLogo, { size: 24 }) }) }), _jsx("span", { className: css.brandName, children: renderSlot('sidebar.brand.name', {}, {
+                                        fallback: (_jsxs(_Fragment, { children: [_jsx("span", { className: css.fallbackBrandName, children: "DSH Local Build" }), process.env.DSH_CLIENT_COMMIT_HASH
+                                                    ? _jsx("span", { className: css.buildRevision, children: process.env.DSH_CLIENT_COMMIT_HASH })
+                                                    : null] })),
+                                    }) })] }) })), _jsx(Tooltip, { label: collapsed ? t('toggle.open') : t('toggle.collapse'), delayMs: 500, children: _jsxs("button", { type: "button", className: clsx(css.iconButton, css.toggle), "aria-label": collapsed ? t('toggle.open') : t('toggle.collapse'), onClick: () => { toggleSidebar(); }, children: [!wide && (_jsx("span", { className: css.railMark, "aria-hidden": "true", children: renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: _jsx(FishLogo, { size: 24 }) }) })), _jsx(IconPanelLeftOutline16, { className: css.panelIcon, size: wide ? 16 : 18 })] }) })] }), _jsx(Tooltip, { label: t('session.new.label'), delayMs: 500, disabled: wide, children: _jsxs("button", { type: "button", className: css.newSession, "aria-label": t('session.new.label'), onClick: () => { startSession(); }, children: [_jsx(IconNewChatOutline16, { size: wide ? 14 : 18 }), wide && _jsx("span", { className: clsx(css.newSessionLabel, css.wide), children: t('session.new') })] }) }), _jsx("div", { className: css.regionArea, children: renderSlot('sidebar.workspaces', {
                     wide,
                     expandSidebar: () => { if (collapsed)
                         toggleSidebar(); },

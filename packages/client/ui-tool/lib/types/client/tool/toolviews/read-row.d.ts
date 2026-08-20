@@ -8,7 +8,7 @@ type ReadRowProps = ToolCallViewProps & PropsLocale<'conversation'>;
  * read card as the row's collapsed-by-default card body. The summary path is an
  * openable host link when the row names a single file.
  */
-export declare function ReadRow({ toolName, block, cwd, openFile, inspect, t }: ReadRowProps): import("react").JSX.Element;
+export declare function ReadRow({ toolName, block, cwd, home, openFile, inspect, t }: ReadRowProps): import("react").JSX.Element;
 /**
  * The read row as a plain registrant plugin following the atomic Tool-view
  * declaration across independent activation and reload lifetimes.

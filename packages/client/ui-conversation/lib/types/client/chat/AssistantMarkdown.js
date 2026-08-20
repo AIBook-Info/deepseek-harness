@@ -9,15 +9,12 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 // (`time` is omitted for mid-turn narration and while the turn still runs);
 // their branch action is enabled only when the node is also the completed
 // turn's transcript tail. Think / tool-head-only nodes stay chrome-free.
-import { memo, useMemo } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 import { JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
-import { ImageGallery } from '@deepseek-ai/dsh-client-ui-attachment';
-import { messageImageLabels } from "../image-labels.js";
 import { ReasoningRow } from "./ReasoningRow.js";
 import css from './AssistantMarkdown.module.css';
 /** Reasoning block as the Think variant summary row (figma 39:28304). */
-export const AssistantMarkdown = memo(function AssistantMarkdown({ blocks, streaming, interrupted, loadImage, mentions, t, }) {
-    const imageLoader = loadImage ?? (() => Promise.reject(new Error(t('image.serviceUnavailable'))));
+export const AssistantMarkdown = memo(function AssistantMarkdown({ blocks, streaming, interrupted, renderMessageImages, mentions, t, }) {
     // Stable per locale revision (t identity changes on switch): a fresh object
     // per render would rebuild MarkdownText's component table every chunk.
     const codeLabels = useMemo(() => ({ copyLabel: t('copy'), copiedLabel: t('copied') }), [t]);
@@ -57,7 +54,10 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({ blocks, strea
                     group.push(next);
                     i += 1;
                 }
-                rendered.push(_jsx(ImageGallery, { images: group, load: imageLoader, align: "start", labels: messageImageLabels(t) }, start));
+                rendered.push(_jsx(Fragment, { children: renderMessageImages({
+                        images: group.map(({ attachment }) => ({ attachment })),
+                        align: 'start',
+                    }) }, start));
                 break;
             }
             // Grouped into tool rows by ChatView; hasVisible above skips an empty shell.

@@ -33,6 +33,19 @@ function joined(names) {
     return names.length > 0 ? names.join(', ') : null;
 }
 /**
+ * The referenced-session labels of one durable `session-reference` recall
+ * source, in first-seen order; empty for every other source shape, including
+ * a foreign or older log whose reference entries carry no readable label.
+ * @param source - the logged `user/message` source, exactly as recorded.
+ * @returns distinct non-empty reference labels.
+ */
+export function sessionRecallLabels(source) {
+    const record = asRecord(source);
+    if (record === null || readString(record, 'kind') !== 'session-reference')
+        return [];
+    return collect(record, 'references', 'label');
+}
+/**
  * Project one durable message source onto its transcript role and producer name.
  *
  * The source arrives over the wire as opaque JSON (`MessageSource` is

@@ -14,18 +14,23 @@ import type { WebSearchResult } from '@deepseek-ai/dsh-web';
  * context returns. The default `8` aligns with OpenCode's Exa default.
  */
 export declare const WEB_SEARCH_MAX_RESULTS = 8;
+/** Default upper bound on concurrent searches in one tool call. */
+export declare const WEB_SEARCH_MAX_QUERIES = 4;
+/** Model-facing `web_search` arguments. */
+interface WebSearchArgs {
+    queries: string[];
+}
 /**
- * Validate value constraints the schema DSL can't express: a non-blank
- * `query`. Throws a plain `Error` otherwise.
+ * Validate value constraints the schema DSL can't express: `queries` is
+ * non-empty, contains only non-blank strings, and fits the deployment's
+ * query-count bound. Exact duplicate strings are collapsed after the bound
+ * check. Throws a plain `Error` otherwise.
  *
  * @param args - the schema-validated `web_search` arguments.
- * @returns the accepted arguments, passed through unchanged.
+ * @param maxQueries - the deployment's upper bound on queries in one call.
+ * @returns the accepted queries in their first-occurrence order.
  */
-export declare function parseSearchArgs(args: {
-    query: string;
-}): {
-    query: string;
-};
+export declare function parseSearchArgs(args: WebSearchArgs, maxQueries: number): string[];
 /**
  * Format a search result as one model-facing text block.
  *
@@ -36,14 +41,12 @@ export declare function parseSearchArgs(args: {
  */
 export declare function formatSearchOutput(result: WebSearchResult): string;
 /**
- * Pending-call presentation: a search card titled by the query.
+ * Pending-call presentation: a search card titled by the query list.
  *
- * @param args - the raw tool arguments; only `query` feeds the view.
+ * @param args - the raw tool arguments; only the query text feeds the view.
  * @returns the generic card view (`kind: 'search'`) shown while the call runs.
  */
-export declare function presentSearchCall(args: {
-    query: string;
-}): GenericCallView;
+export declare function presentSearchCall(args: WebSearchArgs): GenericCallView;
 /**
  * The `web_search` tool's private `tool/result` `meta` payload: the structured
  * sources, the optional provider answer, and the truncation flag. Attached
@@ -55,7 +58,7 @@ export declare function presentSearchCall(args: {
 export interface WebSearchMeta {
     /** The faithful structured sources, in result order. */
     sources: WebSource[];
-    /** True when the seam cut the source list to honor the result cap. */
+    /** True when the seam or multi-query merge cut the source list to honor the result cap. */
     truncated: boolean;
     /** The provider-generated answer text, when any. */
     answer?: string;
@@ -83,15 +86,13 @@ export declare function searchMetaFromResult(meta: unknown): WebSearchMeta | und
  * `web` capability falls back to the raw `tool/result` content, which is the
  * same text (see the web-result-card Agent Note).
  *
- * @param args - the raw tool arguments; `query` becomes the result-state title so
- *   a window-truncated replay that dropped the call head still has one.
+ * @param args - the raw tool arguments; the queries become the result-state
+ *   title so a window-truncated replay that dropped the call head still has one.
  * @param result - the final model-facing tool result; `meta` carries the sources.
  * @returns the search result view, or `undefined` (generic card) on failure or
  *   malformed meta.
  */
-export declare function presentSearchResult(args: {
-    query: string;
-}, result: ToolResult): WebSearchResultView | undefined;
+export declare function presentSearchResult(args: WebSearchArgs, result: ToolResult): WebSearchResultView | undefined;
 /**
  * Register the `web_search` tool and its system-prompt guidance.
  *
@@ -99,10 +100,12 @@ export declare function presentSearchResult(args: {
  *   registrations; both are effect-scoped and unregister on plugin dispose.
  * @param maxResults - the deployment's source cap, sent as every seam
  *   request's `maxResults`.
+ * @param maxQueries - the deployment's query cap enforced before provider calls.
  * @param timeoutMs - the cooperative tool-call budget (ms) attached as the tool's
  *   `ToolDefinition.timeoutMs` for `@deepseek-ai/dsh-tool-call-timeout-policy` to enforce.
  * @param fetchEnabled - whether the same composition exposes `web_fetch`, which
  *   controls whether search guidance may recommend that follow-up tool.
  */
-export declare function applyWebSearchTool(ctx: Context, maxResults: number, timeoutMs: number, fetchEnabled: boolean): void;
+export declare function applyWebSearchTool(ctx: Context, maxResults: number, maxQueries: number, timeoutMs: number, fetchEnabled: boolean): void;
+export {};
 //# sourceMappingURL=search.d.ts.map

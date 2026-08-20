@@ -333,14 +333,14 @@ const DESCRIPTOR_BASE_KEYS = [
 	"label"
 ];
 const ONE_SHOT_DESCRIPTOR_KEYS = new Set(DESCRIPTOR_BASE_KEYS);
-const CONTINUABLE_DESCRIPTOR_KEYS = /* @__PURE__ */ new Set([
+const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
 	...DESCRIPTOR_BASE_KEYS,
 	"agentProvider",
 	"agentModel",
 	"persona",
 	"toolFilter"
 ]);
-const TOOL_FILTER_KEYS = /* @__PURE__ */ new Set(["allow", "deny"]);
+const TOOL_FILTER_KEYS = new Set(["allow", "deny"]);
 /** Whether a persisted JSON value is an object record. */
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -416,7 +416,7 @@ function parseSubagentDescriptor(value) {
 	};
 }
 function snapshotSubagentDescriptor(input) {
-	const candidate = input.mode === "one-shot" ? {
+	const snapshot = snapshotJsonValue(input.mode === "one-shot" ? {
 		version: 2,
 		mode: input.mode,
 		provider: input.provider,
@@ -430,8 +430,7 @@ function snapshotSubagentDescriptor(input) {
 		...input.agentModel !== void 0 ? { agentModel: input.agentModel } : {},
 		...input.persona !== void 0 ? { persona: input.persona } : {},
 		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {}
-	};
-	const snapshot = snapshotJsonValue(candidate);
+	});
 	if (snapshot === void 0) throw new Error("subagent descriptor is not losslessly JSON-serializable");
 	return snapshot;
 }
@@ -773,9 +772,10 @@ var SubagentContinuationManager = class {
 		const request = spec.request;
 		const parent = request.parent;
 		this.assertAdmitting(parent);
-		this.requirePersistence();
+		const persistence = this.requirePersistence();
 		assertSubagentMaxDepth(request.maxDepth);
-		const childId = SessionId(randomUUID());
+		const childId = spec.childId ?? SessionId(randomUUID());
+		this.assertChildIdAvailable(childId);
 		const childDepth = resolveChildDepth(parent, request.maxDepth);
 		const agentProvider = request.agentOptions?.provider ?? parent.options.provider;
 		const agentModel = request.agentOptions?.model ?? parent.options.model;
@@ -801,6 +801,16 @@ var SubagentContinuationManager = class {
 		return {
 			childId,
 			messageId: await this.locks.run(childId, async () => {
+				spec.signal.throwIfAborted();
+				this.assertAdmitting(parent);
+				this.assertChildIdAvailable(childId);
+				if (spec.childId !== void 0) {
+					const persisted = await persistence.listSnapshots(spec.signal);
+					spec.signal.throwIfAborted();
+					this.assertAdmitting(parent);
+					this.assertChildIdAvailable(childId);
+					if (persisted.some((snapshot) => snapshot.header.id === childId)) throw new SubagentError(`subagent "${childId}" already exists`, "DUPLICATE_CHILD");
+				}
 				const activation = await this.materialize({
 					childId,
 					provider: spec.provider,
@@ -820,6 +830,10 @@ var SubagentContinuationManager = class {
 				return this.submitMaterialized(activation, request.prompt, { kind: "user" }, parent, spec.signal);
 			})
 		};
+	}
+	/** Reject one child identity already owned by a live Agent or Session. */
+	assertChildIdAvailable(childId) {
+		if (this.ctx.agents.get(childId) !== void 0 || this.ctx.get("sessions")?.get(childId) !== void 0) throw new SubagentError(`subagent "${childId}" already exists`, "DUPLICATE_CHILD");
 	}
 	/**
 	* Deliver one later message to a known continuable child as its next FIFO
@@ -942,7 +956,7 @@ var SubagentContinuationManager = class {
 				senderSessionId: activation.childId
 			}
 		});
-		if (delivery === "wakeup") this.sendWaking(parent, message, () => {
+		if (delivery === "next-step") this.sendWaking(parent, message, () => {
 			this.sendReport(parent, message, delivery);
 		});
 		else this.sendReport(parent, message, delivery);
@@ -952,7 +966,7 @@ var SubagentContinuationManager = class {
 	* Perform one waking send to a parent, accounted against that parent's own
 	* Activation when it has one. Registering the id before the send is what
 	* keeps a continuation-managed parent from being judged quiescent in the
-	* window between `followup()` and the microtask that admits it.
+	* window between a waking send and the microtask that admits it.
 	* @param parent - the exact live parent receiving the waking message.
 	* @param message - the message whose id is accounted.
 	* @param send - the synchronous waking send to perform.
@@ -965,7 +979,7 @@ var SubagentContinuationManager = class {
 	/** Send one report while translating only the parent's own rejection. */
 	sendReport(parent, message, delivery) {
 		try {
-			if (delivery === "wakeup") parent.followup(message);
+			if (delivery === "next-step") parent.steer(message);
 			else parent.inject(message);
 		} catch (error) {
 			throw new SubagentError("direct parent is not live; report was not delivered", "PARENT_UNAVAILABLE", { cause: error });
@@ -1028,6 +1042,28 @@ var SubagentContinuationManager = class {
 		await Promise.all(materializations.map((materialization) => materialization.settled));
 		await this.disposeRoots(targetRoots, "scoped activation(s)");
 	}
+	/**
+	* Release selected resident direct children of one exact live parent without
+	* closing admission for the parent's other continuable children. Owned
+	* descendants are released recursively through the same lifecycle.
+	* @param parent - exact live direct parent authorizing the selected release.
+	* @param childIds - durable direct-child ids to release when resident.
+	* @returns once every selected Activation released its handle.
+	* @throws {SubagentError} `UNAUTHORIZED` when a resident target is not the
+	*   parent's direct continuable child or the parent identity is stale.
+	*/
+	async drainChildren(parent, childIds) {
+		if (this.ctx.agents.get(parent.id) !== parent) throw new SubagentError("selected child teardown requires the exact live parent agent", "UNAUTHORIZED");
+		const targets = [];
+		for (const childId of new Set(childIds)) {
+			const activation = this.activations.get(childId);
+			if (activation === void 0) continue;
+			if (activation.parentSession !== parent.id || !activation.ancestry.has(parent)) throw new SubagentError(`subagent "${childId}" is not a direct child of agent "${parent.id}"`, "UNAUTHORIZED");
+			targets.push(activation);
+		}
+		for (const activation of targets) this.dispose(activation).catch(() => void 0);
+		await this.disposeRoots(targets, "selected activation(s)");
+	}
 	/** Dispose independent roots and report every branch failure after all settle. */
 	async disposeRoots(roots, failureSubject) {
 		const reasons = (await Promise.all(roots.map(async (activation) => {
@@ -1055,7 +1091,7 @@ var SubagentContinuationManager = class {
 	*/
 	liveLineage(agent) {
 		const lineage = [agent];
-		const seen = /* @__PURE__ */ new Set([agent.id]);
+		const seen = new Set([agent.id]);
 		let parentSession = agent.session.header.parentSession;
 		while (parentSession !== void 0) {
 			const parent = this.ctx.agents.get(parentSession);
@@ -1800,7 +1836,7 @@ function descendantCandidates(corpus, rootSessionId) {
 		parentId: rootSessionId,
 		depth: 1
 	})).reverse();
-	const visited = /* @__PURE__ */ new Set([rootSessionId]);
+	const visited = new Set([rootSessionId]);
 	while (stack.length > 0) {
 		const position = stack.pop();
 		const id = position.record.header.id;
@@ -2048,6 +2084,23 @@ const subagentIdentityProjectionDefinition = {
 *
 * @module @deepseek-ai/dsh-subagent/out-of-process
 */
+/** Maximum UTF-8 size of {@link SubagentResult.diagnostic}. */
+const MAX_SUBAGENT_DIAGNOSTIC_BYTES = 4096;
+const DIAGNOSTIC_TRUNCATION_SUFFIX = "\n[diagnostic truncated]";
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder();
+/**
+* Limit provider-authored failure detail without splitting a UTF-8 sequence.
+* @param diagnostic - safe diagnostic text produced by the provider.
+* @returns the original text, or a visibly truncated value within the limit.
+*/
+function limitSubagentDiagnostic(diagnostic) {
+	const bytes = utf8Encoder.encode(diagnostic);
+	if (bytes.byteLength <= MAX_SUBAGENT_DIAGNOSTIC_BYTES) return diagnostic;
+	let prefixBytes = MAX_SUBAGENT_DIAGNOSTIC_BYTES - utf8Encoder.encode(DIAGNOSTIC_TRUNCATION_SUFFIX).byteLength;
+	while ((bytes[prefixBytes] & 192) === 128) prefixBytes -= 1;
+	return utf8Decoder.decode(bytes.subarray(0, prefixBytes)) + DIAGNOSTIC_TRUNCATION_SUFFIX;
+}
 /**
 * The capability advertisement of an out-of-process backend: NONE. A child in
 * another process cannot honor parent-enforced start features
@@ -2161,8 +2214,11 @@ async function settleRunResult(parts) {
 		try {
 			parts.onError?.(toError(error), "error");
 		} catch {}
+		const collected = parts.collectDiagnostic?.();
+		const diagnostic = collected === void 0 ? void 0 : limitSubagentDiagnostic(collected);
 		return {
 			output: parts.collectOutput(),
+			...diagnostic === void 0 ? {} : { diagnostic },
 			stopReason: "error"
 		};
 	} finally {
@@ -2205,6 +2261,11 @@ function subprocessRunHandle(parts) {
 function finalText(blocks) {
 	return blocks.filter((block) => block.type === "text").map((block) => block.text).join("");
 }
+/** Render a failed stop reason with optional provider-authored detail. */
+function failureDetail(result) {
+	const stopReason = result.stopReason;
+	return result.diagnostic === void 0 ? stopReason : `${stopReason}; diagnostic: ${result.diagnostic}`;
+}
 /**
 * Map a child result to the task outcome: completed carries final text,
 * aborted is killed, and every other reason is failed without partial output.
@@ -2222,11 +2283,11 @@ function runOutcome(result) {
 		case "max-tokens":
 		case "refusal": return {
 			status: "failed",
-			detail: result.stopReason
+			detail: failureDetail(result)
 		};
 		default: return {
 			status: "failed",
-			detail: String(result.stopReason)
+			detail: failureDetail(result)
 		};
 	}
 }
@@ -2408,6 +2469,21 @@ var SubagentRuntime = class extends Service {
 		const manager = this.continuations;
 		if (manager === void 0) return;
 		await manager.drainDescendants(parents);
+	}
+	/**
+	* Release selected resident continuable direct children of one exact live
+	* parent. Other children of the same parent remain admitted and resident.
+	* Absent targets and a manager-less composition are accepted no-ops.
+	* @param parent - exact live direct parent authorizing the selected release.
+	* @param childIds - durable direct-child ids to release when resident.
+	* @returns once every selected Activation released its `AgentHandle`.
+	* @throws {SubagentError} `UNAUTHORIZED` when a resident target belongs to a
+	*   different parent or the supplied parent identity is stale.
+	*/
+	async drainContinuableChildren(parent, childIds) {
+		const manager = this.continuations;
+		if (manager === void 0) return;
+		await manager.drainChildren(parent, childIds);
 	}
 	/**
 	* Enumerate the parent's direct session-backed subagents without loading or

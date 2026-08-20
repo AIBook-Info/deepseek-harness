@@ -207,6 +207,13 @@ async function runStep(client, step, cwd, waitForUpdate, getSessionId, setSessio
             await client.prompt({ sessionId, prompt: [{ type: 'text', text: step.text }] });
             return;
         }
+        case 'promptContent': {
+            const sessionId = getSessionId();
+            if (sessionId === undefined)
+                throw new Error('snapshot-harness: promptContent before newSession');
+            await client.prompt({ sessionId, prompt: step.content });
+            return;
+        }
         case 'promptAndWaitForAgentMessage': {
             const sessionId = getSessionId();
             if (sessionId === undefined)

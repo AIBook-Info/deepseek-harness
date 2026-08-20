@@ -15,7 +15,7 @@ import z from '@deepseek-ai/schemastery';
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm';
 import { type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment';
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts';
-export { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from './adapter.ts';
+export { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from './adapter.ts';
 export type { DeepSeekAdapterOptions, DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts';
 export type { RequestDefaults } from './serialize.ts';
 export type * from './types.ts';
@@ -37,7 +37,7 @@ export interface Config {
     /** Deployment thinking policy; `disabled` limits every conversation request to `off`. */
     thinking?: 'enabled' | 'disabled';
     /** Default thinking effort (default `high`); `off` disables thinking per request. */
-    reasoningEffort?: 'off' | 'high' | 'max';
+    reasoningEffort?: 'off' | 'low' | 'high' | 'max';
     /** Default per-request output cap (default 256,000); a model's own cap and explicit request values win. */
     maxTokens?: number;
     /** Positive context capacity used when the selected model has no exact value (default 1,000,000). */
@@ -46,7 +46,9 @@ export interface Config {
     models?: DeepSeekCatalogModel[];
     /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
     streamIdleTimeoutMs?: number;
-    /** Provider-owned model-request retry policy; omission uses normal defaults. */
+    /** Maximum accumulated base64 image payload per request (default 20 MiB). */
+    maxRequestImageBytes?: number;
+    /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
     retryPolicy?: RetryPolicyConfig;
 }
 export declare const Config: z<Config>;

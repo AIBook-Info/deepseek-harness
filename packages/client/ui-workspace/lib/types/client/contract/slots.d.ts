@@ -22,7 +22,8 @@
  * and a hole has exactly one declaring entry — they carry the same owner
  * contract and the same occupant.
  */
-import type { HostObservable, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots';
+import type { HostDescriptionSource } from '@deepseek-ai/dsh-client-connection/client';
+import type { HostObservable, PropsHooks, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SessionId, SessionSearchResultItem, WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-runtime/client';
 import type { createWorkspaceViewStore } from '../stores.ts';
 /**
@@ -74,16 +75,17 @@ export type DirectoryPickingInjected = {
     };
 };
 /** Component-side view of the picking share: the bound occupancy selector hook. */
-export type DirectoryPickingHooks = {
-    /** Selector hook over this surface's directory-flow occupancy. */
-    useDirectoryFlow: SnapshotSelectorHook<boolean>;
-};
+export type DirectoryPickingHooks = PropsHooks<DirectoryPickingInjected['hooks']>;
 /**
  * Browser-private injected share (arrives via the register inject factory).
  * Data reads use the global framework hooks; these are the Host actions the
  * browsing region drives.
  */
-export type WorkspaceBrowserInjected = DirectoryPickingInjected & {
+export type WorkspaceBrowserInjected = {
+    hooks: DirectoryPickingInjected['hooks'] & {
+        /** Current generation's Host description, bound by the slot renderer. */
+        hostDescription: HostDescriptionSource;
+    };
     /**
      * Start a New Session in a Workspace: reuse-or-create its blank session and
      * open it; without an explicit workspace, inherit the current Session
@@ -133,7 +135,7 @@ export type WorkspaceBrowserInjected = DirectoryPickingInjected & {
     }) => Promise<WorkspaceView>;
 };
 /** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
-export type WorkspaceBrowserProps = PropsRuntime<'sidebar.workspaces'> & PropsRenderSlots<'sidebar.workspaces.directoryFlow'> & PropsStore<ReturnType<typeof createWorkspaceViewStore>> & Omit<WorkspaceBrowserInjected, 'hooks'> & DirectoryPickingHooks & PropsLocale<'workspace'>;
+export type WorkspaceBrowserProps = PropsRuntime<'sidebar.workspaces'> & PropsRenderSlots<'sidebar.workspaces.directoryFlow'> & PropsStore<ReturnType<typeof createWorkspaceViewStore>> & Omit<WorkspaceBrowserInjected, 'hooks'> & PropsHooks<WorkspaceBrowserInjected['hooks']> & PropsLocale<'workspace'>;
 /**
  * Picker-private injected share. Pick semantics remain in the owner's onPick
  * callback; this callback creates only the real Host Workspace. A type alias

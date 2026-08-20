@@ -22,6 +22,7 @@
  */
 import type { ReactNode } from 'react';
 import type { IApiClient, SettingsNamespaceView, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client';
+import type { SettingsSchemaOperations } from './schema-operations.ts';
 import type { en } from './locales.ts';
 /** Props of {@link ProviderEditor}. */
 export interface ProviderEditorProps {
@@ -41,6 +42,8 @@ export interface ProviderEditorProps {
     declared?: boolean;
     /** The owning namespace view (schema, layers, secrets). */
     namespace: SettingsNamespaceView;
+    /** Settings-owned synchronous schema and immutable path operations. */
+    schema: SettingsSchemaOperations;
     /** Path from the section root to this provider's profile. */
     settingsPath: readonly string[];
     /** Wire faces for writes and for interrogating a provider endpoint. */

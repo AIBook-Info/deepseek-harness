@@ -2,6 +2,7 @@ import z from "@deepseek-ai/schemastery";
 import { MAX_TIMER_DELAY_MS } from "@deepseek-ai/dsh-timeout";
 import { isAbsolute, relative, sep } from "node:path";
 import { defineTool } from "@deepseek-ai/dsh-tools";
+import { existsSync } from "node:fs";
 import { HarnessError } from "@deepseek-ai/dsh-llm";
 import { ItemRetainer, TextRetainer } from "@deepseek-ai/dsh-output-retention";
 //#region lib/types/search-core.js
@@ -41,7 +42,7 @@ const SEARCH_TIMEOUT_MS = 3e4;
 * diagnostic excerpt only (the tool never reads a stderr spill path, and the
 * collect disposition requests none).
 */
-const SEARCH_STDERR_MAX_BYTES = 65536;
+const SEARCH_STDERR_MAX_BYTES = 64 * 1024;
 /** Default terminate grace period for a search process (ms). */
 const SEARCH_GRACE_MS = 3e3;
 /**
@@ -107,18 +108,21 @@ let rgPathPromise;
 /**
 * The packaged ripgrep binary path, resolved lazily once per process.
 *
-* `@vscode/ripgrep` resolves its platform package (`@vscode/ripgrep-<platform>
-* -<arch>`) at module evaluation, so a static import would turn a missing or
-* corrupt platform package (`pnpm install --omit=optional`, partial install)
-* into a failure of the whole Loader composition. Resolving at the call
-* boundary keeps that failure at the first search call as `SEARCH_FAILED` —
-* the package's documented no-load-time-probe contract.
+* A single-file runtime uses the executable's `-rg` sidecar because a native
+* helper cannot be spawned from pkg's virtual filesystem. Node-mode builds
+* fall back to the platform package selected by `@vscode/ripgrep`. Resolving
+* at the call boundary keeps a missing or corrupt binary at the first search
+* call as `SEARCH_FAILED`, rather than failing the Loader composition.
 *
 * @returns the packaged binary's absolute path; the memoized promise rejects
 *   when the platform package cannot be resolved.
 */
 function resolveRgPath() {
-	rgPathPromise ??= import("@vscode/ripgrep").then((module) => module.rgPath);
+	rgPathPromise ??= Promise.resolve().then(async () => {
+		const executableSidecar = `${process.execPath}-rg`;
+		if ("pkg" in process && existsSync(executableSidecar)) return executableSidecar;
+		return (await import("@vscode/ripgrep")).rgPath;
+	});
 	return rgPathPromise;
 }
 /**

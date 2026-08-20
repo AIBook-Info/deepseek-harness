@@ -6,6 +6,7 @@ export declare const zh: {
     'action.dislike': string;
     'action.dislikeActive': string;
     'note.open': string;
+    'note.dialog': string;
     'note.placeholder': string;
     'note.save': string;
     'note.cancel': string;
@@ -29,6 +30,7 @@ export declare const en: {
     'action.dislike': string;
     'action.dislikeActive': string;
     'note.open': string;
+    'note.dialog': string;
     'note.placeholder': string;
     'note.save': string;
     'note.cancel': string;

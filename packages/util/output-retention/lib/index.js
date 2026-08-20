@@ -162,6 +162,7 @@ var TextRetainer = class {
 				assertBudget(strategy.tailBytes, "tailBytes");
 				this.prefixCap = strategy.headBytes;
 				this.suffixCap = strategy.tailBytes;
+				break;
 		}
 	}
 	/**

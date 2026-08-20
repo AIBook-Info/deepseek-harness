@@ -10,7 +10,7 @@ import { dirname, resolve } from "node:path";
 const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 8;
 /** SQLite application id protecting unrelated databases from derived resets. */
 const SESSION_QUERY_SQLITE_APPLICATION_ID = 1146308689;
-const DERIVED_USER_TABLES = /* @__PURE__ */ new Set([
+const DERIVED_USER_TABLES = new Set([
 	"search_state",
 	"persisted_sessions",
 	"persisted_docs",

@@ -52,7 +52,9 @@ export function HeroGlow({ className }) {
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
-export function HeroShell({ t, children }) {
-    return (_jsxs("div", { className: css.root, children: [_jsxs("div", { className: css.stack, children: [_jsxs("div", { className: css.headline, children: [_jsx("span", { className: css.fishHitbox, children: _jsx(FishLogo, { size: 34, className: css.fish }) }), _jsx("span", { className: css.headlineText, children: t('hero.headline') }), _jsx("span", { className: css.previewBadge, children: t('hero.preview') })] }), _jsx("div", { className: css.body })] }), children] }));
+export function HeroShell({ t, renderSlot, children }) {
+    return (_jsxs("div", { className: css.root, children: [_jsxs("div", { className: css.stack, children: [_jsxs("div", { className: css.headline, children: [_jsx("span", { className: css.fishHitbox, children: renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish }, {
+                                    fallback: _jsx(FishLogo, { size: 34, className: css.fish }),
+                                }) }), _jsx("span", { className: css.headlineText, children: t('hero.headline') }), _jsx("span", { className: css.previewBadge, children: t('hero.preview') })] }), _jsx("div", { className: css.body })] }), children] }));
 }
 //# sourceMappingURL=EmptyHero.js.map

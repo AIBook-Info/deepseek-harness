@@ -17,8 +17,8 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment';
 import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout';
 import { getOrCreateAnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id';
-import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from "./adapter.js";
-export { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from "./adapter.js";
+import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from "./adapter.js";
+export { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, } from "./adapter.js";
 export const name = 'llm-deepseek';
 export const inject = ['llm'];
 const NS = settingsNamespace('llm-deepseek');
@@ -29,22 +29,25 @@ const DEFAULT_MODELS = [
     { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', contextWindow: DEFAULT_CONTEXT_WINDOW },
     { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', contextWindow: DEFAULT_CONTEXT_WINDOW },
 ];
+const MODEL_MODALITIES = ['text', 'image'];
 const catalogModel = z.object({
     id: z.string().required(),
     name: z.string(),
     description: z.string(),
     contextWindow: z.number().step(1).min(1),
     maxTokens: z.number().step(1).min(1),
+    inputModalities: z.array(z.union(MODEL_MODALITIES)).min(1).default(['text']),
 });
 export const Config = z.object({
     apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
     baseURL: z.string(),
     thinking: z.union(['enabled', 'disabled']),
-    reasoningEffort: z.union(['off', 'high', 'max']),
+    reasoningEffort: z.union(['off', 'low', 'high', 'max']),
     maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
     defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
     models: z.array(catalogModel).default(DEFAULT_MODELS),
     streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
+    maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
     retryPolicy: RetryPolicySchema,
 });
 /** Public API default; the internal endpoint comes from $DEEPSEEK_BASE_URL. */
@@ -68,6 +71,16 @@ function resolveModels(models) {
             && (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)) {
             throw new Error(`llm-deepseek: catalog model "${model.id}" maxTokens must be a positive integer`);
         }
+        const inputModalities = model.inputModalities ?? ['text'];
+        if (inputModalities.length === 0) {
+            throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must not be empty`);
+        }
+        if (inputModalities.some(modality => !MODEL_MODALITIES.includes(modality))) {
+            throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must contain only "text" and "image"`);
+        }
+        if (new Set(inputModalities).size !== inputModalities.length) {
+            throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must not contain duplicates`);
+        }
         if (seen.has(model.id))
             throw new Error(`llm-deepseek: duplicate catalog model "${model.id}"`);
         seen.add(model.id);
@@ -77,6 +90,7 @@ function resolveModels(models) {
             ...model.description === undefined ? {} : { description: model.description },
             ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
             ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
+            inputModalities: [...inputModalities],
         };
     });
 }
@@ -112,6 +126,10 @@ export function resolveAdapterOptions(config, environment) {
         || streamIdleTimeoutMs > MAX_TIMER_DELAY_MS) {
         throw new Error(`llm-deepseek: streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`);
     }
+    const maxRequestImageBytes = config.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES;
+    if (!Number.isSafeInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) {
+        throw new Error('llm-deepseek: maxRequestImageBytes must be a positive safe integer');
+    }
     return {
         apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
         baseURL: config.baseURL
@@ -125,6 +143,7 @@ export function resolveAdapterOptions(config, environment) {
         defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
         models: resolveModels(config.models),
         streamIdleTimeoutMs,
+        maxRequestImageBytes,
         retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-deepseek: retryPolicy'),
     };
 }
@@ -178,7 +197,12 @@ export function apply(ctx, config) {
     };
     let userId;
     const resolveUserId = () => userId ??= getOrCreateAnonymousUserId();
-    const adapter = new DeepSeekAdapter({ options, resolveApiKey, resolveUserId });
+    const adapter = new DeepSeekAdapter({
+        options,
+        resolveApiKey,
+        resolveUserId,
+        resolveAttachments: () => ctx.get('attachments'),
+    });
     ctx.llm.registerConfigurableProviders([
         { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
     ]);

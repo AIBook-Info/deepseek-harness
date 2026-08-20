@@ -1,5 +1,6 @@
 import { AppearanceRow } from "./AppearanceRow.js";
 import { createAppearanceRowStore } from "./settings-store.js";
+import { installThemeStyles } from "./styles.js";
 import { en, zh } from "./locales.js";
 import { DEFAULT_PREFERENCE, isThemePreference, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE, } from "../theme-settings.js";
 /** Namespace owning this feature's settings-row copy. */
@@ -252,7 +253,7 @@ function dynamicToken(name) {
 /**
  * Required services: settings transport plus slots/locale for the Appearance
  * row. `remote` carries the forwarded settings invalidation that
- * `bindSettingsScope` subscribes to on this context.
+ * `ctx.settingsScope.bind(spec)` subscribes to on this context.
  */
 export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope'];
 /**
@@ -262,6 +263,7 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope
  * @param ctx - client cordis context.
  */
 export function apply(ctx) {
+    installThemeStyles(ctx);
     const host = ctx.settingsScope.bind({ namespace: THEME_SETTINGS_NAMESPACE });
     const theme = new ThemeRuntime(ctx, host);
     ctx.provide('theme', theme);

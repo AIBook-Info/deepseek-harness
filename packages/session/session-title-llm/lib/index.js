@@ -81,7 +81,7 @@ const SessionTitleLlmConfigFields = {
 /** Shared Loader schema with no library defaults. */
 const SessionTitleLlmConfigSchema = z.object(SessionTitleLlmConfigFields);
 /** Complete configuration key set for direct construction validation. */
-const CONFIG_KEYS = /* @__PURE__ */ new Set([
+const CONFIG_KEYS = new Set([
 	"targetWords",
 	"targetCjkCharacters",
 	"maxInputBytes",
@@ -234,8 +234,7 @@ async function generateSessionTitleWithLlm(ctx, config, request, selectedMessage
 		if (terminalError !== void 0) throw terminalError;
 		const blocks = assembler.blocks();
 		if (blocks.some((block) => block.type === "tool-call")) throw new Error("session-title-llm: title output must contain text only");
-		const text = blocks.filter((block) => block.type === "text").map((block) => block.text).join(" ");
-		const title = normalizeSessionTitle(text, Number.MAX_SAFE_INTEGER);
+		const title = normalizeSessionTitle(blocks.filter((block) => block.type === "text").map((block) => block.text).join(" "), Number.MAX_SAFE_INTEGER);
 		if (title.length === 0) throw new Error("session-title-llm: title model produced no text");
 		return {
 			title,

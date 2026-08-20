@@ -175,6 +175,10 @@ export function apply(ctx, config) {
         profiles,
         resolveApiKey,
         resolveAttachments: () => ctx.get('attachments'),
+        onReplayDegrade: ({ provider, model, reason }) => {
+            ctx.logger.warn(`llm-pi-ai: unusable replay state on assistant history for route "${provider}/${model}";`
+                + ` sending that message as provider-neutral content (${reason})`);
+        },
     });
     // The full installed catalog is configurable from the moment the plugin
     // mounts — dormant or not — so configuration surfaces can offer every

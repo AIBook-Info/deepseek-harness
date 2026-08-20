@@ -22,7 +22,6 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
  * see instead of rebuilding the whole subtree from a partial descriptor.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { deletePath, getPath, hasPath, nodeAtPath, rehydrateSchema, setPath, validateDraft, } from '@deepseek-ai/dsh-client-schema-form';
 import { DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels, } from "./DeepSeekModelsEditor.js";
 import { apiKeyFailure } from "./apiKey.js";
 import { EditorFooter } from "./EditorFooter.js";
@@ -32,8 +31,8 @@ import styles from './ModelsSection.module.css';
 /** The public DeepSeek endpoint shown as the deepseek base-URL placeholder. */
 const DEEPSEEK_PUBLIC_BASE_URL = 'https://api.deepseek.com';
 /** A user-section subtree as a plain draft object (absent → empty). */
-function draftAt(namespace, path) {
-    const subtree = getPath(namespace.user, path);
+function draftAt(schema, namespace, path) {
+    const subtree = schema.getPath(namespace.user, path);
     if (typeof subtree !== 'object' || subtree === null || Array.isArray(subtree))
         return {};
     return structuredClone(subtree);
@@ -73,8 +72,8 @@ function layoutOf(ns) {
     return 'unknown';
 }
 /** The credential reference this profile resolves keys through. */
-function refFor(namespace, path, provider) {
-    const profile = getPath(namespace.value, path);
+function refFor(schema, namespace, path, provider) {
+    const profile = schema.getPath(namespace.value, path);
     const named = typeof profile === 'object' && profile !== null
         ? profile.apiKeyEnv
         : undefined;
@@ -86,8 +85,8 @@ function refFor(namespace, path, provider) {
  * @returns the editor card.
  */
 export function ProviderEditor(props) {
-    const { namespace, settingsPath, api, t } = props;
-    const [draft, setDraft] = useState(() => draftAt(namespace, settingsPath));
+    const { namespace, schema, settingsPath, api, t } = props;
+    const [draft, setDraft] = useState(() => draftAt(schema, namespace, settingsPath));
     const [keyDraft, setKeyDraft] = useState('');
     const [keyState, setKeyState] = useState(undefined);
     const [busy, setBusy] = useState(false);
@@ -95,19 +94,19 @@ export function ProviderEditor(props) {
     // A settings success advances both retry baselines immediately. Keeping the
     // derived fields in the draft prevents a pushed namespace refresh from
     // turning them into deletions when the following credential write is retried.
-    const [committedOriginal, setCommittedOriginal] = useState(() => getPath(namespace.user, settingsPath));
+    const [committedOriginal, setCommittedOriginal] = useState(() => schema.getPath(namespace.user, settingsPath));
     const [expectedRevision, setExpectedRevision] = useState(() => namespace.revision);
-    const root = useMemo(() => rehydrateSchema(namespace.schema), [namespace.schema]);
-    const node = useMemo(() => nodeAtPath(root, settingsPath), [root, settingsPath]);
-    const fallback = getPath(namespace.value, settingsPath);
+    const root = useMemo(() => schema.rehydrate(namespace.schema), [namespace.schema, schema]);
+    const node = useMemo(() => schema.nodeAtPath(root, settingsPath), [root, schema, settingsPath]);
+    const fallback = schema.getPath(namespace.value, settingsPath);
     const disabled = props.readOnly || busy;
     const layout = layoutOf(namespace.ns);
-    const keyRef = refFor(namespace, settingsPath, props.provider);
+    const keyRef = refFor(schema, namespace, settingsPath, props.provider);
     // The same schema read the create card makes, so the choices offered here
     // and there cannot drift apart: both come from the adapter's own `Config`.
     // Only the pi-ai layout has a per-route protocol for the read to find, and
     // it rehydrates the whole section schema, so the other layouts skip it.
-    const protocols = useMemo(() => layout === 'pi-ai' ? protocolChoices(namespace) : [], [layout, namespace]);
+    const protocols = useMemo(() => layout === 'pi-ai' ? protocolChoices(namespace, schema) : [], [layout, namespace, schema]);
     useEffect(() => {
         let stale = false;
         setKeyState(undefined);
@@ -123,7 +122,7 @@ export function ProviderEditor(props) {
         return () => { stale = true; };
     }, [api.credentials, keyRef]);
     const stringAt = (source, key) => {
-        const value = getPath(source, [key]);
+        const value = schema.getPath(source, [key]);
         return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
     };
     const setField = (key, next) => {
@@ -132,11 +131,13 @@ export function ProviderEditor(props) {
         // while the draft still carried the spaces into `settings.yaml`, where
         // both adapters would accept that non-empty string as a real value.
         const value = next === undefined || next.trim().length === 0 ? undefined : next;
-        setDraft(current => value === undefined ? deletePath(current, [key]) : setPath(current, [key], value));
+        setDraft(current => value === undefined
+            ? schema.deletePath(current, [key])
+            : schema.setPath(current, [key], value));
     };
     // The model list is validated by the same per-row checker for both families,
     // so a bad row is named by its position rather than by a blanket message.
-    const modelFailure = validateDeepSeekModels(getPath(draft, ['models']));
+    const modelFailure = validateDeepSeekModels(schema.getPath(draft, ['models']));
     const keyFailure = apiKeyFailure(keyDraft);
     // What a probe or a write must carry: the typed key with paste whitespace
     // removed. A blank field yields an empty string, which both call sites read
@@ -173,14 +174,14 @@ export function ProviderEditor(props) {
         // about to store a key. Otherwise the provider keeps its native auth path.
         const next = layout === 'pi-ai' && stringAt(draft, 'apiKeyEnv') === undefined
             && stringAt(fallback, 'apiKeyEnv') === undefined && keyValue.length > 0
-            ? setPath(draft, ['apiKeyEnv'], keyRef)
+            ? schema.setPath(draft, ['apiKeyEnv'], keyRef)
             : draft;
         if (props.credentialOnly !== true) {
             // The same checker gates the submit button, so a card cannot reach this
             // with a bad row; it stays because the schema check below would refuse
             // the write with a message naming a path instead of the row, and because
             // nothing but this function decides what is written.
-            const failure = validateDeepSeekModels(getPath(next, ['models']));
+            const failure = validateDeepSeekModels(schema.getPath(next, ['models']));
             /* v8 ignore next 3 -- unreachable from the card: the same failure disables submit */
             if (failure !== undefined) {
                 return `${t('model')} ${String(failure.index + 1)}: ${t(failure.key)}`;
@@ -188,7 +189,7 @@ export function ProviderEditor(props) {
         }
         /* v8 ignore next -- apply is only reachable from the rendered card, which required a resolved node */
         if (props.credentialOnly !== true && node !== undefined && settingsPath.length === 0) {
-            const sectionError = validateDraft(node, next);
+            const sectionError = schema.validate(node, next);
             if (sectionError !== undefined)
                 return sectionError;
         }
@@ -208,7 +209,7 @@ export function ProviderEditor(props) {
                     ? t('conflict')
                     : response.result.error.message;
             }
-            setCommittedOriginal(getPath(response.result.value.user, settingsPath));
+            setCommittedOriginal(schema.getPath(response.result.value.user, settingsPath));
             setExpectedRevision(response.result.value.revision);
             setDraft(next);
         }
@@ -255,8 +256,8 @@ export function ProviderEditor(props) {
      * moment reset drops it, leaving the rows unchanged until a reload.
      */
     const inheritedModels = () => {
-        const pinned = getPath(namespace.base, [...settingsPath, 'models']);
-        return pinned ?? nodeAtPath(root, [...settingsPath, 'models'])?.meta.default;
+        const pinned = schema.getPath(namespace.base, [...settingsPath, 'models']);
+        return pinned ?? schema.nodeAtPath(root, [...settingsPath, 'models'])?.meta.default;
     };
     /**
      * The curated fields of one known adapter family. The family arrives
@@ -268,11 +269,11 @@ export function ProviderEditor(props) {
         // A whole-section `llm-deepseek` profile is a composition fact with no
         // per-route identity for its schema to carry, hence the family test.
         const ownsIdentity = family === 'pi-ai' && props.declared === true;
-        const customModels = getPath(draft, ['models']);
-        const modelsOverridden = hasPath(draft, ['models']);
+        const customModels = schema.getPath(draft, ['models']);
+        const modelsOverridden = schema.hasPath(draft, ['models']);
         const models = modelDrafts(modelsOverridden ? customModels : inheritedModels());
-        const defaultContextWindow = getPath(fallback, ['defaultContextWindow']);
-        const defaultMaxTokens = getPath(fallback, ['maxTokens']);
+        const defaultContextWindow = schema.getPath(fallback, ['defaultContextWindow']);
+        const defaultMaxTokens = schema.getPath(fallback, ['maxTokens']);
         const keyPlaceholder = keyLocked
             ? t('keyEnvLocked')
             : keyState?.configured === true && props.credentialRequired !== true
@@ -285,9 +286,9 @@ export function ProviderEditor(props) {
             t,
             disabled,
             onChange: (next) => {
-                setDraft(current => setPath(current, ['models'], next));
+                setDraft(current => schema.setPath(current, ['models'], next));
             },
-            onReset: () => { setDraft(current => deletePath(current, ['models'])); },
+            onReset: () => { setDraft(current => schema.deletePath(current, ['models'])); },
         };
         return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles['field'], children: [_jsx("span", { className: styles['fieldLabel'], children: t('keyInput') }), _jsx("input", { className: styles['input'], type: "password", autoComplete: "off", value: keyDraft, placeholder: keyPlaceholder, "aria-label": t('keyInput'), "aria-invalid": shownKeyFailure !== undefined, required: props.credentialRequired === true, autoFocus: props.autoFocusCredential === true, disabled: disabled || keyLocked, onChange: (event) => { setKeyDraft(event.target.value); } }), shownKeyFailure === undefined ? null : _jsx("p", { className: styles['error'], children: t(shownKeyFailure) })] }), props.credentialOnly === true ? null : _jsxs("details", { className: styles['customized'], children: [_jsx("summary", { className: styles['customizedSummary'], children: t('customized') }), _jsxs("div", { className: styles['customizedBody'], children: [ownsIdentity
                                     ? (_jsxs("div", { className: styles['field'], children: [_jsx("span", { className: styles['fieldLabel'], children: t('customDisplayName') }), _jsx("input", { className: styles['input'], type: "text", value: stringAt(draft, 'displayName') ?? '', 
@@ -298,7 +299,7 @@ export function ProviderEditor(props) {
                                                 // the answer the route id. Reading the effective value
                                                 // instead would echo the stored override back as the
                                                 // thing clearing restores.
-                                                placeholder: stringAt(getPath(namespace.base, settingsPath), 'displayName')
+                                                placeholder: stringAt(schema.getPath(namespace.base, settingsPath), 'displayName')
                                                     ?? props.provider, "aria-label": t('customDisplayName'), disabled: disabled, onChange: (event) => { setField('displayName', event.target.value); } })] }))
                                     : null, _jsxs("div", { className: styles['field'], children: [_jsx("span", { className: styles['fieldLabel'], children: t('baseUrl') }), _jsx("input", { className: styles['input'], type: "text", value: stringAt(draft, 'baseURL') ?? '', placeholder: family === 'deepseek'
                                                 ? DEEPSEEK_PUBLIC_BASE_URL

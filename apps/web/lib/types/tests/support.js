@@ -79,9 +79,10 @@ export async function connectFreshWorkspace(page, root, name = 'workspace') {
         .waitFor({ timeout: 15_000 });
 }
 /**
- * {@link connectFreshWorkspace} over the product default Chinese locale: the
- * English helper's anchors assume the locale every other scenario boots, so a
- * scenario that deliberately keeps zh needs the localized picker copy.
+ * {@link connectFreshWorkspace} over a page that advertises
+ * {@link ZH_BROWSER_LOCALE}: the English helper's anchors assume the locale
+ * most other scenarios boot, so a scenario that deliberately keeps zh needs
+ * the localized picker copy.
  * @param page - the browser page under test.
  * @param root - workspace parent directory.
  * @param name - directory created under `root` and connected.

@@ -1,3 +1,9 @@
+/**
+ * Trigger detection pure core. Scans backward from
+ * the caret for a live trigger char under the guard tier and applies the
+ * word-boundary rules. Zero React / DOM / cordis.
+ */
+import { activeAtToken } from '@deepseek-ai/dsh-file-reference/grammar';
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
 const WHITESPACE = /\s/u;
 /**
@@ -24,10 +30,10 @@ function boundaryOk(draft, index, char) {
     return true;
 }
 /**
- * Detect a trigger token at the caret. Scans left from the caret and stops
- * at the first whitespace (the token under edit never spans whitespace);
- * trigger chars failing the guard tier or the word boundary are treated as
- * ordinary token chars and the scan continues (`user@host`, URL slashes).
+ * Detect a trigger token at the caret. `@` first uses the shared grammar,
+ * including an open quoted token that may span whitespace. Slash detection
+ * scans left to the first whitespace; slashes failing the word boundary are
+ * treated as ordinary token chars and the scan continues (URL slashes).
  * Guard tiers: plain = both chars live; claimed = '/' fully suppressed,
  * '@' live; frozen = none.
  *
@@ -42,19 +48,31 @@ function boundaryOk(draft, index, char) {
 export const detectTrigger = (draft, caret, guard) => {
     if (guard.tier === 'frozen')
         return null;
+    const at = activeAtToken(draft, caret);
+    if (at !== undefined) {
+        const start = caret - at.prefix.length;
+        return {
+            trigger: '@',
+            query: at.query,
+            quoted: at.quoted,
+            position: draft.search(/\S/) === start ? 'leading' : 'inline',
+            span: { start, end: caret, draftRev: 0 },
+        };
+    }
     for (let i = caret - 1; i >= 0; i--) {
         const ch = draft.charAt(i);
         if (WHITESPACE.test(ch))
             return null;
-        if (ch !== '/' && ch !== '@')
+        if (ch !== '/')
             continue;
-        if (guard.tier === 'claimed' && ch === '/')
+        if (guard.tier === 'claimed')
             continue;
         if (!boundaryOk(draft, i, ch))
             continue;
         return {
             trigger: ch,
             query: draft.slice(i + 1, caret),
+            quoted: false,
             position: draft.search(/\S/) === i ? 'leading' : 'inline',
             span: { start: i, end: caret, draftRev: 0 },
         };

@@ -253,7 +253,9 @@ function renderResult(result, maxChars) {
 		case "blocked":
 			text = `Ralph worker reported a blocker after ${rounds}.\nFinal report:\n${JSON.stringify(result.report, null, 2)}`;
 			break;
-		case "budget-limited": text = `Ralph reached its ${rounds} limit; the worker reported work remaining.\nFinal report:\n${JSON.stringify(result.report, null, 2)}`;
+		case "budget-limited":
+			text = `Ralph reached its ${rounds} limit; the worker reported work remaining.\nFinal report:\n${JSON.stringify(result.report, null, 2)}`;
+			break;
 	}
 	return boundResult(text, maxChars);
 }

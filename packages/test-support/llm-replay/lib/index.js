@@ -117,7 +117,7 @@ function deriveReplayScript(events) {
 	close(currentKey, current);
 	return script;
 }
-const REPLAY_CHUNK_TYPES = /* @__PURE__ */ new Set([
+const REPLAY_CHUNK_TYPES = new Set([
 	"block-start",
 	"text-delta",
 	"reasoning-delta",

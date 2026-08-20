@@ -9,7 +9,7 @@
  */
 import type { ClientContext, SessionId, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
 import type { MenuState, TriggerHit } from '../core/contract.ts';
-import type { ArbitrateKey, ArbitrateOutcome, PickOutcome, InputTriggerSource, TriggerChar, TriggerGuard } from '../types.ts';
+import type { ArbitrateKey, ArbitrateOutcome, PickOutcome, InputTriggerSource, SubmitEnvelope, TriggerChar, TriggerGuard } from '../types.ts';
 /** Roster access the controller borrows from the root service (registration order preserved). */
 export interface SourceRoster {
     sources(trigger: string): readonly InputTriggerSource[];
@@ -113,10 +113,12 @@ export declare class InputTriggerController {
      * input machine applies it inside the same submit attempt — no event).
      * @param line - trimmed draft; the leading char selects the trigger roster.
      * @param signal - attempt-scoped abort from the input machine.
+     * @param envelope - non-text submission state accompanying the draft.
      * @returns the winning outcome or undefined (default sink). Rejects when a
-     * polled source's warmup fails — the caller must not silently downgrade.
+     * polled source's warmup fails or the winning source refuses the envelope —
+     * the caller must not silently downgrade.
      */
-    adjudicate(line: string, signal: AbortSignal): Promise<PickOutcome>;
+    adjudicate(line: string, signal: AbortSignal, envelope: SubmitEnvelope): Promise<PickOutcome>;
     /**
      * Drop the menu group of a disposed source (root registry change notification).
      * @param source - the source whose registration was disposed.

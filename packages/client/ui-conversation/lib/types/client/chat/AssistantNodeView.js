@@ -2,7 +2,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { memo, useMemo } from 'react';
 import { AssistantMarkdown } from "./AssistantMarkdown.js";
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
-export const AssistantNodeView = memo(function AssistantNodeView({ node, useTurnData, openFile, loadImage, fileMentions, t, }) {
+export const AssistantNodeView = memo(function AssistantNodeView({ node, useTurnData, openFile, renderMessageImages, fileMentions, t, }) {
     const data = node.data;
     const turn = node.location.kind === 'turn' || node.location.kind === 'step'
         ? node.location.turn
@@ -16,6 +16,6 @@ export const AssistantNodeView = memo(function AssistantNodeView({ node, useTurn
         return { turn, seq: data.finalNode.seq, openFile };
     }, [data.finalNode, openFile, tail, turn]);
     const mentions = useMemo(() => owner === undefined ? undefined : fileMentions(owner), [fileMentions, owner]);
-    return (_jsx(AssistantMarkdown, { blocks: data.blocks, streaming: data.status === 'running', interrupted: data.status === 'interrupted', loadImage: loadImage, mentions: mentions, t: t }));
+    return (_jsx(AssistantMarkdown, { blocks: data.blocks, streaming: data.status === 'running', interrupted: data.status === 'interrupted', renderMessageImages: renderMessageImages, mentions: mentions, t: t }));
 });
 //# sourceMappingURL=AssistantNodeView.js.map

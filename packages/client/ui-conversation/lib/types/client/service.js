@@ -78,18 +78,21 @@ export class ConversationController extends Service {
      * @param text - serialized prompt text.
      * @param imageIds - ordered draft-local attachment ids.
      * @param mode - queue or steer delivery selected by composer policy.
+     * @param signal - optional cancellation for the complete Host admission.
+     * @returns the Host admission outcome; local attachment preparation failures reject.
      */
-    async sendSession(session, text, imageIds, mode) {
+    async sendSession(session, text, imageIds, mode, signal) {
         const attachments = this.draftImages(imageIds);
         if (attachments.length !== imageIds.length) {
             throw new Error('conversation.sendSession: one or more draft images are no longer available');
         }
         const uploaded = await this.serializeImages(attachments.map(attachment => attachment.file));
         const content = [...uploaded, ...(text === '' ? [] : [{ type: 'text', text }])];
-        const result = await session.prompt(content, mode);
+        const result = await session.prompt(content, mode, signal);
         if (!result.ok)
-            throw new Error(`conversation.send failed: ${result.error.code}: ${result.error.message}`);
+            return { kind: 'error' };
         this.releaseDraftImages(attachments);
+        return { kind: 'success' };
     }
     /**
      * Create runtime-only draft images and their object URLs.
@@ -119,6 +122,20 @@ export class ConversationController extends Service {
                 attachments.push(attachment);
         }
         return attachments;
+    }
+    /**
+     * Serialize ordered draft images to command-submit wire payloads without
+     * sending or releasing them (the composer releases only after the command
+     * settles successfully).
+     * @param imageIds - ordered draft-local attachment ids.
+     * @returns base64 payloads in id order.
+     */
+    async serializeDraftImages(imageIds) {
+        const attachments = this.draftImages(imageIds);
+        if (attachments.length !== imageIds.length) {
+            throw new Error('conversation.serializeDraftImages: one or more draft images are no longer available');
+        }
+        return Promise.all(attachments.map(attachment => this.encodeImage(attachment.file)));
     }
     /**
      * Release one browser-owned draft image and preview URL.
@@ -250,12 +267,15 @@ export class ConversationController extends Service {
     }
     /** Convert browser files to canonical base64 prompt parts. */
     serializeImages(images) {
-        return Promise.all(images.map(async (file) => ({
-            type: 'image',
+        return Promise.all(images.map(async (file) => ({ type: 'image', ...await this.encodeImage(file) })));
+    }
+    /** Canonical base64 wire form of one browser image file. */
+    async encodeImage(file) {
+        return {
             mediaType: imageMediaType(file.type),
             data: bytesToBase64(new Uint8Array(await file.arrayBuffer())),
             ...(file.name === '' ? {} : { name: file.name }),
-        })));
+        };
     }
 }
 function imageMediaType(value) {

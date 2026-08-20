@@ -5,7 +5,7 @@
  * outer curated result enters model history.
  * @module @deepseek-ai/dsh-tools/src/code-mode
  */
-import { CallId, HarnessError } from '@deepseek-ai/dsh-llm';
+import { CallId, createUserMessage, HarnessError } from '@deepseek-ai/dsh-llm';
 import { snapshotJsonValue } from '@deepseek-ai/dsh-session';
 import { defineTool, parameterSchemaSpecToJsonSchema } from "./schema.js";
 import { TOOL_RUNTIME_SCHEDULER } from "./index.js";
@@ -24,7 +24,8 @@ const TYPESCRIPT_FLAVOR = {
         + 'arguments: `code`, the BODY of an async function (erasable syntax only; top-level '
         + '`await` and `return` work), and `description`, a short summary of what the program '
         + 'does. Call tools as `await tools.name(args)` per the declarations in the system '
-        + 'prompt. Only what you print or return comes back — curate it.',
+        + 'prompt. Only what you print or return is program output — curate it. Image-bearing '
+        + 'subtool results are attached after the run.',
     codeDescription: 'The program: the body of an async TypeScript function.',
 };
 /**
@@ -36,8 +37,9 @@ const PYTHON_FLAVOR = {
     description: 'Execute a Python program against the available tools. Takes two required '
         + 'arguments: `code`, the BODY of an async function (top-level `await` and `return` '
         + 'work), and `description`, a short summary of what the program does. Call tools as '
-        + '`await tools.name(args)` per the declarations in the system prompt. Answer '
-        + 'with `print(...)` and/or `return <value>` — only that comes back, so curate it.',
+        + '`await tools.name(args)` per the declarations in the system prompt. Use '
+        + '`print(...)` and/or `return <value>` for program output — curate it. Image-bearing '
+        + 'subtool results are attached after the run.',
     codeDescription: 'The program: the body of an async Python function.',
 };
 /** Per-language `run_code` schema flavors (see {@link RunCodeFlavor}); one entry per {@link CodeSdkLanguage}. */
@@ -454,6 +456,12 @@ export function createRunCodeTool(registry, options) {
                             const result = parked.kind === 'post-result'
                                 ? await scheduler.finalize(parked.exec, parked.result)
                                 : scheduler.finish(parked.exec, parked.result);
+                            if (!result.isError && result.content.some(block => block.type === 'image')) {
+                                exec.deferContext(createUserMessage({
+                                    content: result.content,
+                                    source: { kind: 'plugin', plugin: 'tools-code-mode' },
+                                }));
+                            }
                             for (const context of result.additionalContexts ?? []) {
                                 exec.deferContext(context);
                             }

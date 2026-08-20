@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconChevronDownOutline14, StateDot } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutline14, StateDot, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives';
 import css from './JobListAction.module.css';
 /** Stable empty list so a session with no jobs keeps one array identity. */
 const NO_TASKS = [];
@@ -88,17 +88,7 @@ export function JobListAction({ sessionId, useSessions, t }) {
     const triggerRef = useRef(null);
     const rows = useMemo(() => ordered(jobs), [jobs]);
     const liveCount = useMemo(() => jobs.filter(isLive).length, [jobs]);
-    useEffect(() => {
-        if (!open)
-            return;
-        const closeOutside = (event) => {
-            if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('pointerdown', closeOutside);
-        return () => { document.removeEventListener('pointerdown', closeOutside); };
-    }, [open]);
+    useDismissOnOutsidePointer(rootRef, open, setOpen);
     // The clock only runs while an open list is showing something that moves.
     useEffect(() => {
         if (!open || liveCount === 0)

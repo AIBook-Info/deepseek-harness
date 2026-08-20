@@ -69,6 +69,8 @@ export interface RunResultSettlement {
     attempt: () => Promise<SubagentResult>;
     /** Snapshot the provider exposes when cancellation or failure wins settlement. */
     collectOutput: () => ContentBlock[];
+    /** Snapshot safe provider-authored detail when a failure wins settlement. */
+    collectDiagnostic?: (() => string | undefined) | undefined;
     /** Whether local cancellation settled before the attempt's outcome is observed. */
     cancelled: () => boolean;
     /** Diagnostic sink for a failure flattened to a stop reason; a throw from it is contained. */

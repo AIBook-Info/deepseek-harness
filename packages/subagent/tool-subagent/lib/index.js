@@ -45,7 +45,7 @@ async function settleStart(start, signal) {
 	try {
 		return await settleRun(await start);
 	} catch (error) {
-		return signal.aborted ? { status: "killed" } : {
+		return signal.aborted && !(error instanceof AggregateError) ? { status: "killed" } : {
 			status: "failed",
 			detail: String(error)
 		};
@@ -63,15 +63,17 @@ function stopReasonError(result) {
 	}
 }
 /**
-* Append the child's preserved partial answer to a stop-reason error so a
-* truncated or cancelled child's real text still reaches the parent model.
+* Append provider-authored failure detail and the child's preserved partial
+* answer to a stop-reason error, keeping diagnostic text separate from the
+* child's assistant output.
 * @param error - the stop-reason headline.
-* @param output - the child's selected output (`SubagentResult.output`).
-* @returns the headline, extended with the partial text when any exists.
+* @param result - the child's terminal result.
+* @returns the headline, diagnostic, and partial text that are present.
 */
-function withPartialText(error, output) {
-	const text = output.filter((block) => block.type === "text").map((block) => block.text).join("");
-	return text.length === 0 ? error : `${error}\nPartial output before the run ended:\n${text}`;
+function withDiagnosticAndPartialText(error, result) {
+	const diagnostic = result.diagnostic === void 0 ? "" : `\nDiagnostic: ${result.diagnostic}`;
+	const text = result.output.filter((block) => block.type === "text").map((block) => block.text).join("");
+	return `${error}${diagnostic}${text.length === 0 ? "" : `\nPartial output before the run ended:\n${text}`}`;
 }
 /**
 * Collect and release one foreground run without letting disposal replace an
@@ -80,7 +82,7 @@ function withPartialText(error, output) {
 async function settleForegroundRun(run) {
 	const [execution] = await Promise.allSettled([run.result.then((result) => {
 		const error = stopReasonError(result);
-		if (error !== void 0) throw new Error(withPartialText(error, result.output));
+		if (error !== void 0) throw new Error(withDiagnosticAndPartialText(error, result));
 		return {
 			kind: "foreground",
 			runId: run.id,
@@ -210,7 +212,7 @@ function apply(ctx, config) {
 				] },
 				render: (_args, value) => [{
 					type: "text",
-					text: value.kind === "background" ? `started background subagent task ${value.jobId}` : value.kind === "continuable" ? `started subagent ${value.subagentId}` : outputValueText(value.output)
+					text: value.kind === "background" ? `started background subagent job ${value.jobId}` : value.kind === "continuable" ? `started subagent ${value.subagentId}` : outputValueText(value.output)
 				}]
 			},
 			isConcurrencySafe: () => true,

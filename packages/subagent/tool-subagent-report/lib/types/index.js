@@ -15,7 +15,7 @@ export const inject = ['subagents', 'tools', 'systemPrompt'];
 /** Guidance order after every per-tool section a continuable child can carry. */
 const REPORT_SECTION_ORDER = 117;
 export const Config = z.object({
-    reportDelivery: z.union(['quiet', 'wakeup']).default('wakeup'),
+    reportDelivery: z.union(['quiet', 'next-step']).default('next-step'),
 });
 /**
  * Install `report` and its usage guidance into one continuable child's scope.

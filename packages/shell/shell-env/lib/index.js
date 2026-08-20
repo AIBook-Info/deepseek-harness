@@ -19,7 +19,7 @@ const Config = z.object({ dshHome: z.string() });
 const DSH_SHELL_KEY = `${DSH_ENV_PREFIX}SHELL`;
 const DSH_SESSION_ID_KEY = `${DSH_ENV_PREFIX}SESSION_ID`;
 const DSH_SESSION_JSONL_KEY = `${DSH_ENV_PREFIX}SESSION_JSONL`;
-const RESERVED_BASH_ENV_KEYS = /* @__PURE__ */ new Set([
+const RESERVED_BASH_ENV_KEYS = new Set([
 	DSH_HOME_ENV,
 	DSH_SHELL_KEY,
 	DSH_SESSION_ID_KEY

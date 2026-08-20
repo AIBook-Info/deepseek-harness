@@ -4,9 +4,11 @@ import type { TypertClientRemote } from '@deepseek-ai/dsh-typert-protocol';
 export type { TypertClientRemote as ClientRemote } from '@deepseek-ai/dsh-typert-protocol';
 export type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory/types';
 export type {} from '@deepseek-ai/dsh-commands/remote';
+export type {} from '@deepseek-ai/dsh-file-reference/remote';
 export type {} from '@deepseek-ai/dsh-goal/remote';
 export type {} from '@deepseek-ai/dsh-host-plugin-inventory/remote';
 export type {} from '@deepseek-ai/dsh-message-feedback/remote';
+export type {} from '@deepseek-ai/dsh-session-reference/remote';
 export type { ApiRemoteForwardedEvent } from '../types.ts';
 export type {} from '@deepseek-ai/dsh-commands/types';
 export type {} from '@deepseek-ai/dsh-cordis-host-runner/types';
@@ -24,6 +26,8 @@ export type {} from '@deepseek-ai/dsh-api-gateway/client';
 export type {} from '@deepseek-ai/dsh-cordis-host-runner/remote';
 export type { ApprovalRequestId, CordisHalfState, CordisDynamicPackageId, CordisDynamicPluginId, CordisDynamicPluginRunId, CordisDynamicRunMode, CordisInspectMethodManifest, CordisInspectPlatform, CordisInspectProviderManifest, CordisInspectProviderView, CordisInspectQueryRequest, CordisInspectQueryResolution, CordisInspectQueryResolved, CordisInspectRequestId, CordisInspectResolveAck, CordisRunDiagnostic, CordisRunStatus, DynamicCordisClientSource, DynamicCordisHostHalfResult, DynamicCordisInventoryRow, DynamicCordisInvokeResult, DynamicCordisPackage, DynamicCordisRequestResolved, DynamicCordisResolveAck, DynamicCordisRetracted, DynamicCordisRunRequest, DynamicCordisRunResolution, DynamicCordisRunAttempt, DynamicCordisRunResponse, DynamicCordisStopResponse, DynamicCordisUndefineReceipt, RequestRunOutcome, } from '@deepseek-ai/dsh-cordis-host-runner/types';
 export type { JsonValue } from '@deepseek-ai/dsh-session/types';
+export type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/types';
+export type { SessionReferenceMentionCandidate } from '@deepseek-ai/dsh-session-reference/types';
 declare module '@deepseek-ai/cordis' {
     interface Context {
         /** Generated Remote namespaces selected by this Client assembly. */

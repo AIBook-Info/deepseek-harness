@@ -12,7 +12,7 @@ type FileMutationRowProps = ToolCallViewProps & PropsLocale<'conversation'>;
  * model-facing error text through its Output section and its first line in the
  * collapsed summary instead.
  */
-export declare function FileMutationRow({ toolName, block, cwd, openFile, inspect, t }: FileMutationRowProps): import("react").JSX.Element;
+export declare function FileMutationRow({ toolName, block, cwd, home, openFile, inspect, t }: FileMutationRowProps): import("react").JSX.Element;
 /**
  * The file-mutation rows as a plain registrant plugin following the chat
  * toolview declaration across independent activation and reload lifetimes.

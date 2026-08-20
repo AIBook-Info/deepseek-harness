@@ -17,10 +17,10 @@ const VARIANT_ICONS = {
     code: _jsx(IconCodeOutline16, { size: 14 }),
     others: _jsx(IconSparkle16, { size: 14 }),
 };
-export function GenericToolCard({ toolName, block, cwd, openFile, inspect, t }) {
-    const model = toolRowModel(toolName, block, cwd);
+export function GenericToolCard({ toolName, block, cwd, home, openFile, inspect, t }) {
+    const model = toolRowModel(toolName, block, cwd, home);
     const terminal = terminalCardModel(block, cwd);
-    const read = readCardModel(block, cwd);
+    const read = readCardModel(block, cwd, home);
     const diff = diffCardModel(block);
     const search = searchCardModel(block);
     const web = webCardModel(block);

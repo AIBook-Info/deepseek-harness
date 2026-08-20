@@ -9,6 +9,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState } from 'react';
 import clsx from 'clsx';
 import { HoverCard, IconArchiveOutline20, IconBranchOutline16, IconEditOutline16, IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16, IconPlusOutline16, IconTrashOutline16, IconTriangleRightFill14, Menu, StateDot, } from '@deepseek-ai/dsh-client-ui-primitives';
+import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client';
 import { relativeTime } from "../tree.js";
 import css from './Rows.module.css';
 /** Row display title: blank rows show the localized New Session label. */
@@ -36,7 +37,7 @@ function createdLabel(createdAt, t) {
     const date = t('date.ymd', { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
     return t('hover.created', { time: `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` });
 }
-/** Hover-card body: workspace title, full directory path, absolute creation time. */
+/** Hover-card body: workspace title, display directory path, absolute creation time. */
 function WorkspaceHoverContent({ label, cwd, createdAt, t }) {
     return (_jsxs("div", { className: css.hoverContent, children: [_jsx("div", { className: css.hoverTitle, children: label }), _jsx("div", { className: css.hoverPath, children: cwd }), _jsx("div", { className: css.hoverTime, children: createdLabel(createdAt, t) })] }));
 }
@@ -54,10 +55,11 @@ function rowHalf(e) {
  * @param props.onToggle - expand/collapse the group.
  * @param props.onCreate - start a frontend Session inside this Workspace.
  * @param props.drag - optional workspace-row drag wiring.
+ * @param props.home - host account home for POSIX hover-path abbreviation.
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }) {
+export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t }) {
     const row = group;
     // The ungrouped bucket has no workspace title: its label is dictionary copy.
     const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label;
@@ -88,7 +90,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }) 
     // The ungrouped bucket has no backing Workspace: no card to show.
     if (row.createdAt === undefined)
         return ownRow;
-    return (_jsx(HoverCard, { anchor: ownRow, content: _jsx(WorkspaceHoverContent, { label: row.label, cwd: row.cwd, createdAt: row.createdAt, t: t }), disabled: menuOpen, copyText: row.cwd, copyLabel: t('copy'), copiedLabel: t('hover.copied') }));
+    return (_jsx(HoverCard, { anchor: ownRow, content: _jsx(WorkspaceHoverContent, { label: row.label, cwd: row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home), createdAt: row.createdAt, t: t }), disabled: menuOpen, copyText: row.cwd, copyLabel: t('copy'), copiedLabel: t('hover.copied') }));
 }
 /* v8 ignore next 3 -- closed-union backstop; only reached if the status is forged */
 function assertNever(value) {

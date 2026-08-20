@@ -20,6 +20,14 @@ export interface ContextProvenanceView {
     label: string | null;
 }
 /**
+ * The referenced-session labels of one durable `session-reference` recall
+ * source, in first-seen order; empty for every other source shape, including
+ * a foreign or older log whose reference entries carry no readable label.
+ * @param source - the logged `user/message` source, exactly as recorded.
+ * @returns distinct non-empty reference labels.
+ */
+export declare function sessionRecallLabels(source: unknown): string[];
+/**
  * Project one durable message source onto its transcript role and producer name.
  *
  * The source arrives over the wire as opaque JSON (`MessageSource` is

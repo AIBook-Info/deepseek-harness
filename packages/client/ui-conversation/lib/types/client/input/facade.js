@@ -1,5 +1,5 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
-import { InputMachine } from "./machine.js";
+import { InputMachine, projectClipboard } from "./machine.js";
 /** Guard tier from the machine phase. */
 function guardOf(phase) {
     switch (phase) {
@@ -19,7 +19,7 @@ export class SessionInputShell {
     deps;
     /** Published machine state + queue overlay (the InputZone currency source). */
     state;
-    /** Latest surfaced notice (null after clear); the wiring renders it beside the error strip. */
+    /** Latest surfaced notice (null after clear); the bar renders errors as banners and information inline. */
     notices = createSnapshotStore(null);
     /** The public provide-channel action face (one stable identity per session). */
     actions = {
@@ -33,10 +33,12 @@ export class SessionInputShell {
     // production (the machine's no-clock default is a constant for pure tests).
     core = new InputMachine({ now: () => Date.now() });
     noticeSeq = 0;
-    lastDraft = '';
+    lastMirroredDraft = '';
     imageIds = [];
+    /** One image-only send at a time: Enter during the Host round-trip is a no-op. */
+    imageSendInFlight = false;
     disposed = false;
-    /** Draft persistence mirror (chat store write; receives the clipboard projection, never raw placeholders). */
+    /** Draft persistence mirror (chat store write; receives the clipboard projection, never display-only ranges). */
     mirrorFn;
     constructor(deps) {
         this.deps = deps;
@@ -63,8 +65,14 @@ export class SessionInputShell {
         this.publish();
         return true;
     }
-    /** Remove one image id from this draft. */
+    /**
+     * Remove one image id from this draft. Busy admission phases refuse, like
+     * {@link addImages}: a removal landing while a command submit serializes
+     * would otherwise vanish from the rail yet still ride the in-flight send.
+     */
     removeImage(id) {
+        if (this.snapshot.phase === 'adjudicating' || this.snapshot.phase === 'submitting')
+            return;
         const next = this.imageIds.filter(candidate => candidate !== id);
         if (next.length === this.imageIds.length)
             return;
@@ -81,15 +89,6 @@ export class SessionInputShell {
         if (next.length === this.imageIds.length)
             return;
         this.imageIds = next;
-        this.publish();
-    }
-    /**
-     * Restore a failed attempt before any images added after its admission.
-     * @param ids - failed attempt image ids.
-     */
-    restoreImages(ids) {
-        const current = new Set(this.imageIds);
-        this.imageIds = [...ids.filter(id => !current.has(id)), ...this.imageIds];
         this.publish();
     }
     /**
@@ -138,8 +137,32 @@ export class SessionInputShell {
      */
     submit(mode = 'queue') {
         if (this.snapshot.draft.trim() === '' && this.imageIds.length > 0) {
-            if (this.snapshot.phase === 'plain')
-                this.deps.defaultSink('', [...this.imageIds], mode);
+            if (this.snapshot.phase === 'plain' && !this.imageSendInFlight) {
+                const imageIds = [...this.imageIds];
+                this.imageSendInFlight = true;
+                void this.deps.defaultSink('', imageIds, mode, new AbortController().signal).then((outcome) => {
+                    this.imageSendInFlight = false;
+                    if (this.disposed)
+                        return;
+                    if (outcome.kind === 'success')
+                        this.commitSend(imageIds);
+                    else if (outcome.text !== undefined)
+                        this.notify('error', outcome.text);
+                }, (error) => {
+                    this.imageSendInFlight = false;
+                    if (!this.disposed)
+                        this.notify('error', error instanceof Error ? error.message : String(error));
+                });
+            }
+            return;
+        }
+        // Claimed pre-gate: a claim that does not declare image acceptance never
+        // submits while images are attached — one notice, everything retained.
+        // Enter-time adjudication applies the same policy for unclaimed lines
+        // inside the command source itself.
+        const before = this.snapshot;
+        if (before.phase === 'claimed' && this.imageIds.length > 0 && before.claim?.images !== true) {
+            this.notify('error', this.deps.commandImages.unsupportedNotice(before.claim?.token ?? before.draft));
             return;
         }
         this.run(this.core.dispatch({ type: 'enter', mode }));
@@ -262,14 +285,22 @@ export class SessionInputShell {
      * a scan-derived decoration, never state.
      * @param text - the plain reference text to splice in (e.g. `/name `).
      * @param span - pick-time span snapshot (draftRev CAS).
+     * @param keepCompleting - re-track at the caret after the splice so an open
+     * token (a directory pick's trailing slash) reopens the menu.
      * @returns whether the text was applied.
      */
-    insertText(text, span) {
+    insertText(text, span, keepCompleting = false) {
         const snapshot = this.core.state;
         if (span.draftRev !== snapshot.draftRev)
             return false;
         const draft = snapshot.draft;
         this.setDraft(draft.slice(0, span.start) + text + draft.slice(span.end));
+        if (keepCompleting) {
+            // Machine-driven draft replacement never passes through onChange, so
+            // re-track at the caret inside the still-open token (see space()).
+            const next = this.snapshot;
+            this.deps.inputTriggers?.()?.track(next.draft, span.start + text.length, { tier: guardOf(next.phase) }, next.draftRev);
+        }
         return true;
     }
     /**
@@ -328,7 +359,7 @@ export class SessionInputShell {
                 return;
             }
             case 'default-sink': {
-                this.sinkSerialized(fx.draft, fx.mode);
+                this.sinkSerialized(fx.attempt, fx.draft, fx.mode);
                 return;
             }
             default:
@@ -337,16 +368,16 @@ export class SessionInputShell {
     }
     /**
      * Prompt serialization before the sink: expand each
-     * placeholder to its owner's model form via the session controller's
+     * inline reference range to its owner's model form via the session controller's
      * codec routing. Owner missing / serialize failure / disposal blocks the
      * send — notice + draft and chips retained, never a silent downgrade to
      * the clipboard text. Chip-free drafts skip the async detour.
      */
-    sinkSerialized(draft, mode) {
+    sinkSerialized(attempt, draft, mode) {
         const imageIds = [...this.imageIds];
         const occurrences = this.core.state.occurrences;
         if (occurrences.length === 0) {
-            this.deps.defaultSink(draft.trim(), imageIds, mode);
+            this.settleSubmit(attempt, this.deps.defaultSink(draft.trim(), imageIds, mode, attempt.signal), imageIds);
             return;
         }
         const inputTriggers = this.deps.inputTriggers?.();
@@ -354,26 +385,56 @@ export class SessionInputShell {
         void Promise.all(occurrences.map(async (o) => {
             if (inputTriggers === undefined)
                 throw new Error(`no serializer for reference source "${o.source}"`);
-            return { offset: o.offset, text: await inputTriggers.serializeReference(o.source, o.ref, controller.signal) };
+            return {
+                offset: o.offset,
+                length: o.length,
+                text: await inputTriggers.serializeReference(o.source, o.ref, controller.signal),
+            };
         })).then((parts) => {
             if (this.disposed)
                 return;
-            // Splice model forms over their placeholders (offsets are draft-time;
+            // Splice model forms over their display ranges (offsets are draft-time;
             // parts arrive offset-sorted since the table is).
             let out = '';
             let cursor = 0;
             for (const part of parts) {
                 out += draft.slice(cursor, part.offset) + part.text;
-                cursor = part.offset + 1;
+                cursor = part.offset + part.length;
             }
             out += draft.slice(cursor);
-            this.deps.defaultSink(out.trim(), imageIds, mode);
+            this.settleSubmit(attempt, this.deps.defaultSink(out.trim(), imageIds, mode, attempt.signal), imageIds);
         }, (error) => {
             controller.abort();
-            if (this.disposed)
+            if (this.dead(attempt))
                 return;
             const message = error instanceof Error ? error.message : String(error);
-            this.notify('error', message);
+            this.run(this.core.dispatch({ type: 'submit-settled', attempt, ok: false, message }));
+        });
+    }
+    /** Settle one admission attempt; successful sends consume only their captured images. */
+    settleSubmit(attempt, pending, imageIds = []) {
+        pending.then((outcome) => {
+            if (this.dead(attempt))
+                return;
+            if (outcome.kind === 'success' && imageIds.length > 0) {
+                const submitted = new Set(imageIds);
+                this.imageIds = this.imageIds.filter(id => !submitted.has(id));
+            }
+            this.run(this.core.dispatch({
+                type: 'submit-settled',
+                attempt,
+                ok: outcome.kind === 'success',
+                outcome,
+            }));
+        }, (error) => {
+            if (this.dead(attempt))
+                return;
+            this.run(this.core.dispatch({
+                type: 'submit-settled',
+                attempt,
+                ok: false,
+                message: error instanceof Error ? error.message : String(error),
+            }));
         });
     }
     /** Enter adjudication: poll the session controller; failure = notice + draft retained (never a silent downgrade). */
@@ -384,7 +445,7 @@ export class SessionInputShell {
             this.run(this.core.dispatch({ type: 'adjudicated', attempt, outcome: undefined }));
             return;
         }
-        inputTriggers.adjudicate(draft.trim(), attempt.signal).then((outcome) => {
+        inputTriggers.adjudicate(draft.trim(), attempt.signal, { images: this.imageIds.length }).then((outcome) => {
             if (this.dead(attempt))
                 return;
             this.run(this.core.dispatch({ type: 'adjudicated', attempt, outcome }));
@@ -395,15 +456,35 @@ export class SessionInputShell {
             this.run(this.core.dispatch({ type: 'adjudication-failed', attempt, message }));
         });
     }
-    /** The submit transaction: claim.submit against the session scope; ok maps from the outcome kind. */
+    /**
+     * The submit transaction: claim.submit against the session scope; ok maps
+     * from the outcome kind. An accepting claim receives the serialized draft
+     * images, which are cleared and released only on a success outcome; a
+     * failure (serialize, transport, or handler error) keeps draft and images
+     * for correction.
+     */
     beginSubmit(attempt, claim, args) {
+        const imageIds = claim.images === true ? [...this.imageIds] : [];
         Promise.resolve()
-            .then(() => claim.submit(args, this.deps.actx))
-            .then((outcome) => {
+            .then(async () => {
+            const images = imageIds.length > 0 ? await this.deps.commandImages.serialize(imageIds) : [];
+            // Serialization may outlive the attempt (large files, session
+            // teardown); a dead attempt must not reach the Host executor.
             if (this.dead(attempt))
+                return undefined;
+            return claim.submit(args, this.deps.actx, images);
+        })
+            .then((outcome) => {
+            if (outcome === undefined || this.dead(attempt))
                 return;
+            if (outcome.kind === 'success' && imageIds.length > 0) {
+                const submitted = new Set(imageIds);
+                this.imageIds = this.imageIds.filter(id => !submitted.has(id));
+                this.deps.commandImages.release(imageIds);
+            }
             this.run(this.core.dispatch({
                 type: 'submit-settled', attempt, ok: outcome.kind === 'success', outcome,
+                ...(outcome.kind === 'error' && outcome.text === undefined ? { message: 'command failed' } : {}),
             }));
         }, (error) => {
             if (this.dead(attempt))
@@ -423,9 +504,10 @@ export class SessionInputShell {
     publish() {
         const next = this.compose();
         this.state.set(next);
-        if (next.draft !== this.lastDraft) {
-            this.lastDraft = next.draft;
-            this.mirrorFn?.(next.draft);
+        const mirroredDraft = projectClipboard(next);
+        if (mirroredDraft !== this.lastMirroredDraft) {
+            this.lastMirroredDraft = mirroredDraft;
+            this.mirrorFn?.(mirroredDraft);
         }
     }
 }

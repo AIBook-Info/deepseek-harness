@@ -29,7 +29,7 @@ new RegExp(String.raw`\b(?:input|prompt|request|messages?)\b.{0,40}` + String.ra
 *
 * @module @deepseek-ai/dsh-llm/retry-policy
 */
-const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_DELAY_MS = 500;
 const DEFAULT_MAX_DELAY_MS = 1e4;
 const DEFAULT_JITTER_RATIO = .1;
@@ -211,6 +211,8 @@ function preparationPosition(history, fail) {
 			openTurn = void 0;
 			openStep = void 0;
 			requestStarted = false;
+			break;
+		default: break;
 	}
 	if (openTurn === void 0) fail("time-context reading must be appended inside an open turn");
 	if (openStep === void 0) fail("time-context reading must follow step/start");

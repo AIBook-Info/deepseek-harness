@@ -613,18 +613,41 @@ var ReactLoopAgent = class {
 			const { request, preparedCall } = await this.buildRequest(turn, step, assembly.tools, system, this.session.deriveMessages(), signal);
 			const assembler = new BlockAssembler();
 			const chunkSeqs = [];
-			const stream = preparedCall?.stream(request) ?? this.loopCtx.llm.stream(request);
-			signal.throwIfAborted();
-			for await (const chunk of stream) {
+			try {
+				const stream = preparedCall?.stream(request) ?? this.loopCtx.llm.stream(request);
 				signal.throwIfAborted();
-				chunkSeqs.push(this.session.append("assistant/chunk", {
-					turn,
-					step,
-					chunk
-				}).seq);
-				assembler.push(chunk);
+				for await (const chunk of stream) {
+					signal.throwIfAborted();
+					chunkSeqs.push(this.session.append("assistant/chunk", {
+						turn,
+						step,
+						chunk
+					}).seq);
+					assembler.push(chunk);
+				}
+				signal.throwIfAborted();
+			} catch (error) {
+				if (signal.aborted) {
+					const content = assembler.interruptedBlocks();
+					if (content.length > 0) this.session.append("assistant/message", {
+						turn,
+						step,
+						message: createAssistantMessage({
+							content,
+							source: {
+								provider: request.provider,
+								model: request.model
+							}
+						}),
+						interrupted: true,
+						...assembler.usage === void 0 ? {} : { usage: assembler.usage }
+					}, {
+						surfaceOp: "append",
+						sourceEventSeqs: chunkSeqs
+					});
+				}
+				throw error;
 			}
-			signal.throwIfAborted();
 			const finish = assembler.finish;
 			if (finish.kind === "error" || finish.kind === "aborted") {
 				const action = await this.dispatch.waterfall("agent/request-error", {
@@ -812,7 +835,7 @@ var __disposeResources = (function(SuppressedError) {
 	return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 });
 /** Fiber states that cannot own or serve a new lifecycle. */
-const INACTIVE_STATES = /* @__PURE__ */ new Set([
+const INACTIVE_STATES = new Set([
 	5,
 	4,
 	3

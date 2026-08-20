@@ -1,23 +1,24 @@
 import z from "@deepseek-ai/schemastery";
-import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, offloadRequestImages, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
 import { credentialRef } from "@deepseek-ai/dsh-credentials";
 import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
 import { deepEqualJson, installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
 import { getOrCreateAnonymousUserId } from "@deepseek-ai/dsh-anonymous-user-id";
+import { AttachmentError } from "@deepseek-ai/dsh-attachment";
 import { EventSourceParserStream } from "eventsource-parser/stream";
 //#region lib/types/serialize.js
 /**
-* Serialize harness messages into DeepSeek chat completions. User text is joined; assistant text
-* becomes `content`, tool calls become `tool_calls`, and tool results become separate tool messages.
-* Assistant reasoning is replayed as `reasoning_content` only on tool-call turns, as required by
-* thinking-mode passback. Core image blocks are rejected explicitly because this wire route is text-only;
-* unknown declaration-merged block types retain the adapter's documented extension fallback.
+* Serialize harness messages into DeepSeek chat completions. Text-only
+* requests retain string user content; the image path resolves durable
+* attachments into ordered data-URL parts. Tool-result images follow their
+* string-only tool messages in a separate user message.
 * @module dsh-llm-deepseek/serialize
 */
+const TOOL_RESULT_IMAGE_TEXT = "Attached image(s) from tool result:";
 /** Validate the adapter-owned effort before resolving its DeepSeek wire fields. */
 function reasoningEffort(effort) {
-	if (effort === "off" || effort === "high" || effort === "max") return effort;
+	if (effort === "off" || effort === "low" || effort === "high" || effort === "max") return effort;
 	throw new LlmError(`DeepSeek does not support reasoning effort "${effort}"`, "UNSUPPORTED_REASONING_EFFORT");
 }
 /** Resolve one legal thinking/effort pair without exposing `off` as a wire effort. */
@@ -26,7 +27,7 @@ function resolveThinking(options, defaults) {
 	const effort = options.reasoningEffort === void 0 ? defaults.reasoningEffort : reasoningEffort(options.reasoningEffort);
 	if (defaults.thinking === "disabled" && effort !== void 0 && effort !== "off") throw new LlmError(`DeepSeek deployment does not support reasoning effort "${effort}"`, "UNSUPPORTED_REASONING_EFFORT");
 	if (effort === "off") return { thinking: "disabled" };
-	if (effort === "high" || effort === "max") return {
+	if (effort === "low" || effort === "high" || effort === "max") return {
 		thinking: "enabled",
 		reasoningEffort: effort
 	};
@@ -39,6 +40,52 @@ function flattenText(blocks) {
 /** Reject core image content before any text-flattening path can silently erase it. */
 function assertTextOnly(blocks) {
 	if (contentHasImage(blocks)) throw new LlmError("The DeepSeek chat-completions adapter does not support image content.", "UNSUPPORTED_CONTENT");
+}
+/** Reject roles whose DeepSeek history format cannot carry image input. */
+function assertSupportedImageRoles(messages) {
+	for (const message of messages) if (message.role !== "user" && contentHasImage(message.content)) throw new LlmError(`The DeepSeek chat-completions adapter cannot represent image content in a ${message.role} message.`, "UNSUPPORTED_CONTENT");
+}
+/** Resolve one durable image into its transient DeepSeek data-URL part. */
+async function imagePart(block, attachments, signal) {
+	try {
+		const stored = await attachments.readImage(block.attachment, signal);
+		return {
+			type: "image_url",
+			image_url: { url: `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString("base64")}` }
+		};
+	} catch (error) {
+		if (error instanceof AttachmentError) throw new LlmError(error.message, error.code, { cause: error });
+		throw error;
+	}
+}
+/** Convert user or nested tool-result blocks into ordered wire parts. */
+async function contentParts(blocks, attachments, signal) {
+	const parts = [];
+	for (const block of blocks) switch (block.type) {
+		case "text":
+			if (block.text.length > 0) parts.push({
+				type: "text",
+				text: block.text
+			});
+			break;
+		case "image":
+			parts.push(await imagePart(block, attachments, signal));
+			break;
+		case "tool-result":
+			parts.push(...await contentParts(block.content, attachments, signal));
+			break;
+		default: break;
+	}
+	return parts;
+}
+/** Keep text-only user messages on the compact string wire form. */
+function userContent(parts) {
+	const text = [];
+	for (const part of parts) {
+		if (part.type === "image_url") return [...parts];
+		text.push(part.text);
+	}
+	return text.join("");
 }
 /** Serialize one assistant message (text + reasoning + tool calls). */
 function serializeAssistant(message) {
@@ -55,7 +102,7 @@ function serializeAssistant(message) {
 	return {
 		role: "assistant",
 		content: text,
-		...toolCalls.length > 0 && reasoning.length > 0 ? { reasoning_content: reasoning } : {},
+		...reasoning.length > 0 ? { reasoning_content: reasoning } : {},
 		...toolCalls.length > 0 ? { tool_calls: toolCalls } : {}
 	};
 }
@@ -97,20 +144,70 @@ function serializeMessages(messages) {
 	return wire;
 }
 /**
-* Build the full wire request. Always streaming (`stream: true`, usage
-* reporting on); optional fields are omitted rather than sent as null, so
-* provider defaults apply.
-* @param options - the harness request (model, history, system, tools, sampling).
-* @param defaults - adapter-level thinking defaults; undefined fields put nothing on the wire.
-* @returns the chat-completions request body.
+* Serialize image-capable history after resolving durable attachments.
+* Consecutive tool results keep string `tool` messages and share one following
+* user message containing their images.
+* @param messages - transient request history after request-size offloading.
+* @param attachments - durable image resolver.
+* @param signal - cancellation for attachment reads.
+* @returns ordered DeepSeek wire messages.
 */
-function serializeRequest(options, defaults = {}) {
-	const messages = [];
-	if (options.system !== void 0) messages.push({
-		role: "system",
-		content: options.system
-	});
-	messages.push(...serializeMessages(options.messages));
+async function serializeMessagesWithImages(messages, attachments, signal) {
+	assertSupportedImageRoles(messages);
+	const wire = [];
+	let pendingToolImages = [];
+	const flushToolImages = () => {
+		if (pendingToolImages.length === 0) return;
+		wire.push({
+			role: "user",
+			content: [{
+				type: "text",
+				text: TOOL_RESULT_IMAGE_TEXT
+			}, ...pendingToolImages]
+		});
+		pendingToolImages = [];
+	};
+	for (const message of messages) {
+		if (message.role === "system") {
+			flushToolImages();
+			wire.push({
+				role: "system",
+				content: flattenText(message.content)
+			});
+			continue;
+		}
+		if (message.role === "assistant") {
+			flushToolImages();
+			wire.push(serializeAssistant(message));
+			continue;
+		}
+		const regular = message.content.filter((block) => block.type !== "tool-result");
+		const toolResults = message.content.filter((block) => block.type === "tool-result");
+		const content = userContent(await contentParts(regular, attachments, signal));
+		if (content.length > 0 || toolResults.length === 0) {
+			flushToolImages();
+			wire.push({
+				role: "user",
+				content
+			});
+		}
+		for (const result of toolResults) {
+			const parts = await contentParts(result.content, attachments, signal);
+			const images = parts.filter((part) => part.type === "image_url");
+			const text = parts.filter((part) => part.type === "text").map((part) => part.text).join("");
+			wire.push({
+				role: "tool",
+				tool_call_id: result.toolCallId,
+				content: text || (images.length > 0 ? "(see attached image)" : "(no output)")
+			});
+			pendingToolImages.push(...images);
+		}
+	}
+	flushToolImages();
+	return wire;
+}
+/** Assemble request fields shared by text-only and image-capable conversion. */
+function requestWithMessages(options, messages, defaults) {
 	const tools = options.tools?.map((tool) => ({
 		type: "function",
 		function: {
@@ -132,6 +229,43 @@ function serializeRequest(options, defaults = {}) {
 		...options.maxTokens === void 0 ? {} : { max_tokens: options.maxTokens },
 		...options.stop !== void 0 ? { stop: options.stop } : {}
 	};
+}
+/**
+* Build the full wire request. Always streaming (`stream: true`, usage
+* reporting on); optional fields are omitted rather than sent as null, so
+* provider defaults apply.
+* @param options - the harness request (model, history, system, tools, sampling).
+* @param defaults - adapter-level thinking defaults; undefined fields put nothing on the wire.
+* @returns the chat-completions request body.
+*/
+function serializeRequest(options, defaults = {}) {
+	const messages = [];
+	if (options.system !== void 0) messages.push({
+		role: "system",
+		content: options.system
+	});
+	messages.push(...serializeMessages(options.messages));
+	return requestWithMessages(options, messages, defaults);
+}
+/**
+* Build one image-capable request while keeping durable bytes out of session
+* messages. Oversized oldest images become deterministic text before any
+* attachment read.
+* @param options - harness request containing image-capable user content.
+* @param images - attachment resolver, request bound, and cancellation.
+* @param defaults - adapter-level thinking defaults.
+* @returns the fully materialized DeepSeek request body.
+*/
+async function serializeRequestWithImages(options, images, defaults = {}) {
+	assertSupportedImageRoles(options.messages);
+	const requestMessages = offloadRequestImages(options.messages, images.maxRequestImageBytes);
+	const messages = [];
+	if (options.system !== void 0) messages.push({
+		role: "system",
+		content: options.system
+	});
+	messages.push(...await serializeMessagesWithImages(requestMessages, images.attachments, images.signal));
+	return requestWithMessages(options, messages, defaults);
 }
 /**
 * Parse an SSE byte stream into data payloads. Yields `[DONE]` as the final
@@ -411,14 +545,21 @@ const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 3e5;
 const DEFAULT_CONTEXT_WINDOW = 1e6;
 /** Default per-request output-token cap. */
 const DEFAULT_MAX_TOKENS = 256e3;
+/** Default bound on accumulated base64 image payload per request. */
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024;
 const STREAM_IDLE_TIMEOUT_CODE = "LLM_STREAM_IDLE_TIMEOUT";
 const OFF_REASONING_EFFORT = ReasoningEffortId("off");
+const LOW_REASONING_EFFORT = ReasoningEffortId("low");
 const HIGH_REASONING_EFFORT = ReasoningEffortId("high");
 const MAX_REASONING_EFFORT = ReasoningEffortId("max");
 const REASONING_EFFORTS = [
 	{
 		id: OFF_REASONING_EFFORT,
 		name: "Off"
+	},
+	{
+		id: LOW_REASONING_EFFORT,
+		name: "Low"
 	},
 	{
 		id: HIGH_REASONING_EFFORT,
@@ -439,7 +580,7 @@ function modelInfo(provider, model) {
 		id: model.id,
 		name: model.name ?? model.id,
 		...model.description === void 0 ? {} : { description: model.description },
-		inputModalities: ["text"]
+		inputModalities: model.inputModalities ?? ["text"]
 	};
 }
 function providerRetryAfterMs(value) {
@@ -463,6 +604,7 @@ function requestId(headers) {
 */
 function httpErrorCode(status, error) {
 	if (status === 401 || status === 403) return "AUTH";
+	if (status === 413) return "INVALID_REQUEST";
 	const detail = [
 		error?.code,
 		error?.type,
@@ -520,7 +662,7 @@ var DeepSeekAdapter = class extends LlmAdapter {
 				defaultEffort: OFF_REASONING_EFFORT
 			} } : { reasoning: {
 				efforts: REASONING_EFFORTS,
-				defaultEffort: connection.defaults.reasoningEffort === "off" ? OFF_REASONING_EFFORT : connection.defaults.reasoningEffort === "max" ? MAX_REASONING_EFFORT : HIGH_REASONING_EFFORT
+				defaultEffort: connection.defaults.reasoningEffort === "off" ? OFF_REASONING_EFFORT : connection.defaults.reasoningEffort === "low" ? LOW_REASONING_EFFORT : connection.defaults.reasoningEffort === "max" ? MAX_REASONING_EFFORT : HIGH_REASONING_EFFORT
 			} }
 		});
 	}
@@ -532,12 +674,18 @@ var DeepSeekAdapter = class extends LlmAdapter {
 		};
 		try {
 			const connection = this.config.options();
+			const hasImages = options.messages.some((message) => contentHasImage(message.content));
+			let attachments;
+			if (hasImages) {
+				if (connection.models.find((entry) => entry.id === options.model)?.inputModalities?.includes("image") !== true) throw new LlmError(`DeepSeek model "${options.model}" does not accept image input.`, "UNSUPPORTED_CONTENT");
+				attachments = this.config.resolveAttachments?.();
+				if (attachments === void 0) throw new LlmError("DeepSeek image conversion requires the durable attachment service.", "UNSUPPORTED_CONTENT");
+			}
 			const apiKey = await this.config.resolveApiKey(connection);
 			const userId = this.config.resolveUserId();
 			const consumer = new AbortController();
-			const upstream = options.signal === void 0 ? consumer.signal : AbortSignal.any([options.signal, consumer.signal]);
-			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE), false);
-			const iterator = this.request(options, watchdog.signal, connection, apiKey, userId, () => {
+			const watchdog = __addDisposableResource(env_1, idleWatchdog(options.signal === void 0 ? consumer.signal : AbortSignal.any([options.signal, consumer.signal]), connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE), false);
+			const iterator = this.request(options, watchdog.signal, connection, apiKey, userId, attachments, () => {
 				watchdog.pulse();
 			})[Symbol.asyncIterator]();
 			let exhausted = false;
@@ -568,8 +716,12 @@ var DeepSeekAdapter = class extends LlmAdapter {
 			__disposeResources(env_1);
 		}
 	}
-	async *request(options, signal, connection, apiKey, userId, onComment) {
-		const body = serializeRequest(options, connection.defaults);
+	async *request(options, signal, connection, apiKey, userId, attachments, onComment) {
+		const body = attachments === void 0 ? serializeRequest(options, connection.defaults) : await serializeRequestWithImages(options, {
+			attachments,
+			maxRequestImageBytes: connection.maxRequestImageBytes,
+			signal
+		}, connection.defaults);
 		const payload = JSON.stringify(body);
 		const headers = {
 			"authorization": `Bearer ${apiKey}`,
@@ -640,12 +792,14 @@ const DEFAULT_MODELS = [{
 	name: "DeepSeek-V4-Pro",
 	contextWindow: DEFAULT_CONTEXT_WINDOW
 }];
+const MODEL_MODALITIES = ["text", "image"];
 const catalogModel = z.object({
 	id: z.string().required(),
 	name: z.string(),
 	description: z.string(),
 	contextWindow: z.number().step(1).min(1),
-	maxTokens: z.number().step(1).min(1)
+	maxTokens: z.number().step(1).min(1),
+	inputModalities: z.array(z.union(MODEL_MODALITIES)).min(1).default(["text"])
 });
 const Config = z.object({
 	apiKeyEnv: z.string().role("credential-ref").default(DEFAULT_API_KEY_ENV),
@@ -653,6 +807,7 @@ const Config = z.object({
 	thinking: z.union(["enabled", "disabled"]),
 	reasoningEffort: z.union([
 		"off",
+		"low",
 		"high",
 		"max"
 	]),
@@ -660,6 +815,7 @@ const Config = z.object({
 	defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
 	models: z.array(catalogModel).default(DEFAULT_MODELS),
 	streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
+	maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
 	retryPolicy: RetryPolicySchema
 });
 /** Public API default; the internal endpoint comes from $DEEPSEEK_BASE_URL. */
@@ -674,6 +830,10 @@ function resolveModels(models) {
 		if (model.name !== void 0 && model.name.length === 0) throw new Error(`llm-deepseek: catalog model "${model.id}" has an empty name`);
 		if (model.contextWindow !== void 0 && (!Number.isInteger(model.contextWindow) || model.contextWindow <= 0)) throw new Error(`llm-deepseek: catalog model "${model.id}" contextWindow must be a positive integer`);
 		if (model.maxTokens !== void 0 && (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)) throw new Error(`llm-deepseek: catalog model "${model.id}" maxTokens must be a positive integer`);
+		const inputModalities = model.inputModalities ?? ["text"];
+		if (inputModalities.length === 0) throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must not be empty`);
+		if (inputModalities.some((modality) => !MODEL_MODALITIES.includes(modality))) throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must contain only "text" and "image"`);
+		if (new Set(inputModalities).size !== inputModalities.length) throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must not contain duplicates`);
 		if (seen.has(model.id)) throw new Error(`llm-deepseek: duplicate catalog model "${model.id}"`);
 		seen.add(model.id);
 		return {
@@ -681,7 +841,8 @@ function resolveModels(models) {
 			...model.name === void 0 ? {} : { name: model.name },
 			...model.description === void 0 ? {} : { description: model.description },
 			...model.contextWindow === void 0 ? {} : { contextWindow: model.contextWindow },
-			...model.maxTokens === void 0 ? {} : { maxTokens: model.maxTokens }
+			...model.maxTokens === void 0 ? {} : { maxTokens: model.maxTokens },
+			inputModalities: [...inputModalities]
 		};
 	});
 }
@@ -703,6 +864,8 @@ function resolveAdapterOptions(config, environment) {
 	if (config.maxTokens !== void 0 && (!Number.isSafeInteger(config.maxTokens) || config.maxTokens <= 0)) throw new Error("llm-deepseek: maxTokens must be a positive safe integer");
 	const streamIdleTimeoutMs = config.streamIdleTimeoutMs ?? 3e5;
 	if (!Number.isFinite(streamIdleTimeoutMs) || streamIdleTimeoutMs <= 0 || streamIdleTimeoutMs > MAX_TIMER_DELAY_MS) throw new Error(`llm-deepseek: streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`);
+	const maxRequestImageBytes = config.maxRequestImageBytes ?? 20971520;
+	if (!Number.isSafeInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) throw new Error("llm-deepseek: maxRequestImageBytes must be a positive safe integer");
 	return {
 		apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
 		baseURL: config.baseURL ?? environment?.get(BASE_URL_ENV)?.value ?? "https://api.deepseek.com",
@@ -714,6 +877,7 @@ function resolveAdapterOptions(config, environment) {
 		defaultContextWindow: config.defaultContextWindow ?? 1e6,
 		models: resolveModels(config.models),
 		streamIdleTimeoutMs,
+		maxRequestImageBytes,
 		retryPolicy: resolveRetryPolicy(config.retryPolicy, "llm-deepseek: retryPolicy")
 	};
 }
@@ -755,7 +919,8 @@ function apply(ctx, config) {
 	const adapter = new DeepSeekAdapter({
 		options,
 		resolveApiKey,
-		resolveUserId
+		resolveUserId,
+		resolveAttachments: () => ctx.get("attachments")
 	});
 	ctx.llm.registerConfigurableProviders([{
 		provider: PROVIDER,
@@ -779,4 +944,4 @@ function apply(ctx, config) {
 	});
 }
 //#endregion
-export { Config, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, PUBLIC_BASE_URL, apply, inject, name, resolveAdapterOptions };
+export { Config, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DeepSeekAdapter, PUBLIC_BASE_URL, apply, inject, name, resolveAdapterOptions };

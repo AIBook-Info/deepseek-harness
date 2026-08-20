@@ -5,7 +5,6 @@ import { ESCALATION_TARGETS, approveEscalation, canonicalPath, escalationHintMar
 import { structuredPatch } from "diff";
 import { basename, extname } from "node:path";
 import { AttachmentError, AttachmentId } from "@deepseek-ai/dsh-attachment";
-import { createUserMessage } from "@deepseek-ai/dsh-llm";
 //#region lib/types/read-render.js
 /**
 * Pure read presentation: turn provider-decoded text into a bounded, line-numbered window and
@@ -16,7 +15,7 @@ import { createUserMessage } from "@deepseek-ai/dsh-llm";
 /** Default maximum characters returned for a single line (the `readMaxLineLength` config). */
 const READ_MAX_LINE_LENGTH = 2e3;
 /** Default maximum bytes returned for selected file lines (the `readMaxBytes` config). */
-const READ_MAX_BYTES = 51200;
+const READ_MAX_BYTES = 50 * 1024;
 function newAccumulator() {
 	return {
 		lines: [],
@@ -297,7 +296,7 @@ const READ_LIMIT = 2e3;
 * Default streaming threshold (the `readStreamMinSize` config): files at or
 * above this size stream; smaller files read whole into memory.
 */
-const STREAM_MIN_SIZE = 10485760;
+const STREAM_MIN_SIZE = 10 * 1024 * 1024;
 function parsePositiveInteger(value, name) {
 	if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`);
 	return value;
@@ -1024,7 +1023,10 @@ function applyReadImageTool(ctx) {
 					name: basename(target.displayPath)
 				});
 			} catch (error) {
-				if (!(error instanceof AttachmentError) || error.code !== "IMAGE_TYPE_MISMATCH") throw error;
+				if (!(error instanceof AttachmentError)) throw error;
+				if (error.code === "IMAGE_DIMENSION_TOO_LARGE") throw new Error(`cannot read "${target.displayPath}": at least one image side exceeds the ${attachments.imageLimits.maxImageDimension}px limit; downscale the image and read the smaller copy`, { cause: error });
+				if (error.code === "IMAGE_TOO_MANY_PIXELS") throw new Error(`cannot read "${target.displayPath}": the image exceeds the ${attachments.imageLimits.maxImagePixels}-pixel decoded-size limit; downscale the image and read the smaller copy`, { cause: error });
+				if (error.code !== "IMAGE_TYPE_MISMATCH") throw error;
 				const extension = extname(target.displayPath).toLowerCase();
 				throw new Error(`cannot read "${target.displayPath}": the ${extension} extension declares ${mediaType}, but the bytes use a different image format; rename the file to match its actual format if it is PNG/JPEG/WebP/GIF, or convert it to one of those formats`, { cause: error });
 			}
@@ -1032,7 +1034,7 @@ function applyReadImageTool(ctx) {
 				kind: "present",
 				version: info.version
 			}, exec);
-			const value = {
+			return {
 				path: target.displayPath,
 				image: {
 					attachmentId: ref.attachmentId,
@@ -1043,14 +1045,6 @@ function applyReadImageTool(ctx) {
 					...ref.name === void 0 ? {} : { name: ref.name }
 				}
 			};
-			if (exec.parent !== void 0) exec.deferContext(createUserMessage({
-				content: imageReadContent(value),
-				source: {
-					kind: "plugin",
-					plugin: "tool-fs"
-				}
-			}));
-			return value;
 		},
 		presentCall(args) {
 			return {

@@ -155,37 +155,60 @@ var PlanModeController = class extends Service {
 				schema: planProjectionSchema,
 				init: () => ({
 					active: false,
-					wanted: null
+					wanted: null,
+					running: null
 				}),
 				apply: (state, event) => {
 					if (event.type === "command/run" && event.data.name === "plan") {
 						if (event.data.args === void 0) return state;
 						const wanted = event.data.args.trim() !== "off";
-						return wanted === state.wanted ? state : {
-							active: state.active,
-							wanted
+						return {
+							...state,
+							running: {
+								commandId: event.data.commandId,
+								wanted
+							}
+						};
+					}
+					if (event.type === "command/done" && event.data.commandId === state.running?.commandId) {
+						const wanted = event.data.kind === "success" && state.running.wanted !== state.active ? state.running.wanted : null;
+						return {
+							...state,
+							wanted,
+							running: null
 						};
 					}
 					if (event.type === "plan/mode") return {
+						...state,
 						active: event.data.active,
 						wanted: null
 					};
 					return state;
 				},
-				view: (state) => ({
-					active: state.active,
-					pending: state.wanted !== null && state.wanted !== state.active
-				}),
-				stateVersion: 1
+				view: (state) => {
+					const wanted = state.running?.wanted ?? state.wanted;
+					return {
+						active: state.active,
+						pending: wanted !== null && wanted !== state.active
+					};
+				},
+				stateVersion: 2
 			});
 		});
 		ctx.inject(["commands"], (commandCtx) => {
 			commandCtx.commands.register({
 				name: "plan",
 				description: "Enter or leave plan mode",
-				input: { hint: "[off|message]" },
-				handler: ({ agent, rawInput }) => {
+				input: {
+					hint: "[off|message]",
+					images: true
+				},
+				handler: ({ agent, rawInput, attachments }) => {
 					const message = rawInput.trim();
+					if (message === "off" && attachments.length > 0) return {
+						kind: "error",
+						text: "Image attachments cannot accompany /plan off."
+					};
 					if (message === "off") switch (this.set(agent, false)) {
 						case "committed": return {
 							kind: "success",
@@ -208,11 +231,11 @@ var PlanModeController = class extends Service {
 						};
 					}
 					const outcome = this.set(agent, true);
-					if (message !== "") agent.steer(createUserMessage({
-						content: [{
+					if (message !== "" || attachments.length > 0) agent.steer(createUserMessage({
+						content: [...attachments, ...message === "" ? [] : [{
 							type: "text",
 							text: message
-						}],
+						}]],
 						source: { kind: "user" }
 					}));
 					return {

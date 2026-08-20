@@ -136,7 +136,7 @@ export class Session {
      * @param mode - queue appends after the current turn; steer interrupts it.
      * @returns the prompt result (also mirrored into promptError on failure).
      */
-    async prompt(content, mode) {
+    async prompt(content, mode, signal) {
         this.promptError = null;
         this.lastAgentError = null;
         // Synchronous, before the first await: the blank → engaging edge must be
@@ -154,7 +154,7 @@ export class Session {
                     mode,
                     content,
                     clientTimeZone: resolvedClientTimeZone(),
-                })).result;
+                }, signal)).result;
             }
             else if (this.address.mode === 'one-shot') {
                 result = {
@@ -184,7 +184,7 @@ export class Session {
                             ? [{ type: 'text', text: part.text }]
                             : []),
                         clientTimeZone: resolvedClientTimeZone(),
-                    })).result;
+                    }, signal)).result;
                     result = routed.ok ? { ok: true, value: { accepted: true } } : routed;
                 }
             }
@@ -309,7 +309,7 @@ export class Session {
      * @returns the admission result, or the error branch on transport failure.
      */
     async command(line) {
-        const result = await this.remote.commands.execute(this.sessionId, line);
+        const result = await this.remote.commands.execute(this.sessionId, line, []);
         if (!result.ok)
             return result;
         return { ok: true, value: { matched: result.value !== undefined } };

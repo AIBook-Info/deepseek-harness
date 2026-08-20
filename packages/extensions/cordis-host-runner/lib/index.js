@@ -22,7 +22,7 @@ import { Script, createContext, runInContext } from "node:vm";
 * @module @deepseek-ai/dsh-cordis-host-runner/guard
 */
 const DYNAMIC_TOOL = Symbol("cordis-host-runner.dynamic-tool");
-const SCHEMA_TYPES = /* @__PURE__ */ new Set([
+const SCHEMA_TYPES = new Set([
 	"string",
 	"number",
 	"integer",
@@ -547,7 +547,7 @@ function sandboxRegisterTool(ctx, tool) {
 * services. `on`/`once` observe events, `provide` exposes a service to other packages, and the
 * timer helpers schedule work — each a fiber effect that unwinds when the package stops.
 */
-const CTX_VERBS = /* @__PURE__ */ new Set([
+const CTX_VERBS = new Set([
 	"effect",
 	"on",
 	"once",
@@ -559,7 +559,7 @@ const CTX_VERBS = /* @__PURE__ */ new Set([
 	"throttle",
 	"debounce"
 ]);
-const TIMER_VERBS = /* @__PURE__ */ new Set([
+const TIMER_VERBS = new Set([
 	"timeout",
 	"interval",
 	"setTimeout",
@@ -1351,10 +1351,8 @@ var __esDecorate = function(ctor, descriptorIn, decorators, contextIn, initializ
 			if (_ = accept(result.get)) descriptor.get = _;
 			if (_ = accept(result.set)) descriptor.set = _;
 			if (_ = accept(result.init)) initializers.unshift(_);
-		} else if (_ = accept(result)) {
-			if (kind === "field") initializers.unshift(_);
-			else descriptor[key] = _;
-		}
+		} else if (_ = accept(result)) if (kind === "field") initializers.unshift(_);
+		else descriptor[key] = _;
 	}
 	if (target) Object.defineProperty(target, contextIn.name, descriptor);
 	done = true;

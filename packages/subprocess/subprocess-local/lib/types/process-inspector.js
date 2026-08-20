@@ -1,6 +1,7 @@
 /** Platform process-table inspection for terminal readiness, signals, and teardown. */
 import { closeSync, openSync, readFileSync, readdirSync, readSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createWindowsProcessInspector } from "./windows-inspector.js";
 /* v8 ignore start -- thin OS bindings; injected logic is unit-tested and real platform composition exercises them. */
 const DEFAULT_INTERNALS = {
     readFile: path => readFileSync(path, 'utf8'),
@@ -278,6 +279,8 @@ export function createProcessInspector(platform = process.platform, arch = proce
         return new LinuxProcessInspector(arch, internals);
     if (platform === 'darwin')
         return new MacProcessInspector(internals);
+    if (platform === 'win32')
+        return createWindowsProcessInspector();
     throw new Error(`subprocess-local: terminal inspection is unsupported on platform ${platform}`);
 }
 //# sourceMappingURL=process-inspector.js.map

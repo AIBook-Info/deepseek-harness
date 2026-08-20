@@ -16,7 +16,7 @@ const inject = [
 ];
 /** Guidance order after every per-tool section a continuable child can carry. */
 const REPORT_SECTION_ORDER = 117;
-const Config = z.object({ reportDelivery: z.union(["quiet", "wakeup"]).default("wakeup") });
+const Config = z.object({ reportDelivery: z.union(["quiet", "next-step"]).default("next-step") });
 /**
 * Install `report` and its usage guidance into one continuable child's scope.
 * Both registrations are owned by that scope and are therefore invisible to the

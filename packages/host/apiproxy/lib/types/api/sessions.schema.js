@@ -177,6 +177,7 @@ export const imageLimitsProjectionSchema = z.object({
     maxImagesPerMessage: z.number().int().positive(),
     maxMessageImageBytes: z.number().int().positive(),
     maxImagePixels: z.number().int().positive(),
+    maxImageDimension: z.number().int().positive(),
     mediaTypes: z.array(z.string()),
 });
 /** session.history response value (projections rides the tail page only). */

@@ -57,7 +57,15 @@ declare module '@deepseek-ai/cordis' {
         'locale/change'(snapshot: LocaleSnapshot): void;
     }
 }
-/** Fallback locale consulted after the active locale misses (also the last-resort initial locale). */
+/**
+ * English is both the locale the UI opens in when the browser names no shipped
+ * language (and for non-browser runs), and the dictionary consulted after the
+ * active locale misses a key. One constant serves both because the shipped
+ * `zh`/`en` dictionaries carry identical key sets, so neither direction can
+ * leave a key unresolved; the residual case points at English rather than
+ * zh because a browser naming neither shipped language is the reader least
+ * likely to read Chinese.
+ */
 export declare const FALLBACK_LOCALE: LocaleId;
 /** Shared namespace for shell-level texts. */
 export declare const COMMON_NS = "common";
@@ -65,8 +73,8 @@ export declare const COMMON_NS = "common";
 export declare const SETTINGS_NS = "settings.locale";
 /**
  * Dictionary registry plus locale preference. Lookup chain per key: the
- * entry's namespace in the active locale -> that namespace's zh fallback ->
- * the shared common namespace (active, then zh) -> the key itself (missing
+ * entry's namespace in the active locale -> that namespace's en fallback ->
+ * the shared common namespace (active, then en) -> the key itself (missing
  * text stays visible, fail loud in the UI rather than blank). Reads go
  * through {@link getLocale}; writes only through {@link setLocale};
  * continuous sync through the `locale/change` event, or through the
@@ -110,6 +118,14 @@ export declare class LocaleRuntime {
     subscribe(fn: () => void): () => void;
     /**
      * Switch the active locale — the only user preference write entry.
+     *
+     * The durable write happens even when the id already matches the active
+     * locale, because the active value may be a provisional browser-derived or
+     * fallback resolution that nothing has stored yet. Picking the language
+     * already on screen is still an explicit choice, and it must survive a
+     * different browser sharing the same DSH home. Only the render notification
+     * is conditional: republishing an unchanged locale would churn every
+     * subscriber for nothing.
      * @param id - a registered locale id; unknown ids throw.
      */
     setLocale(id: string): void;

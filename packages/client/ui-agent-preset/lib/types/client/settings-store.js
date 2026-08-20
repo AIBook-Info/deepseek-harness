@@ -119,10 +119,16 @@ const INITIAL = {
 /** Reads the roster and persists the chosen default. */
 export class AgentPresetSettingsController {
     api;
+    describeFace;
     /** Row snapshot the renderer subscribes to. */
     store = createSnapshotStore(INITIAL);
-    constructor(api) {
+    /**
+     * @param api - the agent-preset and settings wire faces (roster and default write).
+     * @param describeFace - the shared mirror's describe face (writability source).
+     */
+    constructor(api, describeFace) {
         this.api = api;
+        this.describeFace = describeFace;
     }
     set(patch) {
         this.store.set({ ...this.store.getSnapshot(), ...patch });
@@ -143,25 +149,20 @@ export class AgentPresetSettingsController {
             this.set({ status: 'unavailable', options: [], currentValue: '' });
             return;
         }
-        try {
-            // The roster says what may be chosen; `settings.describe` says whether
-            // this browser may write the choice down. A non-loopback browser reaches
-            // neither method, so a refused describe leaves the row read-only rather
-            // than offering a control whose write answers `settings-not-exposed`.
-            const described = await this.api.settings.describe({});
-            this.set({
-                status: 'ready',
-                error: null,
-                writable: described.result.ok && described.result.value.writable,
-                options: presetOptions(presets),
-                // A roster can mark nothing default: settings can name a preset that
-                // was since deleted, and the picker still has to show something.
-                currentValue: presets.find(preset => preset.isDefault)?.id ?? first.id,
-            });
-        }
-        catch (error) {
-            this.set({ status: 'error', error: messageOf(error) });
-        }
+        // The roster says what may be chosen; the shared mirror says whether this
+        // browser may write the choice down. A non-loopback browser's mirror never
+        // answers, so the row stays read-only rather than offering a control
+        // whose write the Host would refuse.
+        await this.describeFace.ensure();
+        this.set({
+            status: 'ready',
+            error: null,
+            writable: this.describeFace.getSnapshot().view?.writable ?? false,
+            options: presetOptions(presets),
+            // A roster can mark nothing default: settings can name a preset that
+            // was since deleted, and the picker still has to show something.
+            currentValue: presets.find(preset => preset.isDefault)?.id ?? first.id,
+        });
     }
     /**
      * Persist one preset as the default for sessions created later. Running

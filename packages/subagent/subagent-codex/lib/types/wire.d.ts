@@ -9,6 +9,13 @@
 import type { Readable, Writable } from 'node:stream';
 import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import type { SubagentResult } from '@deepseek-ai/dsh-subagent';
+import type { CodexPermissionMode } from './run.ts';
+/** Product facts owned by the Codex wire after publication. */
+export interface CodexWireFailureFacts {
+    readonly stage: 'turn-start' | 'turn';
+    readonly category: string;
+    readonly httpStatus?: number | undefined;
+}
 /**
  * One app-server connection and its single ephemeral thread/turn.
  *
@@ -17,6 +24,7 @@ import type { SubagentResult } from '@deepseek-ai/dsh-subagent';
  */
 export declare class CodexAppServerWire {
     private readonly input;
+    private readonly permissionMode;
     private readonly transport;
     private readonly fatal;
     private threadId;
@@ -26,10 +34,23 @@ export declare class CodexAppServerWire {
     private readonly earlyTurnNotifications;
     private lastFinalAnswer;
     private lastUnphasedAnswer;
+    private diagnostic;
+    private failure;
+    private diagnosticOrder;
+    private observationOrder;
+    private pendingDiagnostic;
+    private stderrTail;
+    private inputEnded;
+    private terminalObserved;
     private closed;
-    constructor(input: Readable, output: Writable);
+    constructor(input: Readable, output: Writable, permissionMode: CodexPermissionMode);
     /** Start reading app-server frames. */
     start(): void;
+    /**
+     * Whether protocol output ended before a terminal turn notification.
+     * @returns `true` only for an early protocol close without a terminal turn.
+     */
+    endedBeforeTerminal(): boolean;
     /**
      * Perform the required app-server initialize/initialized handshake.
      * @param signal - unpublished-start cancellation.
@@ -59,6 +80,23 @@ export declare class CodexAppServerWire {
      * @returns the selected final or nullable-phase text block, if any.
      */
     collectOutput(): ContentBlock[];
+    /**
+     * The latest safe unattended permission fact observed for this run.
+     * @returns provider-authored diagnostic text, when one was observed.
+     */
+    collectDiagnostic(): string | undefined;
+    /**
+     * The structured failure fact observed for this published turn.
+     * Call only after a non-completed return or rejection from {@link runTurn}.
+     * @returns the fixed stage/category pair and optional HTTP status.
+     */
+    collectFailure(): CodexWireFailureFacts;
+    /**
+     * Observe product stderr while retaining only enough tail to recognize fixed
+     * permission signatures. The raw text is never copied into the diagnostic.
+     * @param chunk - one decoded stderr chunk already forwarded to the host.
+     */
+    observeStderr(chunk: string): void;
     /** Detach JSON-RPC listeners and reject outstanding requests. Idempotent. */
     close(): void;
     private guarded;
@@ -68,7 +106,17 @@ export declare class CodexAppServerWire {
     private readonly onInputEnd;
     private observePendingTurnId;
     private commitTurnId;
+    /**
+     * Validate the request's thread and turn association.
+     * @returns `true` when the matching turn is still provisional, so the caller
+     * defers its diagnostic until `commitTurnId()`.
+     */
     private validateRunIds;
+    private recordRequestDiagnostic;
+    private recordDiagnostic;
+    private recordFailure;
+    private nextObservationOrder;
+    private recordDeclinedItem;
     private handleServerRequest;
     private handleNotification;
 }

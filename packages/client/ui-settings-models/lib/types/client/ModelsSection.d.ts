@@ -13,17 +13,22 @@
  */
 import type { ReactNode } from 'react';
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client';
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-web-react';
-import type { ModelsSettingsState, ModelsSettingsStore, ProviderRow } from './store.ts';
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots';
+import type { ModelsSettingsStore, ProviderRow } from './store.ts';
+import type { SettingsSchemaOperations } from './schema-operations.ts';
 import type { en } from './locales.ts';
 /** Injected dependencies of {@link ModelsSection} (slot `inject`). */
 export interface ModelsSectionInjected {
     /** The page store (loaded on mount, refreshed on pushed invalidations). */
     controller: ModelsSettingsStore;
-    /** uSES subscription hook bound to the store. */
-    useSnapshot: SnapshotSelectorHook<ModelsSettingsState>;
+    hooks: {
+        /** Page snapshot bound by the UI renderer as useSnapshot. */
+        snapshot: ModelsSettingsStore['store'];
+    };
     /** Wire faces the editor writes through. */
     api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>;
+    /** Settings schema and immutable path callbacks. */
+    schema: SettingsSchemaOperations;
     /** Section copy. */
     t: (key: keyof typeof en) => string;
 }
@@ -31,7 +36,7 @@ export interface ModelsSectionInjected {
  * Props delivered by the slot outlet: the inject face spread flat (the
  * renderer erases the share boundary at the render call).
  */
-export type ModelsSectionProps = Partial<ModelsSectionInjected>;
+export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>>;
 /** Provider identity shared by row actions and confirmation copy. */
 export interface ProviderIdentity {
     /** Stable provider route id. */

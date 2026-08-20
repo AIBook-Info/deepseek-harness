@@ -1,103 +1,81 @@
 /**
- * Schema + load-time helpers for the SQLite session-persistence backend: the
- * DDL (a store-identity row, `sessions` metadata, and a 1:1 `events` row per
- * `SessionEvent`), the database open/configure step, and the last-`turn/end`
- * cut that gives the SQLite backend the SAME crash-tail-on-load semantics as
- * the JSONL backend.
- *
- * @module dsh-session-persistence-sqlite/schema
+ * SQLite schema ownership and durable-row validation.
+ * @module @deepseek-ai/dsh-session-persistence-sqlite/schema
  */
-import { DatabaseSync } from 'node:sqlite';
-import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session';
-/**
- * The on-disk schema version. Bumped only on a breaking change to the table
- * layout; orthogonal to a session's own `version` (which versions the EVENT
- * vocabulary, stored per session in the `sessions` row).
- */
-export declare const SCHEMA_VERSION = 15;
-/** SQLite application id protecting unrelated databases from persistence writes. */
+import type { DatabaseSync } from 'node:sqlite';
+import { type SessionHeader } from '@deepseek-ai/dsh-session';
+/** Current physical-record schema with packed and compressed event rows. */
+export declare const SCHEMA_VERSION = 17;
+/** Application id reserved for DeepSeek Harness SQLite session databases. */
 export declare const SESSION_PERSISTENCE_SQLITE_APPLICATION_ID = 1146308688;
-/**
- * A row of the `sessions` table — the out-of-log metadata ({@link SessionHeader}).
- * The row's EXISTENCE is the materialization signal: it is written only by the
- * first `append` (lazy materialization), so a created-but-never-appended
- * session has no row and is absent from `list`, mirroring the JSONL
- * backend's "no file until first append".
- */
+/** A materialized session's metadata and monotonic revision. */
 export interface SessionRow {
-    id: string;
-    version: number;
-    created_at: number;
-    cwd: string | null;
-    parent_session: string | null;
-    seed_length: number | null;
-    origin: 'subagent' | null;
-    /** Stable identity assigned when this log is materialized. */
-    incarnation: string;
-    /** Monotonic log-change token incremented in each mutating transaction. */
-    revision: number;
-    delegation_depth: number | null;
-    agent_preset: string | null;
+    readonly id: string;
+    readonly version: number;
+    readonly created_at: number;
+    readonly cwd: string | null;
+    readonly parent_session: string | null;
+    readonly seed_length: number | null;
+    readonly origin: 'subagent' | null;
+    readonly incarnation: string;
+    readonly revision: number;
+    readonly delegation_depth: number | null;
+    readonly agent_preset: string | null;
 }
-/** An `events` table row: one `SessionEvent` mapped 1:1 (`data` is JSON text). */
+/** One physical event row; packed rows may represent multiple logical events. */
 export interface EventRow {
-    seq: number;
-    type: string;
-    time: number;
-    data: string;
-    /** JSON-encoded `number[]` — the event's sourceEventSeqs, or null. */
-    source_event_seqs: string | null;
-    /** JSON-encoded `SurfaceOp` — how the event entered the surface, or null. */
-    surface_op: string | null;
-    /** `1` iff the event carries the envelope's `ignorable: true` marker, else null. */
-    ignorable: number | null;
+    readonly seq: number;
+    readonly type: string;
+    readonly time: number;
+    readonly data: string | Uint8Array;
+    readonly source_event_seqs: Uint8Array | null;
+    readonly surface_op: string | null;
+    readonly ignorable: number | null;
 }
-/**
- * Journal modes the backend will run under. `wal` is the default and the
- * durability model the persistence ADR records; the rollback-journal modes
- * (`delete`/`truncate`/`persist`) exist for filesystems where WAL's
- * shared-memory files do not work (network mounts). `memory`/`off` are
- * excluded: dropping journal durability silently contradicts what this
- * backend promises.
- */
+/** Durable journal modes accepted by the backend. */
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist';
+type DatabaseSyncConstructor = typeof import('node:sqlite')['DatabaseSync'];
 /**
- * Open the database and apply its schema and pragmas. An empty database with a
- * zero `user_version` is initialized at {@link SCHEMA_VERSION}; a nonempty
- * unversioned database and every other non-current version reject rather than
- * being migrated in place.
- * @param path - the SQLite database file to open (created when absent).
+ * Open and validate a SQLite session database.
+ * @param Database - lazily imported Node SQLite constructor.
+ * @param path - SQLite path, including `:memory:`.
  * @param journalMode - validated journal pragma.
- * @returns the open handle with pragmas applied and all three tables ensured.
+ * @param busyTimeoutMs - validated maximum wait for a competing SQLite lock.
+ * @returns the configured database handle.
+ * @throws when connection settings, schema ownership, or SQLite setup cannot be validated.
  */
-export declare function openDatabase(path: string, journalMode: JournalMode): DatabaseSync;
+export declare function openDatabase(Database: DatabaseSyncConstructor, path: string, journalMode: JournalMode, busyTimeoutMs: number): Promise<DatabaseSync>;
 /**
- * Reconstruct the {@link SessionHeader} from a `sessions` row.
- * @param row - the `sessions` table row.
- * @returns the header, `NULL` columns mapped to omitted optional fields.
+ * Recheck schema ownership inside the caller's mutation transaction.
+ * @param Database - constructor used to validate the canonical schema.
+ * @param db - open owned database with an active immediate transaction.
+ * @param path - database location used in ownership diagnostics.
+ * @throws when another writer changed the application identity, schema, or version.
+ */
+export declare function validateSchemaForMutation(Database: DatabaseSyncConstructor, db: DatabaseSync, path: string): void;
+/**
+ * Decode and validate one durable session row.
+ * @param value - value returned by SQLite.
+ * @returns a validated session row.
+ */
+export declare function decodeSessionRow(value: unknown): SessionRow;
+/**
+ * Decode and validate one durable event row before JSON interpretation.
+ * @param value - value returned by SQLite.
+ * @returns a validated physical event row.
+ */
+export declare function decodeEventRow(value: unknown): EventRow;
+/**
+ * Validate the singleton identity read from durable storage.
+ * @param value - value returned by SQLite.
+ * @returns the UUID store identity.
+ */
+export declare function decodeStoreIdentity(value: unknown): string;
+/**
+ * Reconstruct an immutable session header from a validated metadata row.
+ * @param row - validated stored metadata row.
+ * @returns the session header.
  */
 export declare function rowToMeta(row: SessionRow): SessionHeader;
-/**
- * Reconstruct a {@link SessionEvent} from an `events` row (parses `data`).
- * @param row - the `events` table row; `data` and the surface columns hold JSON text.
- * @returns the reconstructed event; throws when a JSON column fails to parse
- *   ({@link scanRows} treats that as a hole, not corruption, in the tail).
- */
-export declare function rowToEvent(row: EventRow): SessionEvent;
-/**
- * Find the preserved prefix of ordered event rows. Fully written rows in an
- * interrupted final turn remain in the prefix. The first unparsable row or seq
- * gap after the last `turn/end` marks a tolerated torn tail; the same hole in
- * the committed region rejects.
- *
- * @param rows - one session's event rows, ordered by seq ascending.
- * @param base - the seq the first row is expected to carry; `0` for a whole
- *   log, the requested `fromSeq` for a suffix read (`loadStoredFrom`).
- * @returns the preserved event prefix, plus `tornFrom` — the seq the physical
- *   delete starts at — when a torn tail exists.
- */
-export declare function scanRows(rows: readonly EventRow[], base?: number): {
-    preserved: SessionEvent[];
-    tornFrom?: number;
-};
+export {};
 //# sourceMappingURL=schema.d.ts.map

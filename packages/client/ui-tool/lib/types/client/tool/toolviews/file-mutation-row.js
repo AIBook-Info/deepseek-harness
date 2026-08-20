@@ -13,8 +13,8 @@ import { CONVERSATION_NS as NS } from "../../locale.js";
  * model-facing error text through its Output section and its first line in the
  * collapsed summary instead.
  */
-export function FileMutationRow({ toolName, block, cwd, openFile, inspect, t }) {
-    const model = toolRowModel(toolName, block, cwd);
+export function FileMutationRow({ toolName, block, cwd, home, openFile, inspect, t }) {
+    const model = toolRowModel(toolName, block, cwd, home);
     const diff = diffCardModel(block);
     return (_jsx(ToolRow, { t: t, variant: model.variant, toolName: toolName, icon: _jsx(IconEditOutline16, { size: 14 }), title: model.title, summary: model.summary, body: null, output: model.output, errorSummary: model.errorSummary, diff: diff, state: model.state, filePath: model.filePath, onOpenFile: openFile, inspect: inspect }));
 }

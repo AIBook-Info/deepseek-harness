@@ -7,6 +7,42 @@
  * @module @deepseek-ai/dsh-subagent-codex/wire
  */
 import { JsonRpcLineTransport } from '@deepseek-ai/dsh-sdk-protocol';
+const THREAD_PERMISSION_PARAMS = {
+    never: { approvalPolicy: 'never' },
+    'approve-for-me': {
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'auto_review',
+        sandbox: 'workspace-write',
+    },
+    'dangerously-bypass-approvals-and-sandbox': {
+        approvalPolicy: 'never',
+        sandbox: 'danger-full-access',
+    },
+};
+const STDERR_PERMISSION_SIGNATURES = [
+    {
+        text: 'approval policy is Never; reject command',
+        request: 'command execution',
+        decision: 'denied',
+        reason: 'Codex rejected an escalation because the selected policy never asks for approval',
+    },
+    {
+        text: 'recorded sandbox violation:',
+        request: 'sandbox execution',
+        decision: 'failed',
+        reason: 'Codex reported a sandbox violation',
+    },
+];
+const STDERR_SIGNATURE_TAIL_CHARS = Math.max(...STDERR_PERMISSION_SIGNATURES.map(signature => signature.text.length)) - 1;
+function stderrSignatureTail(value) {
+    for (let length = Math.min(STDERR_SIGNATURE_TAIL_CHARS, value.length); length > 0; length -= 1) {
+        const tail = value.slice(-length);
+        if (STDERR_PERMISSION_SIGNATURES.some(signature => tail.length < signature.text.length && signature.text.startsWith(tail))) {
+            return tail;
+        }
+    }
+    return '';
+}
 function object(value, label) {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
         throw new Error(`subagent-codex: app-server returned invalid ${label}`);
@@ -31,14 +67,74 @@ function unattendedDecision(params) {
     }
     throw new Error('subagent-codex: app-server offered no unattended approval decision');
 }
-function isContextWindowExceeded(turn) {
+function numericHttpStatus(value) {
+    return typeof value === 'number'
+        && Number.isInteger(value)
+        && value >= 0
+        && value <= 65_535
+        ? value
+        : undefined;
+}
+function objectFailureInfo(value) {
+    const keys = Object.keys(value);
+    const category = keys[0];
+    if (keys.length !== 1 || category === undefined) {
+        return { category: 'unknown' };
+    }
+    const detail = value[category];
+    if (detail === null || typeof detail !== 'object' || Array.isArray(detail)) {
+        return { category: 'unknown' };
+    }
+    const fields = detail;
+    switch (category) {
+        case 'httpConnectionFailed':
+        case 'responseStreamConnectionFailed':
+        case 'responseStreamDisconnected':
+        case 'responseTooManyFailedAttempts':
+            {
+                const httpStatus = numericHttpStatus(fields.httpStatusCode);
+                return httpStatus === undefined
+                    ? { category }
+                    : { category, httpStatus };
+            }
+        case 'activeTurnNotSteerable':
+            return { category };
+        default:
+            return { category: 'unknown' };
+    }
+}
+function failureInfo(turn) {
     if (turn.status !== 'failed')
-        return false;
+        return { category: 'unknown' };
     const error = turn.error;
-    return error !== null
-        && typeof error === 'object'
-        && !Array.isArray(error)
-        && error.codexErrorInfo === 'contextWindowExceeded';
+    if (error === null || typeof error !== 'object' || Array.isArray(error)) {
+        return { category: 'unknown' };
+    }
+    const info = error.codexErrorInfo;
+    if (typeof info === 'string') {
+        switch (info) {
+            case 'contextWindowExceeded':
+            case 'sessionBudgetExceeded':
+            case 'usageLimitExceeded':
+            case 'serverOverloaded':
+            case 'cyberPolicy':
+            case 'internalServerError':
+            case 'unauthorized':
+            case 'badRequest':
+            case 'threadRollbackFailed':
+            case 'sandboxError':
+            case 'other':
+                return { category: info };
+            default:
+                return { category: 'unknown' };
+        }
+    }
+    return info !== null && typeof info === 'object' && !Array.isArray(info)
+        ? objectFailureInfo(info)
+        : { category: 'unknown' };
+}
+function unattendedDiagnostic(mode, request, decision, reason) {
+    return `Codex unattended decision (mode: ${mode}; request: ${request}; decision: ${decision}): ${reason}`;
 }
 function thrown(value) {
     /* v8 ignore next -- typed protocol and stream failures reject with Error. */
@@ -73,6 +169,7 @@ async function raceAbort(pending, signal) {
  */
 export class CodexAppServerWire {
     input;
+    permissionMode;
     transport;
     fatal = Promise.withResolvers();
     threadId;
@@ -82,9 +179,18 @@ export class CodexAppServerWire {
     earlyTurnNotifications = [];
     lastFinalAnswer;
     lastUnphasedAnswer;
+    diagnostic;
+    failure;
+    diagnosticOrder = 0;
+    observationOrder = 0;
+    pendingDiagnostic;
+    stderrTail = '';
+    inputEnded = false;
+    terminalObserved = false;
     closed = false;
-    constructor(input, output) {
+    constructor(input, output, permissionMode) {
         this.input = input;
+        this.permissionMode = permissionMode;
         this.transport = new JsonRpcLineTransport(input, output);
         // Fatal protocol state can arrive after the current guarded operation has
         // already settled. Keep the shared rejection observed without inserting
@@ -109,6 +215,13 @@ export class CodexAppServerWire {
     /** Start reading app-server frames. */
     start() {
         this.transport.start();
+    }
+    /**
+     * Whether protocol output ended before a terminal turn notification.
+     * @returns `true` only for an early protocol close without a terminal turn.
+     */
+    endedBeforeTerminal() {
+        return this.inputEnded && !this.terminalObserved;
     }
     /**
      * Perform the required app-server initialize/initialized handshake.
@@ -138,6 +251,7 @@ export class CodexAppServerWire {
         const response = object(await this.guarded(this.transport.request('thread/start', {
             cwd,
             ephemeral: true,
+            ...THREAD_PERMISSION_PARAMS[this.permissionMode],
         }, signal), signal), 'thread/start response');
         const thread = object(response.thread, 'thread/start thread');
         const id = string(thread.id, 'thread/start thread id');
@@ -157,26 +271,50 @@ export class CodexAppServerWire {
         const completion = Promise.withResolvers();
         this.turnCompleted = completion;
         const threadId = this.threadId;
-        const response = object(await this.guarded(this.transport.request('turn/start', {
-            threadId,
-            input: texts.map(text => ({ type: 'text', text, text_elements: [] })),
-        }, signal), signal), 'turn/start response');
-        const turn = object(response.turn, 'turn/start turn');
-        this.commitTurnId(string(turn.id, 'turn/start turn id'));
-        const completed = await this.guarded(completion.promise, signal);
-        const terminal = object(completed.turn, 'turn/completed turn');
-        const status = terminal.status;
-        if (isContextWindowExceeded(terminal)) {
-            return { output: this.collectOutput(), stopReason: 'max-tokens' };
+        try {
+            const response = object(await this.guarded(this.transport.request('turn/start', {
+                threadId,
+                input: texts.map(text => ({ type: 'text', text, text_elements: [] })),
+            }, signal), signal), 'turn/start response');
+            const turn = object(response.turn, 'turn/start turn');
+            this.commitTurnId(string(turn.id, 'turn/start turn id'));
         }
+        catch (error) {
+            this.recordFailure({ stage: 'turn-start', category: 'unknown' });
+            throw error;
+        }
+        let completed;
+        let terminal;
+        try {
+            completed = await this.guarded(completion.promise, signal);
+            terminal = object(completed.params.turn, 'turn/completed turn');
+        }
+        catch (error) {
+            this.recordFailure({ stage: 'turn', category: 'unknown' });
+            throw error;
+        }
+        const status = terminal.status;
         if (status !== 'completed') {
-            const detail = status === 'failed'
-                ? `: ${JSON.stringify(terminal.error)}`
-                : '';
+            const parsed = failureInfo(terminal);
+            this.recordFailure(parsed.httpStatus === undefined
+                ? { stage: 'turn', category: parsed.category }
+                : {
+                    stage: 'turn',
+                    category: parsed.category,
+                    httpStatus: parsed.httpStatus,
+                });
+            if (parsed.category === 'sandboxError') {
+                this.recordDiagnostic('sandbox execution', 'failed', 'Codex reported a sandbox failure', completed.order);
+            }
+            if (parsed.category === 'contextWindowExceeded') {
+                return { output: this.collectOutput(), stopReason: 'max-tokens' };
+            }
+            const detail = status === 'failed' ? `: ${parsed.category}` : '';
             throw new Error(`subagent-codex: Codex turn ended with status ${String(status)}${detail}`);
         }
         const output = this.collectOutput();
         if (output.length === 0) {
+            this.recordFailure({ stage: 'turn', category: 'unknown' });
             throw new Error('subagent-codex: Codex completed without a final answer');
         }
         return { output, stopReason: 'completed' };
@@ -203,6 +341,42 @@ export class CodexAppServerWire {
             ? [{ type: 'text', text: selected }]
             : [];
     }
+    /**
+     * The latest safe unattended permission fact observed for this run.
+     * @returns provider-authored diagnostic text, when one was observed.
+     */
+    collectDiagnostic() {
+        return this.diagnostic;
+    }
+    /**
+     * The structured failure fact observed for this published turn.
+     * Call only after a non-completed return or rejection from {@link runTurn}.
+     * @returns the fixed stage/category pair and optional HTTP status.
+     */
+    collectFailure() {
+        return this.failure;
+    }
+    /**
+     * Observe product stderr while retaining only enough tail to recognize fixed
+     * permission signatures. The raw text is never copied into the diagnostic.
+     * @param chunk - one decoded stderr chunk already forwarded to the host.
+     */
+    observeStderr(chunk) {
+        const observed = `${this.stderrTail}${chunk}`;
+        let latestIndex = -1;
+        let latest;
+        for (const signature of STDERR_PERMISSION_SIGNATURES) {
+            const index = observed.lastIndexOf(signature.text);
+            if (index > latestIndex) {
+                latestIndex = index;
+                latest = signature;
+            }
+        }
+        if (latest !== undefined) {
+            this.recordDiagnostic(latest.request, latest.decision, latest.reason);
+        }
+        this.stderrTail = stderrSignatureTail(observed);
+    }
     /** Detach JSON-RPC listeners and reject outstanding requests. Idempotent. */
     close() {
         if (this.closed)
@@ -225,6 +399,7 @@ export class CodexAppServerWire {
         this.fail(error);
     };
     onInputEnd = () => {
+        this.inputEnded = true;
         this.fail(new Error('subagent-codex: app-server protocol stream closed'));
     };
     observePendingTurnId(id) {
@@ -241,41 +416,99 @@ export class CodexAppServerWire {
             throw new Error('subagent-codex: turn/start response did not match the active turn');
         }
         this.turnId = id;
+        const pendingDiagnostic = this.pendingDiagnostic;
+        this.pendingDiagnostic = undefined;
+        if (pendingDiagnostic !== undefined) {
+            this.recordDiagnostic(pendingDiagnostic.request, pendingDiagnostic.decision, pendingDiagnostic.reason, pendingDiagnostic.order);
+        }
         const notifications = this.earlyTurnNotifications.splice(0);
         for (const notification of notifications) {
-            this.handleNotification(notification.method, notification.params);
+            this.handleNotification(notification.method, notification.params, notification.order);
         }
     }
+    /**
+     * Validate the request's thread and turn association.
+     * @returns `true` when the matching turn is still provisional, so the caller
+     * defers its diagnostic until `commitTurnId()`.
+     */
     validateRunIds(params, nullableTurn = false) {
         if (params.threadId !== this.threadId) {
             throw new Error('subagent-codex: app-server request referenced another thread');
         }
         if (nullableTurn && params.turnId === null)
-            return;
+            return false;
         const id = string(params.turnId, 'server request turn id');
         if (this.turnId === undefined) {
             this.observePendingTurnId(id);
-            return;
+            return true;
         }
         if (id !== this.turnId) {
             throw new Error('subagent-codex: app-server request referenced another turn');
         }
+        return false;
+    }
+    recordRequestDiagnostic(provisional, request, decision, reason) {
+        const order = this.nextObservationOrder();
+        if (provisional) {
+            this.pendingDiagnostic = {
+                order,
+                request,
+                decision,
+                reason,
+            };
+            return;
+        }
+        this.recordDiagnostic(request, decision, reason, order);
+    }
+    recordDiagnostic(request, decision, reason, order = this.nextObservationOrder()) {
+        if (order < this.diagnosticOrder)
+            return;
+        this.diagnosticOrder = order;
+        this.diagnostic = unattendedDiagnostic(this.permissionMode, request, decision, reason);
+    }
+    recordFailure(facts) {
+        this.failure = facts;
+    }
+    nextObservationOrder() {
+        this.observationOrder += 1;
+        return this.observationOrder;
+    }
+    recordDeclinedItem(item, order) {
+        if (item.type === 'commandExecution' && item.status === 'declined') {
+            this.recordDiagnostic('command execution', 'declined', 'Codex declined the command under the selected permission mode', order);
+            return true;
+        }
+        if (item.type === 'fileChange' && item.status === 'declined') {
+            this.recordDiagnostic('file change', 'declined', 'Codex declined the file change under the selected permission mode', order);
+            return true;
+        }
+        return false;
     }
     handleServerRequest(method, params) {
         try {
             switch (method) {
                 case 'item/commandExecution/requestApproval':
+                    {
+                        const provisional = this.validateRunIds(params);
+                        const decision = unattendedDecision(params);
+                        this.recordRequestDiagnostic(provisional, 'command approval', decision === 'cancel' ? 'cancelled' : 'declined', 'the provider does not grant interactive approval');
+                        return Promise.resolve({ decision });
+                    }
                 case 'item/fileChange/requestApproval':
-                    this.validateRunIds(params);
-                    return Promise.resolve({ decision: unattendedDecision(params) });
+                    {
+                        const provisional = this.validateRunIds(params);
+                        const decision = unattendedDecision(params);
+                        this.recordRequestDiagnostic(provisional, 'file approval', decision === 'cancel' ? 'cancelled' : 'declined', 'the provider does not grant interactive approval');
+                        return Promise.resolve({ decision });
+                    }
                 case 'item/permissions/requestApproval':
-                    this.validateRunIds(params);
+                    this.recordRequestDiagnostic(this.validateRunIds(params), 'permission grant', 'denied', 'the provider grants no additional turn permissions');
                     return Promise.resolve({ permissions: {}, scope: 'turn' });
                 case 'item/tool/requestUserInput':
-                    this.validateRunIds(params);
+                    this.recordRequestDiagnostic(this.validateRunIds(params), 'user input', 'empty response', 'the provider does not collect interactive answers');
                     return Promise.resolve({ answers: {} });
                 case 'mcpServer/elicitation/request':
-                    this.validateRunIds(params, true);
+                    this.recordRequestDiagnostic(this.validateRunIds(params, true), 'MCP elicitation', 'declined', 'the provider does not collect interactive MCP input');
                     return Promise.resolve({ action: 'decline', content: null, _meta: null });
                 default:
                     throw new Error(`subagent-codex: unsupported app-server request ${JSON.stringify(method)}`);
@@ -287,7 +520,7 @@ export class CodexAppServerWire {
             return Promise.reject(normalized);
         }
     }
-    handleNotification(method, params) {
+    handleNotification(method, params, order) {
         if (method === 'turn/started') {
             const threadId = string(params.threadId, 'turn/started thread id');
             if (threadId !== this.threadId)
@@ -306,13 +539,19 @@ export class CodexAppServerWire {
             if (this.turnId === undefined) {
                 if (this.turnCompleted !== undefined) {
                     this.observePendingTurnId(id);
-                    this.earlyTurnNotifications.push({ method, params });
+                    this.earlyTurnNotifications.push({
+                        method,
+                        params,
+                        order: this.nextObservationOrder(),
+                    });
                 }
                 return;
             }
             if (id !== this.turnId)
                 return;
             const item = object(params.item, 'item/completed item');
+            if (this.recordDeclinedItem(item, order))
+                return;
             if (item.type !== 'agentMessage')
                 return;
             const text = typeof item.text === 'string'
@@ -341,15 +580,23 @@ export class CodexAppServerWire {
             return;
         if (this.turnId === undefined) {
             this.observePendingTurnId(id);
-            this.earlyTurnNotifications.push({ method, params });
+            this.earlyTurnNotifications.push({
+                method,
+                params,
+                order: this.nextObservationOrder(),
+            });
             return;
         }
         if (id !== this.turnId)
             return;
+        this.terminalObserved = true;
         if (!['completed', 'interrupted', 'failed'].includes(String(turn.status))) {
             throw new Error(`subagent-codex: app-server returned invalid terminal turn status ${String(turn.status)}`);
         }
-        turnCompleted.resolve(params);
+        turnCompleted.resolve({
+            params,
+            order: order ?? this.nextObservationOrder(),
+        });
     }
 }
 //# sourceMappingURL=wire.js.map

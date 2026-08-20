@@ -1,7 +1,7 @@
 /** Framework-neutral store contracts for slot registrations and the runtime engine. */
 /**
  * Typed selector hook over a snapshot source. Canonical shape for the whole
- * slot system (web-react's engine hook is structurally identical; the
+ * slot system (ui-renderer's engine hook is structurally identical; the
  * framework is the only party that ever constructs one).
  */
 export type SnapshotSelectorHook<T> = <S>(sel: (s: T) => S, eq?: (a: S, b: S) => boolean) => S;

@@ -1,3 +1,4 @@
+import { sessionRecallLabels } from '@deepseek-ai/dsh-client-runtime/client';
 import { isRunningTool } from "../contract/chat-nodes.js";
 const EMPTY_KEYS = [];
 const EMPTY_TURNS = [];
@@ -122,6 +123,91 @@ function orderedVisible(nodes) {
     return nodes
         .filter(node => node.visibility === 'visible')
         .sort((left, right) => left.anchorSeq - right.anchorSeq || left.key.localeCompare(right.key));
+}
+function referenceMessageSeq(node) {
+    const candidate = node;
+    return candidate.kind === 'user' || candidate.kind === 'steering'
+        ? candidate.data.seq
+        : undefined;
+}
+function followingRecall(node) {
+    const candidate = node;
+    if (candidate.kind !== 'context')
+        return undefined;
+    return {
+        messageSeq: candidate.data.seq - 1,
+        labels: sessionRecallLabels(candidate.data.source),
+    };
+}
+function withReferenceLabels(node, labels) {
+    const candidate = node;
+    if (candidate.kind !== 'user' && candidate.kind !== 'steering')
+        return node;
+    const current = candidate.data.referenceLabels ?? EMPTY_KEYS;
+    const hasLabels = Object.hasOwn(candidate.data, 'referenceLabels');
+    if (sameReferences(current, labels) && hasLabels === (labels.length > 0))
+        return node;
+    const data = { ...candidate.data };
+    if (labels.length === 0)
+        delete data.referenceLabels;
+    else
+        data.referenceLabels = labels;
+    return { ...candidate, data };
+}
+/** Associates a direct message with the sourced recall event that immediately follows it. */
+class ReferenceLabelProjector {
+    messagesBySeq = new Map();
+    labelsByMessageSeq = new Map();
+    replace(nodes) {
+        this.messagesBySeq.clear();
+        this.labelsByMessageSeq.clear();
+        for (const node of nodes) {
+            const messageSeq = referenceMessageSeq(node);
+            if (messageSeq !== undefined)
+                this.messagesBySeq.set(messageSeq, node.key);
+            const recall = followingRecall(node);
+            if (recall !== undefined && recall.labels.length > 0) {
+                this.labelsByMessageSeq.set(recall.messageSeq, recall.labels);
+            }
+        }
+        return nodes.map((node) => {
+            const messageSeq = referenceMessageSeq(node);
+            return messageSeq === undefined
+                ? node
+                : withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS);
+        });
+    }
+    apply(upserts, store) {
+        const byKey = new Map(upserts.map(node => [node.key, node]));
+        const affected = new Set();
+        for (const node of upserts) {
+            const messageSeq = referenceMessageSeq(node);
+            if (messageSeq !== undefined) {
+                this.messagesBySeq.set(messageSeq, node.key);
+                affected.add(messageSeq);
+            }
+            const recall = followingRecall(node);
+            if (recall === undefined)
+                continue;
+            const current = this.labelsByMessageSeq.get(recall.messageSeq);
+            if (recall.labels.length === 0)
+                this.labelsByMessageSeq.delete(recall.messageSeq);
+            else {
+                this.labelsByMessageSeq.set(recall.messageSeq, current !== undefined && sameReferences(current, recall.labels) ? current : recall.labels);
+            }
+            affected.add(recall.messageSeq);
+        }
+        for (const messageSeq of affected) {
+            const key = this.messagesBySeq.get(messageSeq);
+            if (key === undefined)
+                continue;
+            const node = byKey.get(key) ?? store.get(key);
+            if (node === undefined)
+                continue;
+            byKey.set(key, withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS));
+        }
+        return [...byKey.values()];
+    }
 }
 const EMPTY_CONTRIBUTION = {
     anchorSeq: 0,
@@ -339,21 +425,24 @@ export class ChatSnapshotBuilder {
     store = new MutableChatNodeStore();
     locations = new MutableChatLocationIndex();
     legacy = new LegacySliceBuilder();
+    referenceLabels = new ReferenceLabelProjector();
     order = EMPTY_KEYS;
     empty;
     constructor() {
         this.empty = this.snapshot({ turnOrder: EMPTY_TURNS, turns: new Map() });
     }
     replace(input) {
-        this.store.replace(input.nodes);
-        this.order = orderedVisible(input.nodes).map(node => node.key);
+        const nodes = this.referenceLabels.replace(input.nodes);
+        this.store.replace(nodes);
+        this.order = orderedVisible(nodes).map(node => node.key);
         this.locations.rebuild(this.order, this.store);
-        return this.snapshot(input.timeline, this.legacy.replace(input.nodes, input.timeline));
+        return this.snapshot(input.timeline, this.legacy.replace(nodes, input.timeline));
     }
     apply(input) {
+        const upserts = this.referenceLabels.apply(input.upserts, this.store);
         let structural = false;
         const contentOnly = [];
-        for (const node of input.upserts) {
+        for (const node of upserts) {
             const previous = this.store.get(node.key);
             const nodeStructural = previous === undefined
                 || previous.anchorSeq !== node.anchorSeq
@@ -363,14 +452,14 @@ export class ChatSnapshotBuilder {
             if (!nodeStructural)
                 contentOnly.push(node);
         }
-        this.store.upsert(input.upserts);
+        this.store.upsert(upserts);
         if (structural) {
             const next = orderedVisible(this.store.values()).map(node => node.key);
             this.order = sameReferences(this.order, next) ? this.order : next;
             this.locations.rebuild(this.order, this.store);
         }
         this.locations.touch(contentOnly);
-        return this.snapshot(input.timeline, this.legacy.apply(input.upserts, input.timeline));
+        return this.snapshot(input.timeline, this.legacy.apply(upserts, input.timeline));
     }
     snapshot(timeline, legacy = this.legacy.replace(EMPTY_LIST, timeline)) {
         return {

@@ -1,7 +1,7 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useMemo, useState } from 'react';
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Button, IconCheckOutline14, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16, IconEditOutline16, MarkdownText, } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, IconCheckOutline14, IconChevronDownOutline14, IconChevronLeftOutline14, IconChevronRightOutline14, IconChevronUpOutline14, IconCloseOutline16, IconEditOutline16, MarkdownText, } from '@deepseek-ai/dsh-client-ui-primitives';
 import { PendingQuestion, planReviewOf, } from "./contract/slots.js";
 import { PlanReviewPanel } from "./PlanReviewPanel.js";
 import css from './QuestionComposer.module.css';
@@ -52,6 +52,13 @@ function QuestionFlow({ pending, t }) {
     })));
     const [busy, setBusy] = useState(null);
     const [error, setError] = useState(null);
+    // Collapsed to the header strip so the conversation above stays readable
+    // while the user decides; the drafts survive because the state lives here.
+    const [minimized, setMinimized] = useState(false);
+    // The free-form textarea autofocuses on first presentation; re-expanding a
+    // collapsed question must not steal focus from the expand toggle back into
+    // the input, so focus is granted once per question index.
+    const focusedQuestions = useRef(new Set());
     // index stays in bounds (every setIndex site clamps) and drafts mirrors questions 1:1.
     // oxlint-disable-next-line typescript/no-non-null-assertion
     const question = questions[index];
@@ -156,23 +163,23 @@ function QuestionFlow({ pending, t }) {
         }
         submitDrafts(nextDrafts);
     };
-    return (_jsx("div", { className: css.frame, "data-question-key": pending.key, children: _jsxs("section", { className: css.card, "aria-labelledby": `question-${pending.key}-${String(index)}`, children: [_jsxs("header", { className: css.header, children: [_jsxs("div", { className: css.headingBlock, children: [question.header !== undefined && _jsx("div", { className: css.eyebrow, children: question.header }), _jsx("h2", { className: css.title, id: `question-${pending.key}-${String(index)}`, children: question.question })] }), _jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.cancel'), title: t('nav.cancel'), disabled: busy !== null, onClick: cancelFlow, children: _jsx(IconCloseOutline16, {}) })] }), _jsxs("div", { className: css.body, "data-question-scroll": true, children: [question.detail !== undefined && (_jsx("div", { className: css.detail, children: _jsx(MarkdownText, { text: question.detail }) })), _jsxs("div", { className: css.options, role: question.multiSelect === true ? 'group' : 'radiogroup', children: [(question.options ?? []).map((option, optionIndex) => {
-                                    const selected = draft.selected.includes(option.label);
-                                    const display = parseRecommendedLabel(option.label);
-                                    return (_jsxs("button", { type: "button", className: clsx(css.option, selected && question.multiSelect !== true && css.optionSelected), role: question.multiSelect === true ? 'checkbox' : 'radio', "aria-checked": selected, "aria-label": display.label, disabled: busy !== null, onClick: () => { choose(option.label); }, onKeyDown: (event) => {
-                                            if (event.key !== 'Enter' || !drafts.every(completed))
-                                                return;
-                                            event.preventDefault();
-                                            submitDrafts(drafts);
-                                        }, children: [question.multiSelect === true
-                                                ? (_jsx("span", { className: clsx(css.checkbox, selected && css.checkboxChecked), "aria-hidden": "true", children: selected && _jsx(IconCheckOutline14, { size: 12 }) }))
-                                                : _jsx("span", { className: css.number, children: optionIndex + 1 }), _jsx("span", { className: css.optionCopy, children: _jsxs("span", { className: css.optionLine, children: [_jsx("span", { className: css.optionLabel, children: display.label }), display.recommended && (_jsx("span", { className: css.badge, children: t('option.recommended') })), option.description !== undefined && (_jsx("span", { className: css.description, children: option.description }))] }) })] }, `${option.label}-${String(optionIndex)}`));
-                                }), hasOptions
-                                    ? (_jsxs("div", { className: clsx(css.customRow, draft.custom !== '' && css.customRowActive), children: [question.multiSelect === true
-                                                ? (_jsx("span", { className: clsx(css.checkbox, draft.custom !== '' && css.checkboxChecked), "aria-hidden": "true", children: draft.custom !== '' && _jsx(IconCheckOutline14, { size: 12 }) }))
-                                                : (_jsx("span", { className: css.number, "aria-hidden": "true", children: _jsx(IconEditOutline16, { size: 12 }) })), _jsx("input", { type: "text", className: css.customInput, value: draft.custom, disabled: busy !== null, placeholder: t('custom.placeholder'), onChange: draftCustom, onKeyDown: continueFromCustom })] }))
-                                    : (_jsx("textarea", { autoFocus: true, className: css.customTextarea, value: draft.custom, disabled: busy !== null, rows: 2, placeholder: t('custom.placeholder'), onChange: draftCustom, onKeyDown: continueFromCustom }))] })] }), _jsxs("footer", { className: css.footer, children: [_jsxs("div", { className: css.pager, children: [_jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.prev'), disabled: index === 0 || busy !== null, onClick: () => { setIndex(index - 1); setError(null); }, children: _jsx(IconChevronLeftOutline14, {}) }), _jsxs("span", { className: css.progress, children: [index + 1, " / ", questions.length] }), _jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.next'), disabled: index === questions.length - 1 || busy !== null, onClick: () => { setIndex(index + 1); setError(null); }, children: _jsx(IconChevronRightOutline14, {}) })] }), _jsx("div", { className: css.feedback, role: "status", children: error === null ? null : 'key' in error ? t(error.key) : error.text }), _jsxs("div", { className: css.footerActions, children: [_jsx(Button, { variant: "outline", disabled: busy !== null, onClick: skipQuestion, children: t('action.skip') }), _jsx(Button, { variant: "primary", disabled: busy !== null || !answered(draft), onClick: continueFlow, children: busy === 'answer'
-                                        ? t('submitting')
-                                        : index === questions.length - 1 ? t('submit') : t('action.next') })] })] })] }) }));
+    return (_jsx("div", { className: css.frame, "data-question-key": pending.key, children: _jsxs("section", { className: clsx(css.card, minimized && css.cardMinimized), "aria-labelledby": `question-${pending.key}-${String(index)}`, children: [_jsxs("header", { className: css.header, children: [_jsxs("div", { className: css.headingBlock, children: [question.header !== undefined && _jsx("div", { className: css.eyebrow, children: question.header }), _jsx("h2", { className: css.title, id: `question-${pending.key}-${String(index)}`, children: question.question })] }), _jsxs("div", { className: css.headerActions, children: [_jsx("button", { type: "button", className: css.iconButton, "aria-label": t(minimized ? 'nav.maximize' : 'nav.minimize'), title: t(minimized ? 'nav.maximize' : 'nav.minimize'), "aria-expanded": !minimized, disabled: busy !== null, onClick: () => { setMinimized(current => !current); }, children: minimized ? _jsx(IconChevronUpOutline14, {}) : _jsx(IconChevronDownOutline14, {}) }), _jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.cancel'), title: t('nav.cancel'), disabled: busy !== null, onClick: cancelFlow, children: _jsx(IconCloseOutline16, {}) })] })] }), !minimized && (_jsxs(_Fragment, { children: [_jsxs("div", { className: css.body, "data-question-scroll": true, children: [question.detail !== undefined && (_jsx("div", { className: css.detail, children: _jsx(MarkdownText, { text: question.detail }) })), _jsxs("div", { className: css.options, role: question.multiSelect === true ? 'group' : 'radiogroup', children: [(question.options ?? []).map((option, optionIndex) => {
+                                            const selected = draft.selected.includes(option.label);
+                                            const display = parseRecommendedLabel(option.label);
+                                            return (_jsxs("button", { type: "button", className: clsx(css.option, selected && question.multiSelect !== true && css.optionSelected), role: question.multiSelect === true ? 'checkbox' : 'radio', "aria-checked": selected, "aria-label": display.label, disabled: busy !== null, onClick: () => { choose(option.label); }, onKeyDown: (event) => {
+                                                    if (event.key !== 'Enter' || !drafts.every(completed))
+                                                        return;
+                                                    event.preventDefault();
+                                                    submitDrafts(drafts);
+                                                }, children: [question.multiSelect === true
+                                                        ? (_jsx("span", { className: clsx(css.checkbox, selected && css.checkboxChecked), "aria-hidden": "true", children: selected && _jsx(IconCheckOutline14, { size: 12 }) }))
+                                                        : _jsx("span", { className: css.number, children: optionIndex + 1 }), _jsx("span", { className: css.optionCopy, children: _jsxs("span", { className: css.optionLine, children: [_jsx("span", { className: css.optionLabel, children: display.label }), display.recommended && (_jsx("span", { className: css.badge, children: t('option.recommended') })), option.description !== undefined && (_jsx("span", { className: css.description, children: option.description }))] }) })] }, `${option.label}-${String(optionIndex)}`));
+                                        }), hasOptions
+                                            ? (_jsxs("div", { className: clsx(css.customRow, draft.custom !== '' && css.customRowActive), children: [question.multiSelect === true
+                                                        ? (_jsx("span", { className: clsx(css.checkbox, draft.custom !== '' && css.checkboxChecked), "aria-hidden": "true", children: draft.custom !== '' && _jsx(IconCheckOutline14, { size: 12 }) }))
+                                                        : (_jsx("span", { className: css.number, "aria-hidden": "true", children: _jsx(IconEditOutline16, { size: 12 }) })), _jsx("input", { type: "text", className: css.customInput, value: draft.custom, disabled: busy !== null, placeholder: t('custom.placeholder'), onChange: draftCustom, onKeyDown: continueFromCustom })] }))
+                                            : (_jsx("textarea", { autoFocus: !focusedQuestions.current.has(index), className: css.customTextarea, value: draft.custom, disabled: busy !== null, rows: 2, placeholder: t('custom.placeholder'), onFocus: () => { focusedQuestions.current.add(index); }, onChange: draftCustom, onKeyDown: continueFromCustom }))] })] }), _jsxs("footer", { className: css.footer, children: [_jsxs("div", { className: css.pager, children: [_jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.prev'), disabled: index === 0 || busy !== null, onClick: () => { setIndex(index - 1); setError(null); }, children: _jsx(IconChevronLeftOutline14, {}) }), _jsxs("span", { className: css.progress, children: [index + 1, " / ", questions.length] }), _jsx("button", { type: "button", className: css.iconButton, "aria-label": t('nav.next'), disabled: index === questions.length - 1 || busy !== null, onClick: () => { setIndex(index + 1); setError(null); }, children: _jsx(IconChevronRightOutline14, {}) })] }), _jsx("div", { className: css.feedback, role: "status", children: error === null ? null : 'key' in error ? t(error.key) : error.text }), _jsxs("div", { className: css.footerActions, children: [_jsx(Button, { variant: "outline", disabled: busy !== null, onClick: skipQuestion, children: t('action.skip') }), _jsx(Button, { variant: "primary", disabled: busy !== null || !answered(draft), onClick: continueFlow, children: busy === 'answer'
+                                                ? t('submitting')
+                                                : index === questions.length - 1 ? t('submit') : t('action.next') })] })] })] }))] }) }));
 }
 //# sourceMappingURL=QuestionComposer.js.map

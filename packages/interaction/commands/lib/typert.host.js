@@ -3,6 +3,11 @@ import { z } from 'zod'
 
 const _deepseek_ai_dsh_commands_commands_execute_parameter_0$schema = z.intersection(z.string(), z.unknown())
 const _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema = z.string()
+const _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema = z.array(z.object({
+  'mediaType': z.union([z.literal("image/png"), z.literal("image/jpeg"), z.literal("image/webp"), z.literal("image/gif")]),
+  'data': z.string(),
+  'name': z.string().optional(),
+}))
 const _deepseek_ai_dsh_commands_commands_execute_result$schema = z.union([z.undefined(), z.object({
   'commandId': z.intersection(z.string(), z.unknown()).readonly(),
   'result': z.union([z.object({
@@ -20,6 +25,7 @@ const _deepseek_ai_dsh_commands_commands_list_result$schema = z.array(z.object({
   'description': z.string().readonly(),
   'input': z.object({
   'hint': z.string().readonly(),
+  'images': z.boolean().readonly().optional(),
 }).readonly().optional(),
 }))
 
@@ -61,6 +67,16 @@ export const TYPERT = {
             schema: _deepseek_ai_dsh_commands_commands_execute_parameter_1$schema,
           },
         },
+        {
+          name: 'images',
+          wire: 'images',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: '@deepseek-ai/dsh-commands#commands/execute:images',
+            schema: _deepseek_ai_dsh_commands_commands_execute_parameter_2$schema,
+          },
+        },
       ],
       cancellation: { parameter: 'signal' },
       result: {
@@ -68,7 +84,7 @@ export const TYPERT = {
         typeSymbol: '@deepseek-ai/dsh-commands#commands/execute:result',
         schema: _deepseek_ai_dsh_commands_commands_execute_result$schema,
       },
-      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":297,"column":9},
+      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":329,"column":9},
     },
     {
       id: '@deepseek-ai/dsh-commands#commands/list',
@@ -98,7 +114,7 @@ export const TYPERT = {
         typeSymbol: '@deepseek-ai/dsh-commands#commands/list:result',
         schema: _deepseek_ai_dsh_commands_commands_list_result$schema,
       },
-      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":260,"column":3},
+      sourceLocation: {"file":"packages/interaction/commands/src/index.ts","line":285,"column":3},
     },
   ],
   model: {
@@ -107,7 +123,7 @@ export const TYPERT = {
         "description": "Human-command registry. Plain-context definitions are global; definitions registered through a command-injected child of an agent context shadow globals for that agent.",
         "summary": "Human-command registry.",
         "tags": [],
-        "jsDoc": "/**\n * Human-command registry. Plain-context definitions are global; definitions\n * registered through a command-injected child of an agent context shadow\n * globals for that agent.\n */",
+        "jsDoc": "/**\r\n * Human-command registry. Plain-context definitions are global; definitions\r\n * registered through a command-injected child of an agent context shadow\r\n * globals for that agent.\r\n */",
         "key": "commands",
         "exportName": "CommandRuntime",
         "members": [
@@ -116,28 +132,28 @@ export const TYPERT = {
             "name": "register",
             "signature": "register(definition: CommandDefinition): () => void",
             "summary": "Register a global or calling-agent-scoped command.",
-            "jsDoc": "/**\n * Register a global or calling-agent-scoped command.\n * @param definition - discovery metadata and direct UI handler.\n * @returns the exact effect disposer that unregisters this definition.\n */"
+            "jsDoc": "/**\r\n * Register a global or calling-agent-scoped command.\r\n * @param definition - discovery metadata and direct UI handler.\r\n * @returns the exact effect disposer that unregisters this definition.\r\n */"
           },
           {
             "kind": "method",
             "name": "list",
             "signature": "@Remote list(agent: Agent): readonly CommandDescriptor[]",
             "summary": "List the effective immutable command descriptors for one agent.",
-            "jsDoc": "/**\n * List the effective immutable command descriptors for one agent.\n * @param agent - exact receiving agent and scoped-layer key.\n * @returns name-sorted descriptors after scoped shadowing.\n */"
+            "jsDoc": "/**\r\n * List the effective immutable command descriptors for one agent.\r\n * @param agent - exact receiving agent and scoped-layer key.\r\n * @returns name-sorted descriptors after scoped shadowing.\r\n */"
           },
           {
             "kind": "method",
             "name": "find",
             "signature": "find(agent: Agent, name: string): CommandDefinition | undefined",
             "summary": "Resolve one effective command definition.",
-            "jsDoc": "/**\n * Resolve one effective command definition.\n * @param agent - exact receiving agent and scoped-layer key.\n * @param name - command name without a slash.\n * @returns the scoped shadow or global definition.\n */"
+            "jsDoc": "/**\r\n * Resolve one effective command definition.\r\n * @param agent - exact receiving agent and scoped-layer key.\r\n * @param name - command name without a slash.\r\n * @returns the scoped shadow or global definition.\r\n */"
           },
           {
             "kind": "method",
             "name": "execute",
-            "signature": "@Remote async execute( agent: Agent, line: string, signal: AbortSignal, ): Promise<CommandExecution | undefined>",
+            "signature": "@Remote async execute( agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal, ): Promise<CommandExecution | undefined>",
             "summary": "Parse and execute a known command without sending it to the model.",
-            "jsDoc": "/**\n * Parse and execute a known command without sending it to the model.\n *\n * A resolved command's lifecycle is logged: `command/run` is appended\n * before the handler is invoked and `command/done` after settlement (a\n * thrown or aborted handler settles as `kind: 'error'`). Both are direct\n * log-only appends — no turn wraps them, and persistence drains them at\n * ordinary checkpoints. Admission misses (syntax or unknown name) log\n * nothing — they never entered a handler. A `command/run` append failure\n * fails the execution loud; a `command/done` append failure on the\n * handler-failure path is contained so the handler's own error stays the\n * reported failure.\n *\n * @param agent - exact receiving agent.\n * @param line - complete slash-command line.\n * @param signal - cancellation signal owned by the UI request.\n * @returns the settled execution (result + lifecycle pairing id), or\n *   `undefined` when syntax or name does not resolve.\n */"
+            "jsDoc": "/**\r\n * Parse and execute a known command without sending it to the model.\r\n *\r\n * A resolved command's lifecycle is logged: `command/run` is appended\r\n * before the handler is invoked and `command/done` after settlement (a\r\n * thrown or aborted handler settles as `kind: 'error'`). Both are direct\r\n * log-only appends — no turn wraps them, and persistence drains them at\r\n * ordinary checkpoints. Admission misses (syntax or unknown name) log\r\n * nothing — they never entered a handler. A `command/run` append failure\r\n * fails the execution loud; a `command/done` append failure on the\r\n * handler-failure path is contained so the handler's own error stays the\r\n * reported failure.\r\n *\r\n * Image admission is enforced here, not in the composer: images sent to a\r\n * command that does not declare `input.images`, an absent attachment store,\r\n * and an exceeded attachment limit each settle as an error result before\r\n * the handler runs, and a rejected batch publishes no durable object.\r\n *\r\n * @param agent - exact receiving agent.\r\n * @param line - complete slash-command line.\r\n * @param images - base64-encoded composer images accompanying the line, in\r\n *   submission order; empty for a plain invocation.\r\n * @param signal - cancellation signal owned by the UI request.\r\n * @returns the settled execution (result + lifecycle pairing id), or\r\n *   `undefined` when syntax or name does not resolve.\r\n */"
           }
         ],
         "types": [
@@ -219,11 +235,11 @@ export const TYPERT = {
           },
           {
             "name": "CommandInputDescriptor",
-            "declaration": "export interface CommandInputDescriptor {\n    readonly hint: string;\n}"
+            "declaration": "export interface CommandInputDescriptor {\n    readonly hint: string;\n    readonly images?: boolean;\n}"
           },
           {
             "name": "CommandInvocation",
-            "declaration": "export interface CommandInvocation {\n    readonly commandId: CommandId;\n    readonly agent: Agent;\n    readonly rawInput: string;\n    readonly signal: AbortSignal;\n}"
+            "declaration": "export interface CommandInvocation {\n    readonly commandId: CommandId;\n    readonly agent: Agent;\n    readonly rawInput: string;\n    readonly attachments: readonly ImageBlock[];\n    readonly signal: AbortSignal;\n}"
           },
           {
             "name": "CommandResult",
@@ -236,6 +252,10 @@ export const TYPERT = {
           {
             "name": "CommandSourceMap",
             "declaration": "export interface CommandSourceMap {\n    user: { kind: 'user'; };\n}"
+          },
+          {
+            "name": "CompactionId",
+            "declaration": "export type CompactionId = Branded<'CompactionId'>;"
           },
           {
             "name": "ContentBlock",
@@ -256,6 +276,10 @@ export const TYPERT = {
           {
             "name": "ContextSnapshotSection",
             "declaration": "export interface ContextSnapshotSection {\n    readonly name: string;\n    readonly text: string;\n}"
+          },
+          {
+            "name": "EncodedImageAttachment",
+            "declaration": "export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}"
           },
           {
             "name": "EpochHeader",
@@ -359,7 +383,7 @@ export const TYPERT = {
           },
           {
             "name": "MessageSourceMap",
-            "declaration": "export interface MessageSourceMap {\n    user: { kind: 'user'; };\n    plugin: { kind: 'plugin'; plugin: string; } & ContextFormed;\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n    goal: GoalMessageSource;\n}"
+            "declaration": "export interface MessageSourceMap {\n    user: { kind: 'user'; };\n    plugin: { kind: 'plugin'; plugin: string; } & ContextFormed;\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n    goal: GoalMessageSource;\n    'session-reference': SessionReferenceSource;\n}"
           },
           {
             "name": "ModelMessageSource",
@@ -376,6 +400,10 @@ export const TYPERT = {
           {
             "name": "ReasoningEffortId",
             "declaration": "export type ReasoningEffortId = Branded<'ReasoningEffortId'>;"
+          },
+          {
+            "name": "ReplayEnvelope",
+            "declaration": "export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}"
           },
           {
             "name": "RequestContext",
@@ -395,7 +423,7 @@ export const TYPERT = {
           },
           {
             "name": "SessionEventMap",
-            "declaration": "export interface SessionEventMap {\n    'turn/start': { turn: number; };\n    'turn/end': { turn: number; reason: TurnEndReason; };\n    'step/start': { turn: number; step: number; };\n    'step/end': { turn: number; step: number; };\n    'user/message': UserMessage;\n    'assistant/chunk': { turn: number; step: number; chunk: StreamChunk; };\n    'assistant/message': { turn: number; step: number; message: AssistantMessage; usage?: TokenUsage; };\n    'tool/call': { turn: number; step: number; callId: CallId; name: string; arguments: string; };\n    'tool/result': { turn: number; step: number; message: ToolResultMessage; error?: { name: string; code: string; }; meta?: JsonValue; };\n    'todo/write': { todos: TodoItem[]; };\n    'request/header': { header: EpochHeader; reason: RequestHeaderReason; };\n    'request/context': RequestContext;\n    'session/end-seed': Record<string, never>;\n    'agent/inbox/spliced': { target: InboxTarget; start: number; removedCount?: number; inserted: UserMessage[]; outcome?: 'canceled'; };\n    'command/run': { commandId: CommandId; name: string; args?: string; source: CommandSource; };\n    'command/done': { commandId: CommandId; kind: 'success' | 'error'; text?: string; sourceEventSeq?: number; };\n    'approval/asked': { id: ApprovalRequestId; toolName: string; callId?: CallId; reason?: string; };\n    'approval/decided': { id: ApprovalRequestId; outcome: ApprovalOutcome; };\n    'approval/policy': { policy: ApprovalPolicy; source?: 'delegation'; };\n    'tool/code-dispatch-start': CodeDispatchStartEventData;\n    'tool/code-dispatch': CodeDispatchEventData;\n    'goal/change': GoalChangeMeta;\n}"
+            "declaration": "export interface SessionEventMap {\n    'turn/start': { turn: number; };\n    'turn/end': { turn: number; reason: TurnEndReason; };\n    'step/start': { turn: number; step: number; };\n    'step/end': { turn: number; step: number; };\n    'user/message': UserMessage;\n    'assistant/chunk': { turn: number; step: number; chunk: StreamChunk; };\n    'assistant/message': { turn: number; step: number; message: AssistantMessage; usage?: TokenUsage; interrupted?: true; };\n    'tool/call': { turn: number; step: number; callId: CallId; name: string; arguments: string; };\n    'tool/result': { turn: number; step: number; message: ToolResultMessage; error?: { name: string; code: string; }; meta?: JsonValue; };\n    'todo/write': { todos: TodoItem[]; };\n    'request/header': { header: EpochHeader; reason: RequestHeaderReason; };\n    'request/context': RequestContext;\n    'session/end-seed': Record<string, never>;\n    'agent/inbox/spliced': { target: InboxTarget; start: number; removedCount?: number; inserted: UserMessage[]; outcome?: 'canceled'; };\n    'command/run': { commandId: CommandId; name: string; args?: string; source: CommandSource; };\n    'command/done': { commandId: CommandId; kind: 'success' | 'error'; text?: string; sourceEventSeq?: number; };\n    'approval/asked': { id: ApprovalRequestId; toolName: string; callId?: CallId; reason?: string; };\n    'approval/decided': { id: ApprovalRequestId; outcome: ApprovalOutcome; };\n    'approval/policy': { policy: ApprovalPolicy; source?: 'delegation'; };\n    'tool/code-dispatch-start': CodeDispatchStartEventData;\n    'tool/code-dispatch': CodeDispatchEventData;\n    'goal/change': GoalChangeMeta;\n    'session/title': SessionTitleEventData;\n    'compaction/start': { compactionId: CompactionId; sourceCommandId?: CommandId; turn: number | null; };\n    'compaction/summary': { compactionId: CompactionId; sourceCommandId?: CommandId; summary: ContentBlock[]; shadowedRange: { start: number; end: number; }; shadowedSeqs: number[]; shadowedTokenCount: number; provider: string; model: string; maxTokens?: number; usage?: TokenUsage; } & ({ rawOutput: ContentBlock[]; llmStreamCall: true; } | { rawOutput?: ContentBlock[]; llmStreamCall?: never; });\n    'compaction/end': { compactionId: CompactionId; sourceCommandId?: CommandId; turn: number | null; error?: string; };\n    'compaction/prune': { shadowedRange: { start: number; end: number; }; shadowedSeqs: number[]; shadowedTokenCount: number; };\n}"
           },
           {
             "name": "SessionEventType",
@@ -410,12 +438,32 @@ export const TYPERT = {
             "declaration": "export type SessionId = Branded<'SessionId'>;"
           },
           {
+            "name": "SessionReferenceSource",
+            "declaration": "export interface SessionReferenceSource {\n    kind: 'session-reference';\n    form: 'recall';\n    version: 1;\n    references: { sessionId: string; label: string; capturedThroughSeq: number | null; compacted: boolean; originalMessages: number; retainedMessages: number; omittedMessages: number; omittedBytes: number; truncated: boolean; inputIndex: number; }[];\n}"
+          },
+          {
             "name": "SessionSurface",
             "declaration": "export interface SessionSurface {\n    readonly nodes: readonly number[];\n    readonly replaceGeneration: number;\n}"
           },
           {
+            "name": "SessionTitleEventData",
+            "declaration": "export interface SessionTitleEventData {\n    readonly title: string;\n    readonly messageSeqs: number[];\n    readonly source: SessionTitleSource;\n}"
+          },
+          {
+            "name": "SessionTitleModelProvenance",
+            "declaration": "export interface SessionTitleModelProvenance {\n    readonly provider: string;\n    readonly model: string;\n}"
+          },
+          {
+            "name": "SessionTitleProviderId",
+            "declaration": "export type SessionTitleProviderId = Branded<'SessionTitleProviderId'>;"
+          },
+          {
+            "name": "SessionTitleSource",
+            "declaration": "export type SessionTitleSource = { readonly kind: 'fallback'; } | { readonly kind: 'provider'; readonly provider: SessionTitleProviderId; readonly model?: SessionTitleModelProvenance; } | { readonly kind: 'user'; };"
+          },
+          {
             "name": "StreamChunk",
-            "declaration": "export type StreamChunk = { type: 'block-start'; index: number; blockType: ContentBlockType; } | { type: 'text-delta'; index: number; text: string; } | { type: 'reasoning-delta'; index: number; text: string; } | { type: 'tool-call-delta'; index: number; id: CallId; name?: string; argumentsDelta: string; } | { type: 'block-end'; index: number; block: ContentBlock; } | { type: 'usage'; usage: TokenUsage; } | { type: 'finish'; reason: FinishReason; replayState?: unknown; };"
+            "declaration": "export type StreamChunk = { type: 'block-start'; index: number; blockType: ContentBlockType; } | { type: 'text-delta'; index: number; text: string; } | { type: 'reasoning-delta'; index: number; text: string; } | { type: 'tool-call-delta'; index: number; id: CallId; name?: string; argumentsDelta: string; } | { type: 'block-end'; index: number; block: ContentBlock; } | { type: 'usage'; usage: TokenUsage; } | { type: 'finish'; reason: FinishReason; replayState?: ReplayEnvelope; };"
           },
           {
             "name": "SurfaceEventType",
@@ -491,7 +539,7 @@ export const TYPERT = {
             "text": "@mode emit"
           }
         ],
-        "jsDoc": "/**\n * A command was registered or unregistered. This is an unfiltered registry\n * notification because a global or scoped change may affect any UI view.\n * Observer failures are contained and cannot veto the registry mutation.\n * @mode emit\n */",
+        "jsDoc": "/**\r\n * A command was registered or unregistered. This is an unfiltered registry\r\n * notification because a global or scoped change may affect any UI view.\r\n * Observer failures are contained and cannot veto the registry mutation.\r\n * @mode emit\r\n */",
         "name": "commands/change",
         "mode": "emit",
         "signature": "'commands/change'(): void"

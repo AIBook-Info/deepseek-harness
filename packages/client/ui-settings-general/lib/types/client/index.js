@@ -1,10 +1,9 @@
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots';
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react';
 import { SettingsRoot } from "./SettingsRoot.js";
 import { CloseLabel, HeaderContent, TriggerContent } from "./chrome.js";
 import { GeneralSection } from "./GeneralSection.js";
 import { SettingsDocumentAction } from "./SettingsDocumentAction.js";
-import { refreshDocumentIfLoaded, SettingsDocumentStore } from "./settings-document-store.js";
+import { SettingsDocumentStore } from "./settings-document-store.js";
 import { en, zh } from "./locales.js";
 export { SettingsDocumentStore } from "./settings-document-store.js";
 /** Dictionary namespace owned by this plugin (shell chrome + General copy). */
@@ -14,7 +13,7 @@ const NS = 'settings';
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-export const inject = ['slots', 'locale', 'connection'];
+export const inject = ['slots', 'locale', 'connection', 'settingsScope'];
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
  * section, each once its slot declaration is on the ledger.
@@ -27,18 +26,18 @@ export function apply(ctx) {
     // locale/change re-registration wiring.
     const t = ctx.locale.bind(NS);
     const connection = ctx.get('connection');
+    // The action follows the shared describe mirror, whose owning plugin
+    // already refreshes it on document commits and reconnects.
     const documentController = connection.isLoopback
-        ? new SettingsDocumentStore(connection.api)
+        ? new SettingsDocumentStore(connection.api, ctx.settingsScope.describe())
         : undefined;
     const documentInjected = documentController === undefined
         ? undefined
-        : (() => {
-            const useSnapshot = bindSnapshotSelector(documentController.store);
-            return () => ({ controller: documentController, useSnapshot });
-        })();
-    ctx.effect(() => ctx.on('connection/reset', () => {
-        refreshDocumentIfLoaded(documentController);
-    }), 'ui-settings-general: metadata invalidations');
+        : () => ({
+            controller: documentController,
+            hooks: { snapshot: documentController.store },
+        });
+    ctx.effect(() => () => { documentController?.dispose(); }, 'ui-settings-general: document action directory');
     // The settings shell: this package occupies the sidebar-owned hole and
     // declares the settings slots. Ledger → nav-row projection as an observable
     // source (uSES contract: getSnapshot returns the cached rows until the

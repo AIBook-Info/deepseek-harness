@@ -2,10 +2,11 @@
  * Node half of the client module system (`dsh.client` dual-face package): scans
  * the host Loader's entries for packages declaring `dsh.client`, composes the
  * `window.__DSH_BOOT__` entry graph (wire single source: {@link WebBootEntry}
- * in `./client/manifest.ts`), serves `/plugins/<id>/client.js` and its source
- * map, taps the index render to inject the boot manifest, and provides the
- * `clientModuleHost` service (the HMR node half's registration/notification
- * face).
+ * in `./client/manifest.ts`) in module-graph order, serves
+ * `/plugins/<id>/client.js` and its source map, taps the index render to
+ * inject the boot manifest plus the parser-blocking bootstrap preloads, and
+ * provides the `clientModuleHost` service (the HMR node half's
+ * registration/notification face).
  *
  * Scanning is incremental per package — there is no full-rescan code path.
  * Every cordis `internal/plugin` emission (fiber construction/disposal) marks
@@ -21,7 +22,8 @@
  */
 import { Service } from '@deepseek-ai/cordis';
 import type { Context } from '@deepseek-ai/cordis';
-import type { WebBootGraph } from './client/manifest.ts';
+import type { WebBootEntry, WebBootGraph } from './client/manifest.ts';
+export { stripClientSuffix } from './client/manifest.ts';
 export type { BootManifest, BootModuleRow, BootPluginRow, WebBootEntry, WebBootGraph, } from './client/manifest.ts';
 declare module '@deepseek-ai/cordis' {
     interface Context {
@@ -30,9 +32,24 @@ declare module '@deepseek-ai/cordis' {
     }
 }
 /**
- * Inject the boot entry graph into index.html: `window.__DSH_BOOT__` as the
- * first script in <head> (before the shell bundle reads it). `<` is escaped in
- * the JSON so plugin-controlled strings cannot break out of the script element.
+ * Order composed rows so every requested dynamic package precedes its
+ * consumers. An `external` specifier is either the package row it names
+ * (`<pkg>/client` aliases the bare package) or a static-table name that adds no
+ * graph edge.
+ * @param entries - composed rows in scan order.
+ * @returns the same rows reordered; scan order breaks every tie.
+ * @throws {Error} when a row requests itself or when the module graph has a
+ * cycle; the message lists the packages on it.
+ */
+export declare function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEntry[];
+/**
+ * Inject the boot protocol into index.html. The inline registration queue precedes
+ * blocking classic scripts for modules' and runtime's ordinary
+ * `lib/client.js` artifacts. Its `create()` method materializes the modules
+ * bundle, delegates construction to that bundle, and leaves the same facade
+ * in live-registration mode. The graph script follows before the shell reads
+ * it. `<` is escaped in JSON so a plugin-controlled string cannot break out
+ * of the script element.
  * @param html - the index.html source.
  * @param graph - the composed entry graph.
  * @returns the html with the graph script injected.

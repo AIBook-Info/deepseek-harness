@@ -734,8 +734,7 @@ function snapshotStoredEvents(events, id) {
 	assertSupportedEvents(events, id);
 	const messageIds = /* @__PURE__ */ new Map();
 	return events.map((event) => {
-		const migratedSteering = migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id);
-		const snapshot = snapshotSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds));
+		const snapshot = snapshotSessionEvent(migrateLegacyMessageEvent(migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id), id, messageIds));
 		const messageId = eventMessageId(snapshot);
 		if (messageId !== void 0) messageIds.set(snapshot.seq, messageId);
 		return snapshot;
@@ -746,8 +745,7 @@ function adoptStoredEvents(events, id) {
 	assertSupportedEvents(events, id);
 	const messageIds = /* @__PURE__ */ new Map();
 	for (const [index, event] of events.entries()) {
-		const migratedSteering = migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id);
-		const adopted = adoptSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds));
+		const adopted = adoptSessionEvent(migrateLegacyMessageEvent(migrateLegacySteeringEvent(migrateLegacyTurnEndEvent(migrateLegacyTurnStartEvent(event, id), id), id), id, messageIds));
 		events[index] = adopted;
 		const messageId = eventMessageId(adopted);
 		if (messageId !== void 0) messageIds.set(adopted.seq, messageId);
@@ -1195,7 +1193,7 @@ var PersistenceCoordinator = class {
 			this.live.set(session, restored);
 			return restored;
 		}
-		const seed = session.events.map((e) => structuredClone(e));
+		const seed = session.events;
 		const live = {
 			init: Promise.resolve(),
 			writes: this.createWriteBehind(session, () => live.init)

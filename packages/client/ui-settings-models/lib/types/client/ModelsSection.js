@@ -106,13 +106,14 @@ export function providerCopy(template, target) {
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ModelsSection(props) {
-    const { controller, useSnapshot, api, t } = props;
-    if (controller === undefined || useSnapshot === undefined || api === undefined || t === undefined)
+    const { controller, useSnapshot, api, schema, t } = props;
+    if (controller === undefined || useSnapshot === undefined || api === undefined
+        || schema === undefined || t === undefined)
         return null;
-    return _jsx(Loaded, { injected: { controller, useSnapshot, api, t } });
+    return _jsx(Loaded, { injected: { controller, useSnapshot, api, schema, t } });
 }
 function Loaded({ injected }) {
-    const { controller, api, t } = injected;
+    const { controller, api, schema, t } = injected;
     const state = injected.useSnapshot(snapshot => snapshot);
     const [editing, setEditing] = useState(undefined);
     const [adding, setAdding] = useState(false);
@@ -196,7 +197,7 @@ function Loaded({ injected }) {
     // Hand-declared routes live in the pi-ai namespace, which is also the only
     // one whose schema names the protocols one may speak; without it mounted
     // there is nothing to declare and the entry point stays disabled.
-    const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'));
+    const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'), schema);
     return (_jsxs("div", { className: styles['section'], children: [_jsx("h2", { className: styles['title'], children: t('title') }), _jsx("p", { className: styles['intro'], children: t('intro') }), !state.writable && state.status === 'ready' ? _jsx("p", { className: styles['notice'], children: t('readOnly') }) : null, savedIdentity === undefined
                 ? null
                 : (_jsx("p", { className: styles['savedNotice'], role: "status", "aria-live": "polite", children: providerCopy(t('savedProvider'), savedIdentity) })), _jsx("ul", { className: styles['rows'], children: configured.map((row) => {
@@ -211,6 +212,7 @@ function Loaded({ injected }) {
                         return (_jsx("li", { className: styles['setupCard'], children: renderProviderEditor({
                                 target,
                                 namespace,
+                                schema,
                                 api,
                                 t,
                                 readOnly: !state.writable,
@@ -246,6 +248,7 @@ function Loaded({ injected }) {
                                 ? renderProviderEditor({
                                     target,
                                     namespace,
+                                    schema,
                                     api,
                                     t,
                                     readOnly: !state.writable,
@@ -259,7 +262,7 @@ function Loaded({ injected }) {
                                             if (row === undefined)
                                                 return;
                                             setEditing(targetOf(row));
-                                        }, children: addable.map(row => (_jsx("option", { value: row.entry.provider, children: row.entry.displayName }, row.entry.provider))) })] }), _jsx(ProviderEditor, { provider: addTarget.provider, displayName: addTarget.displayName, hideTitle: true, namespace: addNamespace, settingsPath: addTarget.settingsPath, api: api, t: t, readOnly: !state.writable, onClose: (changed) => { closeEditor(changed, addTarget); } }, addTarget.provider)] }))
+                                        }, children: addable.map(row => (_jsx("option", { value: row.entry.provider, children: row.entry.displayName }, row.entry.provider))) })] }), _jsx(ProviderEditor, { provider: addTarget.provider, displayName: addTarget.displayName, hideTitle: true, namespace: addNamespace, schema: schema, settingsPath: addTarget.settingsPath, api: api, t: t, readOnly: !state.writable, onClose: (changed) => { closeEditor(changed, addTarget); } }, addTarget.provider)] }))
                     : declaring
                         ? (_jsx("div", { className: styles['addCard'], children: _jsx(CustomProviderCard, { taken: state.rows.map(row => row.entry.provider), protocols: protocols, 
                                 /* v8 ignore next -- the card only opens from a button disabled without this namespace */

@@ -2,16 +2,17 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { randomUUID } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
+import { homedir, release } from "node:os";
 import { dirname, extname } from "node:path";
 import { installModelSelection } from "@deepseek-ai/dsh-agent";
-import { AttachmentError } from "@deepseek-ai/dsh-attachment";
+import { AttachmentError, admitEncodedImages } from "@deepseek-ai/dsh-attachment";
 import { ReasoningEffortId, contentHasImage, createUserMessage, errorChain, freezeMessage } from "@deepseek-ai/dsh-llm";
 import { isAppendSurfaceEvent, isJsonValue } from "@deepseek-ai/dsh-session";
 import { SessionQueryError } from "@deepseek-ai/dsh-session-query";
 import { SubagentError } from "@deepseek-ai/dsh-subagent";
 import { isUserInvocable } from "@deepseek-ai/dsh-skill";
 import { WorkspaceId, WorkspaceMoveInvalidError, WorkspaceOrderInvalidError, WorkspaceUnknownSessionError, workspaceDomainState, workspaceRecord } from "@deepseek-ai/dsh-workspace";
-import { InvalidPresetIdError, PresetExistsError, PresetMountError, PresetNotWritableError, SETTINGS_NAMESPACE, UnknownPresetError, resolveSessionPreset } from "@deepseek-ai/dsh-agent-presets";
+import { InvalidPresetIdError, PresetExistsError, PresetMountError, PresetNotWritableError, UnknownPresetError, resolveSessionPreset } from "@deepseek-ai/dsh-agent-presets";
 import { Zip, ZipDeflate } from "fflate";
 import { GoalError } from "@deepseek-ai/dsh-goal";
 import { SettingsConflictError, settingsNamespace } from "@deepseek-ai/dsh-settings";
@@ -21,7 +22,6 @@ import { z as z$1 } from "zod";
 import { UserQuestionError } from "@deepseek-ai/dsh-user-questions";
 import { DirectoryPickerError } from "@deepseek-ai/dsh-host-directory-picker";
 import { API_REMOTE_FORWARDED_EVENTS, ApiRemoteSessionNotFound, ApiRemoteSubagentSessionOwnership, apiRemoteSubagentOwnershipError, createApiRemoteAgentResolver, hasApiRemoteSubagentOwner, inspectApiRemoteSession } from "@deepseek-ai/dsh-api-remotes";
-import { release } from "node:os";
 import { runNativeCommand } from "@deepseek-ai/dsh-native-command";
 //#region lib/types/session-export.js
 /**
@@ -196,7 +196,7 @@ async function* sessionLogZipEntries(deps, root, sessionId, includeDescendants, 
 		content: root.content
 	};
 	if (includeDescendants) {
-		const seen = /* @__PURE__ */ new Set([sessionId]);
+		const seen = new Set([sessionId]);
 		const collect = async function* (nodes) {
 			for (const node of nodes) {
 				signal?.throwIfAborted();
@@ -564,6 +564,7 @@ const imageLimitsProjectionSchema = z$1.object({
 	maxImagesPerMessage: z$1.number().int().positive(),
 	maxMessageImageBytes: z$1.number().int().positive(),
 	maxImagePixels: z$1.number().int().positive(),
+	maxImageDimension: z$1.number().int().positive(),
 	mediaTypes: z$1.array(z$1.string())
 });
 /** session.history response value (projections rides the tail page only). */
@@ -727,7 +728,7 @@ function RpcId(id) {
 * GUI. The text-editor intent never consults the browser.
 */
 /** Documents a browser renders, as opposed to ones an editor merely edits. */
-const BROWSER_DOCUMENTS = /* @__PURE__ */ new Set([
+const BROWSER_DOCUMENTS = new Set([
 	".html",
 	".htm",
 	".xhtml",
@@ -875,25 +876,6 @@ function openNativeTextFile(path, signal, internals = {}) {
 */
 /** Page size when history is called without maxMessages. */
 const DEFAULT_MAX_MESSAGES = 50;
-/**
-* Non-model settings namespaces intentionally served to the Web client. The
-* plugin-owned entries (`agent-loop`, `bash`, `web-search-deepseek`) are the
-* host-plane sections the plugin configuration page edits; a namespace absent
-* here answers `settings-not-exposed` even when its owner registered it, so
-* adding a section to that page is a decision made here rather than by the
-* registering plugin. Moving that declaration to `settings.register()`, so a
-* plugin can expose its own configuration without a change in this package,
-* is deferred work.
-*/
-const WEB_SETTINGS_NAMESPACES = [
-	"agent-loop",
-	"shell",
-	"locale",
-	"permission",
-	"ui-conversation",
-	"ui-theme",
-	"web-search-deepseek"
-];
 /** Provider work budget: at most 100 calls and 2,000 inspected hits. */
 const SESSION_SEARCH_PROVIDER_CALL_LIMIT = 100;
 /** Bound cold-log stat fan-out and settle each started batch before cancellation returns. */
@@ -901,52 +883,22 @@ const COLD_SUMMARY_BATCH_SIZE = 16;
 /** Default maximum artifact size eligible for one cold blankness read. */
 const DEFAULT_COLD_BLANK_PROBE_MAX_BYTES = 1024;
 /** Conversation message event types (the pagination counting unit). */
-const MESSAGE_TYPES = /* @__PURE__ */ new Set(["user/message", "assistant/message"]);
-/** Decode the browser payload while rejecting non-canonical base64 forms. */
-function decodeBase64(data) {
-	const decoded = Buffer.from(data, "base64");
-	if (data.length === 0 || decoded.toString("base64") !== data) throw new AttachmentError("Image upload is not canonical base64.", "INVALID_IMAGE_BASE64");
-	return new Uint8Array(decoded);
-}
+const MESSAGE_TYPES = new Set(["user/message", "assistant/message"]);
 /** Validate one prompt as a batch before publishing any durable image object. */
 async function durablePromptContent(ctx, content) {
 	if (content.every((part) => part.type === "text")) return content.map((part) => ({
 		type: "text",
 		text: part.text
 	}));
-	const limits = ctx.attachments.imageLimits;
-	if (content.filter((part) => part.type === "image").length > limits.maxImagesPerMessage) throw new AttachmentError("Prompt exceeds the configured image-count limit.", "TOO_MANY_IMAGES");
-	const prepared = content.map((part) => part.type === "text" ? part : {
-		part,
-		data: decodeBase64(part.data)
+	const refs = await admitEncodedImages(ctx.attachments, content.filter((part) => part.type === "image"));
+	let next = 0;
+	return content.map((part) => part.type === "text" ? {
+		type: "text",
+		text: part.text
+	} : {
+		type: "image",
+		attachment: refs[next++]
 	});
-	const images = prepared.filter((part) => "data" in part);
-	if (images.reduce((sum, image) => sum + image.data.byteLength, 0) > limits.maxMessageImageBytes) throw new AttachmentError("Prompt exceeds the configured aggregate image-byte limit.", "IMAGES_TOO_LARGE");
-	for (const image of images) await ctx.attachments.validateImage({
-		data: image.data,
-		mediaType: image.part.mediaType,
-		...image.part.name === void 0 ? {} : { name: image.part.name }
-	});
-	const blocks = [];
-	for (const item of prepared) {
-		if (!("data" in item)) {
-			blocks.push({
-				type: "text",
-				text: item.text
-			});
-			continue;
-		}
-		const attachment = await ctx.attachments.saveImage({
-			data: item.data,
-			mediaType: item.part.mediaType,
-			...item.part.name === void 0 ? {} : { name: item.part.name }
-		});
-		blocks.push({
-			type: "image",
-			attachment
-		});
-	}
-	return blocks;
 }
 /** Search durable content for an image reference, including nested tool results. */
 function imageBlockIn(content, match) {
@@ -990,15 +942,6 @@ function referencedImage(events, attachmentId) {
 		if (found !== void 0) return found;
 	}
 }
-/**
-* Product settings intentionally exposed beside model-provider namespaces.
-*
-* The agent-preset namespace carries one field — which preset a session with
-* no explicit choice is composed from — and both browser surfaces that offer
-* that choice write it through `settings.update`, so it has to cross the
-* configuration boundary or the pickers silently fail to persist.
-*/
-const PRODUCT_SETTINGS_NAMESPACES = /* @__PURE__ */ new Set(["ui-onboarding", SETTINGS_NAMESPACE]);
 /** Strict browser-zone profile: UTC or an IANA Area/Location-style identifier. */
 const IANA_TIME_ZONE = /^[A-Za-z][A-Za-z0-9_+.-]*(?:\/[A-Za-z0-9_+.-]+)+$/;
 /** Validate and canonicalize one browser-supplied IANA zone at the wire boundary. */
@@ -1036,7 +979,10 @@ function paginate(events, beforeSeq, maxMessages) {
 		if (!MESSAGE_TYPES.has(event.type) || !isAppendSurfaceEvent(event)) continue;
 		count++;
 		const sources = event.sourceEventSeqs;
-		const groupStart = sources !== void 0 && sources.length > 0 ? Math.min(event.seq, ...sources) : event.seq;
+		let groupStart = event.seq;
+		if (sources !== void 0) {
+			for (const source of sources) if (source < groupStart) groupStart = source;
+		}
 		if (count >= maxMessages) {
 			cut = groupStart;
 			break;
@@ -1528,6 +1474,7 @@ function subagentPromptError(request, error, signal) {
 			message: "subagent follow-up is temporarily unavailable",
 			details: { childSessionId }
 		});
+		default: break;
 	}
 	return err(request, {
 		code: "internal",
@@ -2396,36 +2343,11 @@ function createApiProxy(ctx, defaults) {
 			revision: descriptor.revision
 		};
 	}
-	/** Settings namespaces whose changes can invalidate the model catalog. */
-	function modelProviderNamespaces() {
-		return new Set(ctx.llm.listConfigurableProviders().map((entry) => entry.settingsNs));
-	}
-	/**
-	* The settings namespaces this proxy serves: configurable model providers
-	* plus the small explicit Web preference and product-owned allowlists. The
-	* settings seam remains general; a future registration does not become
-	* remotely readable or writable by default.
-	*/
-	function exposedNamespaces() {
-		const exposed = modelProviderNamespaces();
-		for (const ns of WEB_SETTINGS_NAMESPACES) exposed.add(ns);
-		for (const ns of PRODUCT_SETTINGS_NAMESPACES) exposed.add(ns);
-		return exposed;
-	}
-	/** Refuse a namespace outside the explicit configuration-client boundary. */
-	function notExposed(request, ns) {
-		return err(request, {
-			code: "settings-not-exposed",
-			message: `settings namespace "${ns}" is not exposed to configuration clients`,
-			details: { ns }
-		});
-	}
 	/**
 	* Run one settings write (merge or wholesale replace) and acknowledge with
-	* the namespace's new redacted view. A namespace outside the configuration
-	* boundary is refused before the seam is touched; every seam refusal —
-	* unknown or invalid namespace, read-only provider, schema validation,
-	* storage — becomes one `settings-rejected` carrying the seam's own message.
+	* the namespace's new redacted view. Every seam refusal — unknown or invalid
+	* namespace, read-only provider, schema validation, storage — becomes one
+	* `settings-rejected` carrying the seam's own message.
 	*/
 	async function settingsWrite(request, ns, mode, section, expectedRevision) {
 		const settings = ctx.get("settings");
@@ -2452,7 +2374,6 @@ function createApiProxy(ctx, defaults) {
 		} catch (error) {
 			return rejected(error);
 		}
-		if (!exposedNamespaces().has(ns)) return notExposed(request, ns);
 		try {
 			if (mode === "update") await settings.update(branded, section, expectedRevision);
 			else if (mode === "replace") await settings.replace(branded, section, expectedRevision);
@@ -2846,9 +2767,8 @@ function createApiProxy(ctx, defaults) {
 								details: { reason: "MODEL_DOES_NOT_SUPPORT_IMAGES" }
 							});
 						}
-						const durable = await durablePromptContent(ctx, content);
 						const message = createUserMessage({
-							content: durable,
+							content: await durablePromptContent(ctx, content),
 							source
 						});
 						if (mode === "steer") agent.steer(message);
@@ -3201,6 +3121,7 @@ function createApiProxy(ctx, defaults) {
 					provider: selection.provider,
 					model: selection.model,
 					attachedSessions: ctx.agents.list().length,
+					home: homedir(),
 					canOpenPath: canOpenPaths()
 				}));
 			},
@@ -3467,11 +3388,10 @@ function createApiProxy(ctx, defaults) {
 			describe(request) {
 				const settings = ctx.get("settings");
 				if (settings === void 0) return Promise.resolve(err(request, settingsAbsent()));
-				const exposed = exposedNamespaces();
 				return Promise.resolve(ok(request, {
 					writable: settings.writable,
 					hasDocument: settings.documentPath !== void 0,
-					namespaces: settings.describe({ redactSecrets: true }).filter((descriptor) => exposed.has(String(descriptor.ns))).map(namespaceView)
+					namespaces: settings.describe({ redactSecrets: true }).map(namespaceView)
 				}));
 			},
 			async openDocument(request, signal) {
@@ -4069,11 +3989,6 @@ const rpcErrorSchema = z$1.discriminatedUnion("code", [
 		details: z$1.object({ ns: z$1.string() })
 	}),
 	z$1.object({
-		code: z$1.literal("settings-not-exposed"),
-		message: z$1.string(),
-		details: z$1.object({ ns: z$1.string() })
-	}),
-	z$1.object({
 		code: z$1.literal("settings-conflict"),
 		message: z$1.string(),
 		details: z$1.object({
@@ -4217,6 +4132,7 @@ const hostDescribeValueSchema = z$1.object({
 	provider: z$1.string().optional(),
 	model: z$1.string().optional(),
 	attachedSessions: z$1.number().int().nonnegative(),
+	home: z$1.string(),
 	canOpenPath: z$1.boolean()
 });
 /** host.pickDirectory request payload (empty object literal). */

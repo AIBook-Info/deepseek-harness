@@ -17,10 +17,20 @@ import z from '@deepseek-ai/schemastery';
 import { credentialRef } from '@deepseek-ai/dsh-credentials';
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout';
 import { resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm';
-import { MODALITIES, resolveRouteModels, SUPPORTED_THINKING_FORMATS, THINKING_LEVELS } from "./catalog.js";
+import { CACHE_CONTROL_FORMATS, CHAT_TEMPLATE_VARS, MAX_TOKENS_FIELDS, MODALITIES, resolveRouteModels, SUPPORTED_THINKING_FORMATS, THINKING_LEVELS, } from "./catalog.js";
 import { buildProvider, supportedProtocols } from "./provider.js";
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000;
+/**
+ * Default request-level bound on base64-encoded image payload. Every image in
+ * history is re-encoded into every request body, so an unbounded conversation
+ * eventually exceeds a provider or gateway request-size cap and the session
+ * can never complete another request. The 20MiB default admits four images at
+ * the attachment store's 3.5MiB raw-image default after base64 expansion and
+ * reserves request capacity for system prompts, history, tools, and JSON.
+ * Deployments behind stricter gateways lower it per route.
+ */
+export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024;
 /** Context capacity assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_CONTEXT_WINDOW = 262_144;
 /** Output capability assumed for a model neither configuration nor the catalog sizes. */
@@ -42,9 +52,42 @@ const thinkingBudgets = z.object({
     medium: z.number(),
     high: z.number(),
 });
+/**
+ * One `chat_template_kwargs` value. The `$var` member is pi-ai's placeholder
+ * for a value dispatch fills from the request's thinking state, which is what
+ * makes a chat-template gateway configurable without restating its template.
+ */
+const chatTemplateKwarg = z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.const(null),
+    z.object({
+        $var: z.union(CHAT_TEMPLATE_VARS).required(),
+        omitWhenOff: z.boolean(),
+    }),
+]);
 const compatProfile = z.object({
-    thinkingFormat: z.union(SUPPORTED_THINKING_FORMATS),
+    supportsStore: z.boolean(),
+    supportsDeveloperRole: z.boolean(),
     supportsReasoningEffort: z.boolean(),
+    supportsUsageInStreaming: z.boolean(),
+    maxTokensField: z.union(MAX_TOKENS_FIELDS),
+    requiresToolResultName: z.boolean(),
+    requiresAssistantAfterToolResult: z.boolean(),
+    requiresThinkingAsText: z.boolean(),
+    requiresReasoningContentOnAssistantMessages: z.boolean(),
+    thinkingFormat: z.union(SUPPORTED_THINKING_FORMATS),
+    chatTemplateKwargs: z.dict(chatTemplateKwarg),
+    supportsStrictMode: z.boolean(),
+    cacheControlFormat: z.union(CACHE_CONTROL_FORMATS),
+    supportsLongCacheRetention: z.boolean(),
+    supportsEagerToolInputStreaming: z.boolean(),
+    supportsCacheControlOnTools: z.boolean(),
+    supportsTemperature: z.boolean(),
+    forceAdaptiveThinking: z.boolean(),
+    allowEmptySignature: z.boolean(),
+    supportsStrictTools: z.boolean(),
 });
 /**
  * Keys are the offered levels, values their wire spellings. A valueless key
@@ -97,6 +140,7 @@ const profile = z.object({
     timeoutMs: z.natural(),
     websocketConnectTimeoutMs: z.natural(),
     streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
+    maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
     retryPolicy: RetryPolicySchema,
 });
 /** Runtime schema for {@link Config}. */
@@ -159,6 +203,10 @@ export function resolveProfiles(providers) {
             || streamIdleTimeoutMs > MAX_TIMER_DELAY_MS) {
             throw new Error(`llm-pi-ai: provider "${provider}" streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`);
         }
+        const maxRequestImageBytes = source.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES;
+        if (!Number.isInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) {
+            throw new Error(`llm-pi-ai: provider "${provider}" maxRequestImageBytes must be a positive integer`);
+        }
         // Detached from the configuration object because pi-ai types `Model.input`
         // mutable. The schema's explicit default covers an absent key, so an empty
         // list here is always one someone typed — and unlike an entry's, nothing
@@ -190,6 +238,7 @@ export function resolveProfiles(providers) {
             displayName,
             ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
             streamIdleTimeoutMs,
+            maxRequestImageBytes,
             retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
             ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
             ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },

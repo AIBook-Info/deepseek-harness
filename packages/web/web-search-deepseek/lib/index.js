@@ -182,8 +182,7 @@ var DeepSeekSearchProvider = class {
 			throw new WebError(`DeepSeek search credential resolution failed: ${String(error)}`, "WEB_PROVIDER_ERROR", { cause: error });
 		}
 		if (resolved !== void 0 && resolved.length > 0) return resolved;
-		const ref = options.apiKeyEnv ?? "DEEPSEEK_API_KEY";
-		throw new WebError(`DeepSeek search has no API key for "${ref}"; store it through the credentials service (the web Models page writes it), export it in the launching environment, or set a literal "apiKey" in the web-search-deepseek config`, "WEB_PROVIDER_CREDENTIAL_MISSING");
+		throw new WebError(`DeepSeek search has no API key for "${options.apiKeyEnv ?? "DEEPSEEK_API_KEY"}"; store it through the credentials service (the web Models page writes it), export it in the launching environment, or set a literal "apiKey" in the web-search-deepseek config`, "WEB_PROVIDER_CREDENTIAL_MISSING");
 	}
 };
 /**

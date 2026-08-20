@@ -1,12 +1,14 @@
 /**
  * Models settings page store: one snapshot joining the configurable-provider
- * directory (`llm.providers`), the settings namespaces (`settings.describe`),
+ * directory (`llm.providers`), the settings namespaces (shared settings mirror),
  * and the referenced credentials (`credentials.describe`). The host stays the
  * single fact source — every mutation writes through the wire and the page
  * re-renders from the next describe, pushed or refetched.
  */
 import type { ConfigurableProviderView, CredentialView, IApiClient, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client';
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client';
+import type { SettingsSchemaOperations } from './schema-operations.ts';
 /** One provider row the page renders. */
 export interface ProviderRow {
     /** The directory entry (route id, display name, settings address, live state). */
@@ -56,24 +58,30 @@ export declare function deriveKeyRef(provider: string): string;
  * the choices the page offers cannot drift from the ones the adapter accepts:
  * both come from the same `Config`.
  * @param namespace - the namespace view whose schema declares the profile shape.
+ * @param schema - settings schema operations.
  * @returns the protocol identifiers, or an empty list when the schema has none.
  */
-export declare function protocolChoices(namespace: SettingsNamespaceView | undefined): string[];
+export declare function protocolChoices(namespace: SettingsNamespaceView | undefined, schema: SettingsSchemaOperations): string[];
 /** The models settings page controller (one per settings surface). */
 export declare class ModelsSettingsStore {
     private readonly api;
+    private readonly schema;
+    private readonly describeFace;
     /** The snapshot the section renders from (uSES-safe store). */
     readonly store: SnapshotStore<ModelsSettingsState>;
     /** Latest load wins; an older response never overwrites a newer one. */
     private generation;
     /**
-     * @param api - the wire face (settings/credentials/llm domains).
+     * @param api - the wire face (credentials/llm domains, and settings writes).
+     * @param describeFace - the shared mirror's describe face (namespace views and writability).
      */
-    constructor(api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>);
+    constructor(api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>, schema: SettingsSchemaOperations, describeFace: SettingsDescribeFace);
     /**
-     * Refresh the whole page snapshot: directory and namespaces in parallel,
-     * then one batched credential describe over every referenced ref. A
-     * failure keeps the last good rows and surfaces the error.
+     * Refresh the whole page snapshot: the provider directory and the mirror's
+     * settings answer in parallel, then one batched credential describe over
+     * every referenced ref. Provider failure or absence of an initial settings
+     * answer keeps the last good rows and surfaces an error; a failed settings
+     * refresh reuses the mirror's held view.
      * @returns nothing; the snapshot carries the outcome.
      */
     load(): Promise<void>;

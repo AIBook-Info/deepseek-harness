@@ -39,6 +39,15 @@ export interface PiAiAdapterOptions {
     resolveApiKey: (provider: string, profile: ResolvedPiAiProviderProfile) => Promise<string | undefined>;
     /** Resolve the optional durable attachment service at request time. */
     resolveAttachments?: () => AttachmentStore | undefined;
+    /**
+     * Observe one assistant history message degrading to provider-neutral
+     * conversion because its stored replay state is unusable by this build.
+     */
+    onReplayDegrade?: (detail: {
+        provider: string;
+        model: string;
+        reason: string;
+    }) => void;
 }
 /**
  * pi-ai-backed multi-provider adapter. Each operation reads the current

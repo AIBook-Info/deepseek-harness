@@ -12,7 +12,7 @@ const NS = 'workspace';
  * provides a waitable service. apply therefore depends on each slot
  * declaration through `slots.inject()` instead of assuming order.
  */
-export const inject = ['slots', 'sessions', 'workspaces', 'locale'];
+export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection'];
 /**
  * Register the browser and picker once their slot declarations are on the
  * ledger. Inject factories return plain callbacks; data reads use the
@@ -20,6 +20,8 @@ export const inject = ['slots', 'sessions', 'workspaces', 'locale'];
  * @param ctx - client root context.
  */
 export function apply(ctx) {
+    const connection = ctx.get('connection');
+    const hostDescription = connection.hostDescription;
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries');
     const searchSessions = async (query, signal) => {
         const result = await ctx.sessions.search(query, signal);
@@ -69,7 +71,7 @@ export function apply(ctx) {
             await ctx.workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId);
         },
         createWorkspace: input => ctx.workspaces.create(input),
-        hooks: { directoryFlow: browserFlowSource },
+        hooks: { directoryFlow: browserFlowSource, hostDescription },
     });
     const pickerInjected = () => ({
         createWorkspace: input => ctx.workspaces.create(input),

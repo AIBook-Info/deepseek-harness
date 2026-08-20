@@ -36,12 +36,15 @@ var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, 
     if (target) Object.defineProperty(target, contextIn.name, descriptor);
     done = true;
 };
+import { AttachmentError, admitEncodedImages } from '@deepseek-ai/dsh-attachment';
 import { NamedEntries, ScopedLayers } from '@deepseek-ai/dsh-scope';
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol';
 import { CommandId } from "./brand.js";
 export { CommandId } from "./brand.js";
 export const name = 'commands';
 const COMMAND_NAME = /^[a-z][a-z0-9_-]*$/u;
+/** Shared frozen attachments value for image-free invocations. */
+const NO_ATTACHMENTS = Object.freeze([]);
 /** All command registrations owned by one global or scoped layer. */
 class CommandLayer {
     commands;
@@ -80,6 +83,10 @@ function abortError(signal) {
     if (signal.reason instanceof Error)
         return signal.reason;
     return new Error(typeof signal.reason === 'string' ? signal.reason : 'command aborted');
+}
+/** The signal's normalized abort error when it is already aborted. */
+function cancellationOf(signal) {
+    return signal.aborted ? abortError(signal) : undefined;
 }
 /** Render arbitrary thrown values without trusting their string coercion. */
 function renderThrown(value) {
@@ -135,7 +142,13 @@ function normalizeDefinition(definition) {
         if (rawInput.hint.trim().length === 0) {
             throw new TypeError(`command "${definition.name}" input hint must not be empty`);
         }
-        input = Object.freeze({ hint: rawInput.hint });
+        if ('images' in rawInput && rawInput.images !== undefined && typeof rawInput.images !== 'boolean') {
+            throw new TypeError(`command "${definition.name}" input images flag must be a boolean`);
+        }
+        input = Object.freeze({
+            hint: rawInput.hint,
+            ...('images' in rawInput && rawInput.images === true) ? { images: true } : {},
+        });
     }
     const normalized = Object.freeze({
         name: definition.name,
@@ -248,13 +261,20 @@ let CommandRuntime = (() => {
          * handler-failure path is contained so the handler's own error stays the
          * reported failure.
          *
+         * Image admission is enforced here, not in the composer: images sent to a
+         * command that does not declare `input.images`, an absent attachment store,
+         * and an exceeded attachment limit each settle as an error result before
+         * the handler runs, and a rejected batch publishes no durable object.
+         *
          * @param agent - exact receiving agent.
          * @param line - complete slash-command line.
+         * @param images - base64-encoded composer images accompanying the line, in
+         *   submission order; empty for a plain invocation.
          * @param signal - cancellation signal owned by the UI request.
          * @returns the settled execution (result + lifecycle pairing id), or
          *   `undefined` when syntax or name does not resolve.
          */
-        async execute(agent, line, signal) {
+        async execute(agent, line, images, signal) {
             const parsed = parseCommand(line);
             if (parsed === undefined)
                 return undefined;
@@ -270,32 +290,69 @@ let CommandRuntime = (() => {
                 ...command.definition.recordInput === false ? {} : { args: parsed.rawInput },
                 source: { kind: 'user' },
             });
-            const invocation = Object.freeze({ commandId, agent, rawInput: parsed.rawInput, signal });
+            const settle = (result) => {
+                this.appendLifecycle(agent.session, 'command/done', {
+                    commandId, kind: result.kind,
+                    ...result.text === undefined ? {} : { text: result.text },
+                    ...result.kind === 'success' && result.sourceEventSeq !== undefined
+                        ? { sourceEventSeq: result.sourceEventSeq }
+                        : {},
+                });
+                return Object.freeze({ commandId, result: Object.freeze(result) });
+            };
+            let attachments = NO_ATTACHMENTS;
+            if (images.length > 0) {
+                if (command.definition.input?.images !== true) {
+                    return settle({ kind: 'error', text: `/${parsed.name} does not accept image attachments` });
+                }
+                const store = this.ctx.get('attachments');
+                if (store === undefined) {
+                    return settle({ kind: 'error', text: `/${parsed.name}: image attachments are unavailable because no attachment store is composed` });
+                }
+                try {
+                    const refs = await admitEncodedImages(store, images);
+                    attachments = Object.freeze(refs.map(ref => Object.freeze({ type: 'image', attachment: ref })));
+                }
+                catch (error) {
+                    if (error instanceof AttachmentError) {
+                        return settle({ kind: 'error', text: error.message });
+                    }
+                    this.settleThrown(agent.session, parsed.name, commandId, error);
+                    throw error;
+                }
+                // Cancellation must be honored BEFORE the handler runs: admission may
+                // await slow storage, and a handler entered after the caller cancelled
+                // would mutate state the retrying caller then duplicates. (The committed
+                // image objects stay unreferenced and are deferred-GC territory.)
+                const cancelledDuringAdmission = cancellationOf(signal);
+                if (cancelledDuringAdmission !== undefined) {
+                    this.settleThrown(agent.session, parsed.name, commandId, cancelledDuringAdmission);
+                    throw cancelledDuringAdmission;
+                }
+            }
+            const invocation = Object.freeze({ commandId, agent, rawInput: parsed.rawInput, attachments, signal });
             let result;
             try {
                 const output = command.definition.handler(invocation);
                 result = normalizeResult(parsed.name, await withAbort(Promise.resolve(output), signal));
             }
             catch (error) {
-                try {
-                    this.appendLifecycle(agent.session, 'command/done', {
-                        commandId, kind: 'error',
-                        text: error instanceof Error ? error.message : renderThrown(error),
-                    });
-                }
-                catch (appendError) {
-                    this.ctx.logger.warn(`command "${parsed.name}": command/done append failed: ${renderThrown(appendError)}`);
-                }
+                this.settleThrown(agent.session, parsed.name, commandId, error);
                 throw error;
             }
-            this.appendLifecycle(agent.session, 'command/done', {
-                commandId, kind: result.kind,
-                ...result.text === undefined ? {} : { text: result.text },
-                ...result.kind === 'success' && result.sourceEventSeq !== undefined
-                    ? { sourceEventSeq: result.sourceEventSeq }
-                    : {},
-            });
-            return Object.freeze({ commandId, result });
+            return settle(result);
+        }
+        /** Contained `command/done` error append for a thrown handler or admission failure. */
+        settleThrown(session, command, commandId, error) {
+            try {
+                this.appendLifecycle(session, 'command/done', {
+                    commandId, kind: 'error',
+                    text: error instanceof Error ? error.message : renderThrown(error),
+                });
+            }
+            catch (appendError) {
+                this.ctx.logger.warn(`command "${command}": command/done append failed: ${renderThrown(appendError)}`);
+            }
         }
         /** Mint the next pairing id (monotonic; instance-token-prefixed so a resumed log never repeats one). */
         mintCommandId() {

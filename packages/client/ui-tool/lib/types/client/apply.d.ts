@@ -1,6 +1,5 @@
-/** Register the Tool call tree, details renderer, and built-in atomic views. */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
-/** Required service: the slot registry that owns both Tool render seats. */
+/** Required services: the slot registry and the Host description used for POSIX `~`. */
 export declare const inject: string[];
 /**
  * Mount the whole-Tool renderers and built-in atomic Tool registrations.

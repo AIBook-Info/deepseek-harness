@@ -22,6 +22,8 @@ export function apply(ctx) {
         // region (header, search, session list, workspace dialogs), ui-settings
         // registers the foot trigger + settings panel.
         children: {
+            'sidebar.brand.mark': { kind: 'single', scope: 'root' },
+            'sidebar.brand.name': { kind: 'single', scope: 'root' },
             'sidebar.workspaces': { kind: 'single', scope: 'root' },
             'sidebar.settings': { kind: 'single', scope: 'root' },
             'sidebar.footer.action': { kind: 'list', scope: 'root' },

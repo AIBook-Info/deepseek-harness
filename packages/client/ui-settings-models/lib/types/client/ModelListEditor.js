@@ -197,6 +197,16 @@ export function ModelListEditor(props) {
             return next;
         });
     };
+    const activeCandidates = candidates ?? [];
+    const allCandidatesPicked = activeCandidates.length > 0
+        && activeCandidates.every(candidate => picked.has(candidate.id));
+    const toggleAllCandidates = () => {
+        setPicked((current) => {
+            return activeCandidates.every(candidate => current.has(candidate.id))
+                ? new Set()
+                : new Set(activeCandidates.map(candidate => candidate.id));
+        });
+    };
     // A route the adapter already describes answers without an endpoint; only a
     // draft with neither has nothing to ask about.
     const askable = probe.provider !== undefined || (probe.baseURL !== undefined && probe.baseURL.length > 0);
@@ -225,6 +235,6 @@ export function ModelListEditor(props) {
                                     setEditing(current => reindexOnRemove(current, index));
                                 }, children: _jsx(IconTrash, {}) })] }), expanded.has(index)
                         ? (_jsxs("div", { className: styles['modelAdvanced'], children: [_jsxs("label", { className: styles['modelField'], children: [_jsx("span", { className: styles['modelFieldLabel'], children: t('modelContextWindow') }), _jsx("input", { className: styles['input'], type: "text", inputMode: "numeric", value: capacityText(model, index, 'contextWindow'), placeholder: CAPACITY_HINT.contextWindow, "aria-label": `${t('modelContextWindow')} ${index + 1}`, disabled: disabled, onChange: (event) => { editCapacity(index, 'contextWindow', event.target.value); } })] }), _jsxs("label", { className: styles['modelField'], children: [_jsx("span", { className: styles['modelFieldLabel'], children: t('modelMaxTokens') }), _jsx("input", { className: styles['input'], type: "text", inputMode: "numeric", value: capacityText(model, index, 'maxTokens'), placeholder: CAPACITY_HINT.maxTokens, "aria-label": `${t('modelMaxTokens')} ${index + 1}`, disabled: disabled, onChange: (event) => { editCapacity(index, 'maxTokens', event.target.value); } })] })] }))
-                        : null] }, index))), _jsx("button", { type: "button", className: styles['addModelButton'], disabled: disabled, onClick: () => { onChange([...models, { id: '' }]); }, children: t('addModel') }), failure !== undefined ? _jsx("p", { className: styles['error'], children: failure }) : null, _jsx(Modal, { open: candidates !== undefined, onClose: closePicker, title: t('fetchTitle'), closeLabel: t('close'), description: t('fetchDescription'), className: styles['fetchDialog'], footer: (_jsxs(_Fragment, { children: [_jsx(Button, { variant: "outline", onClick: closePicker, children: t('cancel') }), _jsx(Button, { variant: "outline", onClick: adoptPicked, children: t('fetchAdopt') })] })), children: _jsx("ul", { className: styles['candidateList'], children: (candidates ?? []).map(candidate => (_jsx("li", { className: styles['candidate'], children: _jsxs("label", { className: styles['candidateLabel'], children: [_jsx("input", { type: "checkbox", checked: picked.has(candidate.id), onChange: () => { toggle(candidate.id); } }), _jsx("span", { className: styles['candidateId'], children: candidate.id })] }) }, candidate.id))) }) })] }));
+                        : null] }, index))), _jsx("button", { type: "button", className: styles['addModelButton'], disabled: disabled, onClick: () => { onChange([...models, { id: '' }]); }, children: t('addModel') }), failure !== undefined ? _jsx("p", { className: styles['error'], children: failure }) : null, _jsxs(Modal, { open: candidates !== undefined, onClose: closePicker, title: t('fetchTitle'), closeLabel: t('close'), description: t('fetchDescription'), className: styles['fetchDialog'], footer: (_jsxs(_Fragment, { children: [_jsx(Button, { variant: "outline", onClick: closePicker, children: t('cancel') }), _jsx(Button, { variant: "outline", onClick: adoptPicked, children: t('fetchAdopt') })] })), children: [_jsx("div", { className: styles['candidateActions'], children: _jsx(Button, { variant: "ghost", size: "sm", onClick: toggleAllCandidates, children: t(allCandidatesPicked ? 'fetchDeselectAll' : 'fetchSelectAll') }) }), _jsx("ul", { className: styles['candidateList'], children: (candidates ?? []).map(candidate => (_jsx("li", { className: styles['candidate'], children: _jsxs("label", { className: styles['candidateLabel'], children: [_jsx("input", { type: "checkbox", checked: picked.has(candidate.id), onChange: () => { toggle(candidate.id); } }), _jsx("span", { className: styles['candidateId'], children: candidate.id })] }) }, candidate.id))) })] })] }));
 }
 //# sourceMappingURL=ModelListEditor.js.map

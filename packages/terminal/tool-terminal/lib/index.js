@@ -118,7 +118,7 @@ const inject = [
 	"systemPrompt"
 ];
 /** Default cap for one complete model-facing terminal result. */
-const DEFAULT_MAX_RESULT_BYTES = 262144;
+const DEFAULT_MAX_RESULT_BYTES = 256 * 1024;
 /** Smallest cap that preserves every counter-backed PTY and job id in its creation acknowledgement. */
 const MIN_MAX_RESULT_BYTES = 64;
 /** Schemastery configuration for the terminal tool consumer. */

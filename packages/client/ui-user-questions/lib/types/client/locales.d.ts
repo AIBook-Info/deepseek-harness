@@ -5,6 +5,8 @@ export declare const zh: {
     'error.unanswered': string;
     'nav.prev': string;
     'nav.next': string;
+    'nav.minimize': string;
+    'nav.maximize': string;
     'nav.cancel': string;
     'option.recommended': string;
     'custom.placeholder': string;
@@ -23,6 +25,8 @@ export declare const en: {
     'error.unanswered': string;
     'nav.prev': string;
     'nav.next': string;
+    'nav.minimize': string;
+    'nav.maximize': string;
     'nav.cancel': string;
     'option.recommended': string;
     'custom.placeholder': string;

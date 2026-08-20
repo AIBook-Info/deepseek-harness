@@ -15,11 +15,18 @@ export interface DetectedImage {
  * @returns verified format and dimensions.
  */
 export declare function probeImage(data: Uint8Array): Promise<DetectedImage>;
+/** Admission limits applied to a decoded raster's intrinsic dimensions. */
+export interface DecodedImageLimits {
+    /** Decoded-pixel (width times height) admission limit. */
+    maxPixels?: number;
+    /** Per-side admission limit applied to width and height independently. */
+    maxDimension?: number;
+}
 /**
  * Fully decode a supported raster and return its intrinsic metadata.
  * @param data - complete encoded image bytes.
- * @param maxPixels - decoded-pixel admission limit.
+ * @param limits - intrinsic-dimension admission limits.
  * @returns verified format and dimensions.
  */
-export declare function detectImage(data: Uint8Array, maxPixels?: number): Promise<DetectedImage>;
+export declare function detectImage(data: Uint8Array, limits?: DecodedImageLimits): Promise<DetectedImage>;
 //# sourceMappingURL=image.d.ts.map

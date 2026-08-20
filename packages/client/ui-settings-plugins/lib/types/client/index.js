@@ -16,6 +16,7 @@ import { PluginsSettingsSection } from "./PluginsSettingsSection.js";
 import { WebSearchCard } from "./WebSearchCard.js";
 import { AGENT_LOOP_NS, AgentLoopCardController } from "./agent-loop-card-controller.js";
 import { SHELL_NS, BashCardController } from "./bash-card-controller.js";
+import { ConfigurablePluginsTabController } from "./tab-store.js";
 import { WEB_SEARCH_NS, WebSearchCardController } from "./web-search-card-controller.js";
 import { en, zh } from "./locales.js";
 /** Dictionary namespace owned by this plugin. */
@@ -37,6 +38,13 @@ export function apply(ctx) {
     // scope publishes nothing when one is written. This is the only signal that
     // a key written on another surface reached the Host.
     ctx.effect(() => ctx.remote.$on('credentials/updated', (ref) => { webSearch.refreshCredential(ref); }), 'ui-settings-plugins: credential invalidations');
+    // Which namespaces the Host serves comes from the shared describe mirror,
+    // whose owning plugin already refreshes it on document commits and
+    // reconnects — the tab only derives.
+    const configurable = new ConfigurablePluginsTabController(ctx.settingsScope.describe(), () => ctx.slots.entries('settings.plugin.item'));
+    ctx.effect(() => () => { configurable.dispose(); }, 'ui-settings-plugins: tab directory');
+    // A card registered after the first read joins the list without a wire call.
+    ctx.effect(() => ctx.slots.subscribe('settings.plugin.item', () => { configurable.refresh(); }), 'ui-settings-plugins: card ledger');
     let tabsVersion = -1;
     let tabsRevision = -1;
     let tabs = [];
@@ -90,30 +98,25 @@ export function apply(ctx) {
         order: 0,
         label: () => t('configurableTab'),
         locale: NS,
-        inject: () => ({
-            cardCount: ctx.slots.entries('settings.plugin.item').length,
-        }),
-        children: { 'settings.plugin.item': { kind: 'list', scope: 'root' } },
+        inject: () => configurable.inject(),
+        children: { 'settings.plugin.item': { kind: 'keyed', scope: 'root' } },
     }, ConfigurablePluginsTab));
     ctx.slots.inject('settings.plugin.item', function* () {
         yield ctx.slots.register({
             name: 'settings.plugin.item',
-            id: 'bash',
-            order: 0,
+            key: SHELL_NS,
             locale: NS,
             inject: () => bash.inject(),
         }, BashCard);
         yield ctx.slots.register({
             name: 'settings.plugin.item',
-            id: 'agent-loop',
-            order: 10,
+            key: AGENT_LOOP_NS,
             locale: NS,
             inject: () => agentLoop.inject(),
         }, AgentLoopCard);
         yield ctx.slots.register({
             name: 'settings.plugin.item',
-            id: 'web-search',
-            order: 20,
+            key: WEB_SEARCH_NS,
             locale: NS,
             inject: () => webSearch.inject(),
         }, WebSearchCard);

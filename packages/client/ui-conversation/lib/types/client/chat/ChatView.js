@@ -1,8 +1,9 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 // ChatView: the default conversation view — one stable keyed parent list over
 // final business Nodes, plus paging, pending steering and bottom-follow.
 // Each row dispatches through 'conversation.chat.node'; ui-tool owns the
-// tool-call renderer and its recursive root/subcall composition.
+// tool-call renderer and its recursive root/subcall composition. A Host
+// open-path refusal from the injected opener is an in-page dialog here.
 //
 // Scroll: when nested under `[data-conversation-scroll]` (active conversation
 // column), that host is the scrollport and this view is flow content; when
@@ -12,8 +13,8 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 // Render economics: order changes only when rows enter, leave or move. Each
 // ChatNodeSeat subscribes to one Node key, so Assistant deltas and Tool
 // lifecycle updates replace only their own row without remounting it.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Button, IconChevronDownOutline14, Modal } from '@deepseek-ai/dsh-client-ui-primitives';
 import { PendingSteeringBubble } from "./MessageItem.js";
 import { ChatNodeSeat } from "./ChatNodeSeat.js";
 import { formatRunDuration } from "./message-chrome.js";
@@ -80,6 +81,15 @@ function scrollPosition(list, scrollport) {
         scrollTop: scrollport.scrollTop,
     };
 }
+/** Host/OS refusal text for the file-open dialog; empty throws keep a locale fallback. */
+function openFailureMessage(error, fallback) {
+    const message = error instanceof Error ? error.message : String(error);
+    return message === '' ? fallback : message;
+}
+/** ProducedFiles opens the session workspace as `.`. */
+function isFolderOpenPath(path) {
+    return path === '.';
+}
 function runningTurnStartTime(timeline) {
     let latest = null;
     for (const turn of timeline.turns.values()) {
@@ -125,7 +135,36 @@ export function ChatView({ useSession, useSessions, useStore, renderSlot, sessio
     const hasMore = useSession(s => s.hasMore);
     const loadingOlder = useSession(s => s.loadingOlder);
     const selectedCallId = useStore(s => s.selection?.callId);
+    const [fileOpenError, setFileOpenError] = useState(null);
+    const [fileOpenBusy, setFileOpenBusy] = useState(false);
+    // Close/retry must ignore a settlement that started before the latest
+    // gesture; otherwise a cancelled in-flight refusal reopens the dialog.
+    const fileOpenRequest = useRef(0);
+    const requestOpenFile = useCallback((path) => {
+        const id = ++fileOpenRequest.current;
+        setFileOpenBusy(true);
+        void openFile(path).then(() => {
+            if (id !== fileOpenRequest.current)
+                return;
+            setFileOpenError(null);
+            setFileOpenBusy(false);
+        }, (error) => {
+            if (id !== fileOpenRequest.current)
+                return;
+            setFileOpenError({
+                path,
+                message: openFailureMessage(error, t(isFolderOpenPath(path) ? 'fileOpen.folderUnknown' : 'fileOpen.unknown')),
+            });
+            setFileOpenBusy(false);
+        });
+    }, [openFile, t]);
+    const closeFileOpenError = useCallback(() => {
+        fileOpenRequest.current += 1;
+        setFileOpenError(null);
+        setFileOpenBusy(false);
+    }, []);
     const pendingSteering = useMemo(() => inbox.filter(item => item.placement === 'steering'), [inbox]);
+    const renderMessageImages = useCallback(owner => renderSlot('conversation.message.images', { ...owner, loadImage }), [loadImage, renderSlot]);
     const runningTurnStart = useMemo(() => runningTurnStartTime(timeline), [timeline]);
     const listRef = useRef(null);
     const columnRef = useRef(null);
@@ -329,11 +368,15 @@ export function ChatView({ useSession, useSessions, useStore, renderSlot, sessio
         }
         loadOlder();
     };
-    return (_jsx("div", { className: css.root, children: _jsxs("div", { ref: listRef, className: css.scroll, children: [_jsxs("div", { ref: columnRef, className: css.column, "data-chat-flow": "", children: [openState === 'loading' && _jsx("div", { className: css.hint, children: t('chat.loadingHistory') }), openState === 'error' && openError !== null && (_jsx("div", { className: css.openError, children: t('chat.loadError', { message: openError.message, code: openError.code }) })), hasMore && (_jsx("div", { className: css.older, children: _jsx("button", { type: "button", disabled: loadingOlder, onClick: loadOlderAnchored, children: loadingOlder ? t('loading') : t('chat.loadOlder') }) })), order.map(nodeKey => (_jsx(ChatNodeSeat, { nodeKey: nodeKey, useSession: useSession, selectedCallId: selectedCallId, cwd: cwd, openFile: openFile, inspectCall: inspectCall, forkAt: forkAt, loadImage: loadImage, fileMentions: fileMentions, renderSlot: renderSlot, t: t }, nodeKey))), running && _jsx(TurnStatus, { startTime: runningTurnStart, t: t }), pendingSteering.map(item => (_jsx(PendingSteeringBubble, { content: item.content, loadImage: loadImage, t: t }, item.id)))] }), !atBottom && (_jsx("div", { className: css.toBottomSlot, children: _jsx("button", { type: "button", className: css.toBottom, "aria-label": t('chat.toBottom'), onClick: () => {
-                            const local = listRef.current;
-                            /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
-                            if (local !== null)
-                                toBottom(scrollerOf(local));
-                        }, children: _jsx(IconChevronDownOutline14, {}) }) }))] }) }));
+    return (_jsxs("div", { className: css.root, children: [_jsxs("div", { ref: listRef, className: css.scroll, children: [_jsxs("div", { ref: columnRef, className: css.column, "data-chat-flow": "", children: [openState === 'loading' && _jsx("div", { className: css.hint, children: t('chat.loadingHistory') }), openState === 'error' && openError !== null && (_jsx("div", { className: css.openError, children: t('chat.loadError', { message: openError.message, code: openError.code }) })), hasMore && (_jsx("div", { className: css.older, children: _jsx("button", { type: "button", disabled: loadingOlder, onClick: loadOlderAnchored, children: loadingOlder ? t('loading') : t('chat.loadOlder') }) })), order.map(nodeKey => (_jsx(ChatNodeSeat, { nodeKey: nodeKey, useSession: useSession, selectedCallId: selectedCallId, cwd: cwd, openFile: requestOpenFile, inspectCall: inspectCall, forkAt: forkAt, renderMessageImages: renderMessageImages, fileMentions: fileMentions, renderSlot: renderSlot, t: t }, nodeKey))), running && _jsx(TurnStatus, { startTime: runningTurnStart, t: t }), pendingSteering.map(item => (_jsx(PendingSteeringBubble, { content: item.content, renderMessageImages: renderMessageImages, t: t }, item.id)))] }), !atBottom && (_jsx("div", { className: css.toBottomSlot, children: _jsx("button", { type: "button", className: css.toBottom, "aria-label": t('chat.toBottom'), onClick: () => {
+                                const local = listRef.current;
+                                /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
+                                if (local !== null)
+                                    toBottom(scrollerOf(local));
+                            }, children: _jsx(IconChevronDownOutline14, {}) }) }))] }), fileOpenError !== null && (_jsx(FileOpenErrorDialog, { path: fileOpenError.path, message: fileOpenError.message, busy: fileOpenBusy, onClose: closeFileOpenError, onRetry: () => { requestOpenFile(fileOpenError.path); }, t: t }))] }));
+}
+/** In-page Host open-path refusal: the wire reason plus a retry of the same path. */
+function FileOpenErrorDialog({ path, message, busy, onClose, onRetry, t, }) {
+    return (_jsx(Modal, { open: true, onClose: onClose, closeLabel: t('close'), title: t(isFolderOpenPath(path) ? 'fileOpen.folderTitle' : 'fileOpen.title'), description: message, footer: (_jsxs(_Fragment, { children: [_jsx(Button, { variant: "outline", className: css.modalAction, onClick: onClose, children: t('cancel') }), _jsx(Button, { variant: "primary", className: css.modalAction, disabled: busy, onClick: onRetry, children: t('retry') })] })) }));
 }
 //# sourceMappingURL=ChatView.js.map

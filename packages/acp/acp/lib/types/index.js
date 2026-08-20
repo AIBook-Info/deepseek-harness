@@ -2,9 +2,9 @@
  * Automation-only Agent Client Protocol server over JSON-RPC stdio.
  *
  * The bridge exposes fresh harness sessions to trusted programmatic clients. It
- * carries prompt text, committed assistant text, cancellation, and one-shot
- * permission decisions; presentation and human-interaction features stay with
- * the harness's UI modules.
+ * carries prompt text/images, committed assistant text/images, cancellation,
+ * and one-shot permission decisions; presentation and human-interaction
+ * features stay with the harness's UI modules.
  *
  * @module @deepseek-ai/dsh-acp
  */
@@ -15,7 +15,8 @@ import Schema from '@deepseek-ai/schemastery';
 import { createUserMessage, errorChain } from '@deepseek-ai/dsh-llm';
 import { AgentSideConnection, ndJsonStream, PROTOCOL_VERSION, RequestError, } from '@agentclientprotocol/sdk';
 import { SessionId } from '@deepseek-ai/dsh-session';
-import { acpPromptToText, promptHasUnsupportedContent, turnEndToStopReason } from "./codec.js";
+import { AcpContentError, admitAcpPrompt, assistantBlockToAcp, supportsAcpImagePrompts } from "./content.js";
+import { turnEndToStopReason } from "./codec.js";
 export const name = 'acp';
 /** The bridge creates and owns agents; every other concern is carried by the agent composition. */
 export const inject = ['agents'];
@@ -44,6 +45,7 @@ export function apply(ctx, config) {
     const sessions = new Map();
     let closed = false;
     let conn;
+    let imagePromptEnabled = false;
     /** Return the bridge-owned record for an agent, rejecting same-id impostors. */
     const ownedRecord = (agent) => {
         const record = sessions.get(agent.session.id);
@@ -59,69 +61,110 @@ export function apply(ctx, config) {
             throw invalidParams(`unknown session: ${sessionId}`);
         return record;
     };
-    /** Send a protocol update without letting a disconnected client fail an agent turn. */
-    const notify = (notification) => {
-        /* v8 ignore next 3 -- only a transport write failure reaches this guard. */
-        void conn.sessionUpdate(notification).catch((error) => {
+    /** Send one ordered protocol update while containing transport-only failure. */
+    const notify = async (notification) => {
+        try {
+            await conn.sessionUpdate(notification);
+            /* v8 ignore start -- the ACP SDK contains notification-handler failures; only a transport write failure reaches this guard. */
+        }
+        catch (error) {
             logger.warn(`acp: session/update failed: ${String(error)}`);
-        });
-    };
-    const settlePrompt = (record, reason) => {
-        const inflight = record.inflight;
-        if (inflight === undefined)
-            return;
-        record.inflight = undefined;
-        inflight.resolve(reason);
+        }
+        /* v8 ignore stop */
     };
     const rejectFromError = (inflight, reason) => {
         inflight.reject(internalError(`turn failed: ${reason.error.message}`));
     };
-    // Emit only committed assistant text. Raw chunks, reasoning, tools, plans,
-    // titles, and retry markers are presentation or trace data and stay off the
-    // automation wire.
+    /**
+     * Settle one exact prompt only after admission, agent activity, and ordered
+     * assistant delivery have all reached quiescence.
+     */
+    const settleAfterQuiescence = (record, inflight) => {
+        if (inflight.settlementStarted)
+            return;
+        inflight.settlementStarted = true;
+        void (async () => {
+            await inflight.admissionDone;
+            if (inflight.messageQueued) {
+                await record.agent.whenIdle();
+                // session/event enqueues synchronously before the agent becomes idle;
+                // reading the live tail here includes every committed output task.
+                await record.outputTail;
+            }
+            /* v8 ignore next -- this prompt owns the slot until this exact settlement clears it. */
+            if (record.inflight !== inflight)
+                return;
+            record.inflight = undefined;
+            if (inflight.cancelRequested) {
+                inflight.resolve('cancelled');
+                return;
+            }
+            if (inflight.outputError !== undefined) {
+                inflight.reject(internalError(`assistant output delivery failed: ${inflight.outputError.message}`));
+                return;
+            }
+            if (inflight.agentError !== undefined) {
+                inflight.reject(internalError(`turn failed: ${inflight.agentError.message}`));
+                return;
+            }
+            const end = inflight.endReason;
+            if (end === undefined) {
+                inflight.resolve('cancelled');
+            }
+            else if (end.kind === 'error') {
+                rejectFromError(inflight, end);
+            }
+            else {
+                // Token-limit and other non-terminal endings are not prompt-level stop
+                // reasons; ordinary quiescence reports end_turn.
+                inflight.resolve(end.kind === 'max-tokens' ? 'end_turn' : turnEndToStopReason(end));
+            }
+        })()
+            /* v8 ignore start -- admissionDone only resolves, and the queued path's idle/output gates contain their own failures. */
+            .catch((error) => {
+            if (record.inflight !== inflight)
+                return;
+            record.inflight = undefined;
+            inflight.reject(internalError(`prompt settlement failed: ${errorChain(error)}`));
+        });
+        /* v8 ignore stop */
+    };
+    // Emit only committed assistant text/images. Raw chunks, reasoning, tools,
+    // plans, titles, and retry markers are presentation or trace data and stay
+    // off the automation wire. One per-session chain preserves block/message
+    // order across asynchronous attachment reads.
     ctx.on('session/event', (session, event) => {
         const record = sessions.get(session.header.id);
         if (record === undefined || record.agent.session !== session)
             return;
         try {
             if (event.type === 'assistant/message') {
-                for (const block of event.data.message.content) {
-                    if (block.type === 'text' && block.text.length > 0) {
-                        notify({
+                const inflight = record.inflight?.turn === event.data.turn ? record.inflight : undefined;
+                const previous = record.outputTail;
+                const delivery = previous.then(async () => {
+                    for (const block of event.data.message.content) {
+                        const content = await assistantBlockToAcp(ctx, block);
+                        if (content === undefined)
+                            continue;
+                        await notify({
                             sessionId: record.agent.session.id,
-                            update: {
-                                sessionUpdate: 'agent_message_chunk',
-                                content: { type: 'text', text: block.text },
-                            },
+                            update: { sessionUpdate: 'agent_message_chunk', content },
                         });
                     }
-                    else if (block.type === 'image') {
-                        notify({
-                            sessionId: record.agent.session.id,
-                            update: {
-                                sessionUpdate: 'agent_message_chunk',
-                                content: {
-                                    type: 'text',
-                                    text: `[image attachment ${block.attachment.attachmentId}]`,
-                                },
-                            },
-                        });
-                    }
-                }
+                });
+                record.outputTail = delivery.catch((error) => {
+                    // assistantBlockToAcp owns conversion failures and always throws Error.
+                    const failure = error;
+                    if (inflight !== undefined)
+                        inflight.outputError ??= failure;
+                    logger.warn(`acp: assistant output conversion failed: ${errorChain(error)}`);
+                });
             }
         }
         finally {
             const inflight = record.inflight;
             if (inflight !== undefined && event.type === 'turn/end' && inflight.turn === event.data.turn) {
-                if (event.data.reason.kind === 'error') {
-                    // Model failures surface immediately as prompt errors; ordinary
-                    // endings wait for whole-agent idle below.
-                    record.inflight = undefined;
-                    rejectFromError(inflight, event.data.reason);
-                }
-                else {
-                    inflight.endReason = event.data.reason;
-                }
+                inflight.endReason = event.data.reason;
             }
         }
     });
@@ -134,10 +177,10 @@ export function apply(ctx, config) {
     ctx.on('agent/error', ({ agent, turn, error }) => {
         const record = ownedRecord(agent);
         const inflight = record?.inflight;
-        if (record === undefined || inflight === undefined || inflight.turn === turn)
+        if (record === undefined || inflight === undefined || !inflight.messageQueued || inflight.turn === turn)
             return;
-        record.inflight = undefined;
-        inflight.reject(internalError(`turn failed: ${errorChain(error)}`));
+        inflight.agentError = new Error(errorChain(error));
+        settleAfterQuiescence(record, inflight);
     });
     // Permission requests are a machine policy channel for ACP clients such as
     // dsh-subagent-acp. The bridge offers one-shot choices only and never infers a
@@ -162,17 +205,18 @@ export function apply(ctx, config) {
     const makeAgent = (connection) => {
         conn = connection;
         return {
-            initialize(_params) {
+            async initialize(_params) {
                 // Single-version agent: the spec's "same version if supported, else
                 // the latest supported" both resolve to this server's one version.
-                return Promise.resolve({
+                imagePromptEnabled = await supportsAcpImagePrompts(ctx, config.provider, config.model);
+                return {
                     protocolVersion: PROTOCOL_VERSION,
                     agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
                     agentCapabilities: {
-                        promptCapabilities: { image: false, audio: false, embeddedContext: false },
+                        promptCapabilities: { image: imagePromptEnabled, audio: false, embeddedContext: false },
                     },
                     authMethods: [],
-                });
+                };
             },
             authenticate(_params) {
                 return Promise.resolve();
@@ -198,6 +242,7 @@ export function apply(ctx, config) {
                 sessions.set(sessionId, {
                     agent: handle.agent,
                     dispose: () => handle.dispose(),
+                    outputTail: Promise.resolve(),
                     inflight: undefined,
                 });
                 return { sessionId };
@@ -208,69 +253,99 @@ export function apply(ctx, config) {
                 if (record.inflight !== undefined) {
                     throw invalidParams('a prompt is already in flight for this session');
                 }
-                if (promptHasUnsupportedContent(params.prompt)) {
-                    throw invalidParams('only text and resource_link prompt content is supported');
-                }
-                const text = acpPromptToText(params.prompt);
-                if (text.trim().length === 0)
-                    throw invalidParams('empty prompt');
-                // Not driving a retired agent is this bridge's contract: an
-                // agent-loop-only reload disposes the loop's agents while the bridge
-                // record survives, so validate the record against the live registry
-                // before sending — a disposed machine would accept the item silently.
-                if (ctx.agents.get(record.agent.id) !== record.agent) {
-                    throw internalError('prompt was not queued: the agent was disposed outside the bridge');
-                }
-                const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } });
-                const stopReason = await new Promise((resolve, reject) => {
-                    // Arm the slot before followup() so a listener-driven synchronous
-                    // turn cannot slip past correlation; a synchronous followup()
-                    // failure (invalid input) must free the slot again or the session
-                    // would reject every later prompt as already in flight.
-                    const inflight = {
-                        resolve, reject, messageId: message.id, turn: undefined, endReason: undefined,
-                    };
-                    record.inflight = inflight;
+                const completion = Promise.withResolvers();
+                const admission = Promise.withResolvers();
+                const admissionController = new AbortController();
+                const inflight = {
+                    resolve: completion.resolve,
+                    reject: completion.reject,
+                    messageId: undefined,
+                    messageQueued: false,
+                    turn: undefined,
+                    endReason: undefined,
+                    admissionDone: admission.promise,
+                    finishAdmission: admission.resolve,
+                    admissionController,
+                    cancelRequested: false,
+                    settlementStarted: false,
+                    outputError: undefined,
+                    agentError: undefined,
+                };
+                // Reserve the one-prompt slot before the first asynchronous route or
+                // attachment operation so concurrent prompts and cancellation observe
+                // admission as genuinely in flight.
+                record.inflight = inflight;
+                let admissionFailed = false;
+                let admissionFailure;
+                try {
+                    // Do not persist rich content for a retired destination. Re-check
+                    // after admission too because an agent-loop reload may race storage.
+                    if (ctx.agents.get(record.agent.id) !== record.agent) {
+                        throw internalError('prompt was not queued: the agent was disposed outside the bridge');
+                    }
+                    const content = await admitAcpPrompt(ctx, record.agent, params.prompt, imagePromptEnabled, admissionController.signal);
+                    // No await may separate this final abort check from followup: a
+                    // cancellation that wins admission must never enqueue a late turn.
+                    admissionController.signal.throwIfAborted();
+                    if (ctx.agents.get(record.agent.id) !== record.agent) {
+                        throw internalError('prompt was not queued: the agent was disposed outside the bridge');
+                    }
+                    const message = createUserMessage({ content, source: { kind: 'user' } });
+                    inflight.messageId = message.id;
+                    inflight.messageQueued = true;
                     try {
                         record.agent.followup(message);
-                        // The machine's send() contains listener failures and accepts
-                        // any typed input; this guards a future synchronous throw so the
-                        // slot cannot wedge.
-                        /* v8 ignore start -- future-proofing guard, see above */
                     }
                     catch (error) {
-                        record.inflight = undefined;
-                        const detail = error instanceof Error ? error.message : String(error);
-                        throw internalError(`prompt was not queued: ${detail}`);
+                        // The typed same-process seam may fail synchronously before durable
+                        // inbox receipt; restore the pre-operation boundary for mapping.
+                        inflight.messageQueued = false;
+                        throw error;
                     }
-                    /* v8 ignore stop */
-                    // Settlement waits for whole-agent idle: a correlated turn/end arms
-                    // `endReason`, while a turnless slot (admission discarded the
-                    // prompt) stays cancelled. Other producers may run further turns
-                    // before quiescence; the prompt settles only when the agent stops.
-                    void record.agent.whenIdle().then(() => {
-                        if (record.inflight !== inflight)
-                            return;
-                        record.inflight = undefined;
-                        const end = inflight.endReason;
-                        if (end === undefined) {
-                            inflight.resolve('cancelled');
-                        }
-                        else {
-                            // Token-limit and other non-terminal endings are not prompt-level
-                            // stop reasons (see README); only normal quiescence reports end_turn.
-                            inflight.resolve(end.kind === 'max-tokens' ? 'end_turn' : turnEndToStopReason(end));
-                        }
-                    });
-                });
+                }
+                catch (error) {
+                    admissionFailed = true;
+                    admissionFailure = error;
+                }
+                finally {
+                    inflight.finishAdmission();
+                }
+                if (inflight.cancelRequested) {
+                    settleAfterQuiescence(record, inflight);
+                    return { stopReason: await completion.promise };
+                }
+                if (admissionFailed) {
+                    record.inflight = undefined;
+                    if (admissionFailure instanceof AcpContentError) {
+                        throw admissionFailure.kind === 'invalid'
+                            ? invalidParams(admissionFailure.message)
+                            : internalError(admissionFailure.message);
+                    }
+                    if (admissionFailure instanceof RequestError)
+                        throw admissionFailure;
+                    // The admission codec and same-process agent seam throw Error values.
+                    const detail = admissionFailure.message;
+                    throw internalError(`prompt was not queued: ${detail}`);
+                }
+                settleAfterQuiescence(record, inflight);
+                const stopReason = await completion.promise;
                 return { stopReason };
             },
             cancel(params) {
                 const record = sessions.get(SessionId(params.sessionId));
                 if (record === undefined)
                     return Promise.resolve();
-                record.agent.cancel({ kind: 'user' });
-                settlePrompt(record, 'cancelled');
+                const inflight = record.inflight;
+                if (inflight !== undefined) {
+                    inflight.cancelRequested = true;
+                    inflight.admissionController.abort(new Error('ACP prompt cancelled'));
+                    settleAfterQuiescence(record, inflight);
+                }
+                // Admission is not Agent work. Preserve unrelated producers until this
+                // prompt has entered the durable inbox; without a prompt, cancellation
+                // continues to target autonomous work on the addressed Agent.
+                if (inflight === undefined || inflight.messageQueued)
+                    record.agent.cancel({ kind: 'user' });
                 return Promise.resolve();
             },
         };
@@ -289,10 +364,24 @@ export function apply(ctx, config) {
         // on persistence or scoped cleanup, and the top-level agents must not keep
         // running model and tool calls for its whole duration.
         for (const record of records) {
+            const inflight = record.inflight;
+            if (inflight !== undefined) {
+                inflight.cancelRequested = true;
+                inflight.admissionController.abort(new Error('ACP bridge disposed'));
+                settleAfterQuiescence(record, inflight);
+            }
             record.agent.cancel({ kind: 'user' });
-            settlePrompt(record, 'cancelled');
         }
         quiescing = (async () => {
+            // Preserve the same prompt boundary during connection teardown: a rich
+            // admission already writing must stop before its slot settles, and every
+            // committed output conversion must drain while attachment services remain
+            // available. session/event enqueues output synchronously before idle.
+            await Promise.all(records.map(async (record) => {
+                await record.inflight?.admissionDone;
+                await record.agent.whenIdle();
+                await record.outputTail;
+            }));
             // Continuable subagents outlive the turn that started them, and their
             // Activations own descendant teardown. Drain only these sessions' forests
             // child-first BEFORE disposing the top-level agents, so no descendant is

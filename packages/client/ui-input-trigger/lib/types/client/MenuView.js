@@ -61,18 +61,22 @@ export function MenuView({ menu, onPick, onDismiss, t }) {
         return null;
     return (_jsx("div", { ref: listRef, className: css.menu, style: { maxHeight }, role: "listbox", "aria-label": t('suggestions.aria'), "aria-activedescendant": highlight !== null ? optionId(highlight.source, highlight.index) : undefined, children: _jsx("div", { className: css.viewport, children: state.groups.map(group => (group.status === 'ready' && group.items.length === 0)
                 ? null
-                : (_jsxs(Fragment, { children: [_jsx("div", { className: css.groupTitle, role: "presentation", "data-source": group.source, children: t(group.source) }), group.status === 'pending'
+                : (_jsxs(Fragment, { children: [group.showGroupTitle === false || group.items.some(item => item.section !== undefined)
+                            ? null
+                            : _jsx("div", { className: css.groupTitle, role: "presentation", "data-source": group.source, children: t(group.source) }), group.status === 'pending'
                             ? _jsx("div", { className: css.loading, "data-source": group.source, children: t('loading') })
                             : group.items.map((item, index) => {
                                 const active = highlight !== null && highlight.source === group.source && highlight.index === index;
-                                return (_jsxs("button", { id: optionId(group.source, index), type: "button", role: "option", "aria-selected": active, className: clsx(css.item, active && css.active), 
-                                    // mousedown, not click: the textarea keeps focus (combobox
-                                    // pattern) — preventing default stops the focus steal, and the
-                                    // pick runs before any blur-driven teardown.
-                                    onMouseDown: (ev) => {
-                                        ev.preventDefault();
-                                        onPick(group.source, index);
-                                    }, children: [item.icon !== undefined && _jsx("span", { className: css.itemIcon, "aria-hidden": true, children: item.icon }), _jsx("span", { className: css.itemName, children: item.name }), item.description !== undefined && _jsx("span", { className: css.itemDescription, children: item.description })] }, `${group.source}:${item.name}`));
+                                return (_jsxs(Fragment, { children: [item.section !== undefined && item.section !== group.items[index - 1]?.section
+                                            ? _jsx("div", { className: css.sectionTitle, role: "presentation", children: item.section })
+                                            : null, _jsxs("button", { id: optionId(group.source, index), type: "button", role: "option", "aria-selected": active, className: clsx(css.item, active && css.active), 
+                                            // mousedown, not click: the textarea keeps focus (combobox
+                                            // pattern) — preventing default stops the focus steal, and the
+                                            // pick runs before any blur-driven teardown.
+                                            onMouseDown: (ev) => {
+                                                ev.preventDefault();
+                                                onPick(group.source, index);
+                                            }, children: [item.icon !== undefined && _jsx("span", { className: css.itemIcon, "aria-hidden": true, children: item.icon }), _jsx("span", { className: css.itemName, children: item.name }), item.description !== undefined && _jsx("span", { className: css.itemDescription, children: item.description })] })] }, optionId(group.source, index)));
                             })] }, group.source))) }) }));
 }
 //# sourceMappingURL=MenuView.js.map

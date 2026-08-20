@@ -1,11 +1,3 @@
-/**
- * Pure row-model derivation for tool summary rows: variant classification,
- * one-line summary, expanded-body text, and flattened result output from the
- * frozen call slice. Input material comes from the call ARGUMENTS; output and
- * error material from the settled result node. A call whose render intent is
- * a terminal card gets its expanded body from the views instead, through
- * `terminalCardModel` in terminal-card-model.ts.
- */
 import type { ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-runtime/client';
 export type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
 /** Tool-call row variants selected by the generic atomic renderer. */
@@ -59,7 +51,8 @@ export declare function relativizeToCwd(text: string, cwd: string | undefined): 
  * @param toolName - wire tool name (dispatch-supplied; survives windowless results).
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param cwd - session workspace root; workspace-rooted path summaries display relative to it.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the row model.
  */
-export declare function toolRowModel(toolName: string, block: ToolCallBlock, cwd?: string): ToolRowModel;
+export declare function toolRowModel(toolName: string, block: ToolCallBlock, cwd?: string, home?: string): ToolRowModel;
 //# sourceMappingURL=tool-call-model.d.ts.map

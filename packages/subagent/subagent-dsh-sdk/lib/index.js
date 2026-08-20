@@ -106,28 +106,27 @@ async function startSdkRun(request, spec) {
 		fold.push(notification.params.event);
 	};
 	const collectOutput = () => fold.collect() ?? [];
-	const result = settleRunResult({
-		attempt: async () => {
-			const turn = await Promise.race([harness.session(childSessionId).run(request.prompt, { onNotification: observe }), cancelSettled.then(() => "cancelled")]);
-			if (turn === "cancelled") return {
-				output: collectOutput(),
-				stopReason: "aborted"
-			};
-			const lastEnd = turn.events.findLast((event) => event.type === "turn/end");
-			return {
-				output: collectOutput(),
-				stopReason: sdkStopReason(lastEnd?.data.reason)
-			};
-		},
-		collectOutput,
-		cancelled: () => flags.cancelled,
-		onError: spec.onError,
-		signal: request.signal,
-		onAbort
-	});
 	return subprocessRunHandle({
 		id,
-		result,
+		result: settleRunResult({
+			attempt: async () => {
+				const turn = await Promise.race([harness.session(childSessionId).run(request.prompt, { onNotification: observe }), cancelSettled.then(() => "cancelled")]);
+				if (turn === "cancelled") return {
+					output: collectOutput(),
+					stopReason: "aborted"
+				};
+				const lastEnd = turn.events.findLast((event) => event.type === "turn/end");
+				return {
+					output: collectOutput(),
+					stopReason: sdkStopReason(lastEnd?.data.reason)
+				};
+			},
+			collectOutput,
+			cancelled: () => flags.cancelled,
+			onError: spec.onError,
+			signal: request.signal,
+			onAbort
+		}),
 		signal: request.signal,
 		onAbort,
 		requestCancel,

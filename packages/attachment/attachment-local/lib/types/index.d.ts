@@ -3,7 +3,6 @@ import { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment';
-export { detectImage } from './image.ts';
 export { readImageFile, saveImageFile, validateImageFile } from './store.ts';
 /** Default maximum encoded bytes for one image. */
 export declare const DEFAULT_MAX_IMAGE_BYTES: number;
@@ -13,6 +12,14 @@ export declare const DEFAULT_MAX_IMAGES_PER_MESSAGE = 20;
 export declare const DEFAULT_MAX_MESSAGE_IMAGE_BYTES: number;
 /** Default maximum intrinsic pixels for one image. */
 export declare const DEFAULT_MAX_IMAGE_PIXELS = 40000000;
+/**
+ * Default maximum intrinsic width and height for one image. Deployed model
+ * routes reject any request whose history carries an image with a side above
+ * 2000px once the request holds many images, and an admitted image rides
+ * every later request of its session, so admission refuses at the same line
+ * to keep the durable history streamable.
+ */
+export declare const DEFAULT_MAX_IMAGE_DIMENSION = 2000;
 /** Local attachment backend configuration. */
 export interface Config {
     /** Explicit harness home; omitted follows `DSH_HOME`, then `~/.dsh`. */
@@ -25,6 +32,8 @@ export interface Config {
     maxMessageImageBytes?: number;
     /** Maximum intrinsic width multiplied by height accepted for one image. */
     maxImagePixels?: number;
+    /** Maximum intrinsic width and maximum intrinsic height accepted for one image. */
+    maxImageDimension?: number;
 }
 /** Persistent content-addressed local attachment store. */
 export declare class LocalAttachmentStore extends AttachmentStore {

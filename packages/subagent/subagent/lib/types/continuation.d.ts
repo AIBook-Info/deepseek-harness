@@ -68,7 +68,7 @@ declare module '@deepseek-ai/dsh-llm' {
     }
 }
 /** Deployment scheduling policy for accepted child reports. */
-export type SubagentReportDelivery = 'quiet' | 'wakeup';
+export type SubagentReportDelivery = 'quiet' | 'next-step';
 /** Options for one continuable child's report to its direct parent. */
 export interface SubagentReportOptions {
     /** Already-resolved parent scheduling policy. */
@@ -82,6 +82,12 @@ export interface ContinuableStartSpec {
     readonly provider: string;
     /** The initial delegation's short `description`, persisted as the child's creation label. */
     readonly label: string;
+    /**
+     * Optional caller-reserved child identity. Omission preserves the manager's
+     * UUID allocation; supplying one lets a durable parent record provisioning
+     * before child materialization without a second identity handshake.
+     */
+    readonly childId?: SessionId;
     /**
      * The delegation request. The manager reserves the stable child id, resolves
      * the durable descriptor, and composes the child itself.
@@ -182,6 +188,8 @@ export declare class SubagentContinuationManager {
      * @returns the durable child id and the accepted initial prompt's message id.
      */
     startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart>;
+    /** Reject one child identity already owned by a live Agent or Session. */
+    private assertChildIdAvailable;
     /**
      * Deliver one later message to a known continuable child as its next FIFO
      * turn. Routing depends only on Activation residency: a `running` Activation
@@ -245,7 +253,7 @@ export declare class SubagentContinuationManager {
      * Perform one waking send to a parent, accounted against that parent's own
      * Activation when it has one. Registering the id before the send is what
      * keeps a continuation-managed parent from being judged quiescent in the
-     * window between `followup()` and the microtask that admits it.
+     * window between a waking send and the microtask that admits it.
      * @param parent - the exact live parent receiving the waking message.
      * @param message - the message whose id is accounted.
      * @param send - the synchronous waking send to perform.
@@ -273,6 +281,17 @@ export declare class SubagentContinuationManager {
      * @throws an aggregate error after all scoped branches settle when any failed.
      */
     drainDescendants(parents: readonly Agent[]): Promise<void>;
+    /**
+     * Release selected resident direct children of one exact live parent without
+     * closing admission for the parent's other continuable children. Owned
+     * descendants are released recursively through the same lifecycle.
+     * @param parent - exact live direct parent authorizing the selected release.
+     * @param childIds - durable direct-child ids to release when resident.
+     * @returns once every selected Activation released its handle.
+     * @throws {SubagentError} `UNAUTHORIZED` when a resident target is not the
+     *   parent's direct continuable child or the parent identity is stale.
+     */
+    drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;
     /** Dispose independent roots and report every branch failure after all settle. */
     private disposeRoots;
     /** Return the retained member set for one exact scoped-teardown root. */

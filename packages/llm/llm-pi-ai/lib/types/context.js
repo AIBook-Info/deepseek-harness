@@ -3,7 +3,7 @@
  *
  * @module dsh-llm-pi-ai/context
  */
-import { CallId, contentHasImage, LlmError } from '@deepseek-ai/dsh-llm';
+import { CallId, contentHasImage, LlmError, offloadRequestImages } from '@deepseek-ai/dsh-llm';
 import { toPiAssistant } from "./replay.js";
 /** Join the text blocks of a harness message. */
 function flattenText(message) {
@@ -17,6 +17,14 @@ function toolResultText(blocks) {
     return blocks.map(block => block.type === 'text'
         ? block.text
         : block.type === 'tool-result' ? toolResultText(block.content) : '').join('');
+}
+/** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
+function assertSupportedImageRoles(messages) {
+    for (const message of messages) {
+        if (message.role !== 'user' && contentHasImage(message.content)) {
+            throw new LlmError(`pi-ai cannot represent an image in an in-history ${message.role} message`, 'UNSUPPORTED_CONTENT');
+        }
+    }
 }
 async function userContent(blocks, attachments) {
     const content = [];
@@ -74,7 +82,7 @@ function piContext(options, messages) {
         ...tools !== undefined && tools.length > 0 ? { tools } : {},
     };
 }
-function textOnlyContext(options) {
+function textOnlyContext(options, onReplayDegrade) {
     const toolNames = new Map();
     const messages = [];
     for (const message of options.messages) {
@@ -86,7 +94,7 @@ function textOnlyContext(options) {
             continue;
         }
         if (message.role === 'assistant') {
-            const assistant = toPiAssistant(message);
+            const assistant = toPiAssistant(message, onReplayDegrade);
             for (const block of assistant.content)
                 if (block.type === 'toolCall')
                     toolNames.set(CallId(block.id), block.name);
@@ -113,17 +121,18 @@ function textOnlyContext(options) {
     }
     return piContext(options, messages);
 }
-export function toPiContext(options, attachments) {
-    return attachments === undefined ? textOnlyContext(options) : toPiContextWithImages(options, attachments);
+export function toPiContext(options, attachments, onReplayDegrade, maxRequestImageBytes) {
+    return attachments === undefined
+        ? textOnlyContext(options, onReplayDegrade)
+        : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes);
 }
-async function toPiContextWithImages(options, attachments) {
+async function toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes) {
+    assertSupportedImageRoles(options.messages);
+    const requestMessages = offloadRequestImages(options.messages, maxRequestImageBytes);
     const toolNames = new Map();
     const messages = [];
-    for (const message of options.messages) {
+    for (const message of requestMessages) {
         if (message.role === 'system') {
-            if (contentHasImage(message.content)) {
-                throw new LlmError('pi-ai cannot represent an image in an in-history system message', 'UNSUPPORTED_CONTENT');
-            }
             // pi-ai has a single systemPrompt slot; in-history system messages are
             // folded into user messages to preserve order (rare in practice — the
             // harness sends the system prompt via options.system).
@@ -131,7 +140,7 @@ async function toPiContextWithImages(options, attachments) {
             continue;
         }
         if (message.role === 'assistant') {
-            const assistant = toPiAssistant(message);
+            const assistant = toPiAssistant(message, onReplayDegrade);
             for (const block of assistant.content) {
                 if (block.type === 'toolCall')
                     toolNames.set(CallId(block.id), block.name);
@@ -142,7 +151,7 @@ async function toPiContextWithImages(options, attachments) {
         // user role: text + tool results (each result becomes its own message).
         const regular = message.content.filter(block => block.type !== 'tool-result');
         const content = await userContent(regular, attachments);
-        const results = message.content.filter(block => block.type === 'tool-result');
+        const results = message.content.filter((block) => (block.type === 'tool-result'));
         if (content.length > 0 || results.length === 0) {
             messages.push({ role: 'user', content, timestamp: 0 });
         }

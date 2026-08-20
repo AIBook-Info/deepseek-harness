@@ -1,3 +1,15 @@
+/**
+ * Pure row-model derivation for tool summary rows: variant classification,
+ * one-line summary, expanded-body text, and flattened result output from the
+ * frozen call slice. Input material comes from the call ARGUMENTS; output and
+ * error material from the settled result node. A call whose render intent is
+ * a terminal card gets its expanded body from the views instead, through
+ * `terminalCardModel` in terminal-card-model.ts.
+ */
+// The block union's defining home is runtime (fold-product types); this
+// contract only forwards it (type-definition authority stays with the layer
+// that produces the values).
+import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client';
 /** Figma row titles per variant (design literals, not translatable copy). */
 export const VARIANT_TITLES = {
     search: 'Search', read: 'Read', bash: 'Bash',
@@ -122,6 +134,11 @@ function deriveSummary(variant, argsRaw) {
     if (typeof parsed !== 'object' || parsed === null)
         return firstLine(argsRaw);
     const args = parsed;
+    if (variant === 'search' && Array.isArray(args.queries)) {
+        const queries = args.queries.filter((query) => typeof query === 'string' && query !== '');
+        if (queries.length > 0)
+            return queries.map(firstLine).join(', ');
+    }
     const picked = pickString(args, SUMMARY_KEYS[variant]);
     if (picked !== undefined)
         return firstLine(picked);
@@ -164,16 +181,19 @@ function deriveBody(variant, argsRaw) {
  * @param toolName - wire tool name (dispatch-supplied; survives windowless results).
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param cwd - session workspace root; workspace-rooted path summaries display relative to it.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the row model.
  */
-export function toolRowModel(toolName, block, cwd) {
+export function toolRowModel(toolName, block, cwd, home) {
     const variant = classifyTool(toolName);
     const done = 'kind' in block;
     const argsRaw = (done ? block.call?.argsRaw : block.argsRaw) ?? '';
     const state = !done ? 'running'
         : block.error?.code === 'interrupted' ? 'stopped'
             : block.isError ? 'error' : 'ok';
-    const base = argsRaw === '' ? block.callId : relativizeToCwd(deriveSummary(variant, argsRaw), cwd);
+    const base = argsRaw === ''
+        ? block.callId
+        : abbreviateHomePath(relativizeToCwd(deriveSummary(variant, argsRaw), cwd), home);
     const toolTitle = TOOL_TITLES[toolName];
     // Others keeps the static "Tool call" title (figma literal); the real tool
     // name rides the mutable summary slot unless the tool owns a specific title.

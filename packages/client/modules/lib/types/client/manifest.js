@@ -16,19 +16,47 @@
  * so load order needs no external sequencing.
  *
  * Resolution branch order (import): seed word → shell instance; memoized
- * record → exports; static registry (shell-own modules, e.g. app-shell) →
- * module; registered factory → materialize; graph row → load + materialize;
- * anything else → throw (loud — the runtime mirror of the
- * build-time bundle purity gate). The synchronous `require` handed to
- * factories walks the same order minus the load branch: loading is async,
- * so only already-registered bundles can be required — and cross-plugin value
- * imports are a build error anyway.
+ * record → exports; graph row → register its dependency factories and own
+ * factory; registered factory → materialize; anything else → throw (loud —
+ * the runtime mirror of the build-time bundle purity gate).
+ * The synchronous `require` handed to factories walks the same order minus
+ * the load branch. Loading is async, so a requested dynamic package must have
+ * registered its factory before a consumer materializes.
  *
  * This file is the browser-safe contract face (zero node imports): the
  * `__DSH_BOOT__` wire types, the boot-manifest parser, and the boundaries around
  * {@link ClientModuleSystem}. The package root is the host-side service that
  * composes the wire.
  */
+/**
+ * Validate an optional string-array field read from a `dsh.client` declaration
+ * or from the boot wire.
+ * @param subject - diagnostic prefix naming the package or the wire row.
+ * @param field - field name as it appears in the diagnostic.
+ * @param value - the raw field value.
+ * @returns the validated array, or undefined when the field is absent.
+ * @throws {Error} when the value is present but is not an array of strings.
+ */
+export function optionalStringArray(subject, field, value) {
+    if (value === undefined)
+        return undefined;
+    if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
+        throw new Error(`client-modules: ${subject} ${field} must be a string array`);
+    }
+    return value;
+}
+/**
+ * Normalize a module specifier onto the graph row that owns it: a plugin bundle
+ * IS its package's client half, so `<id>/client` (the exports subpath external
+ * bundles emit) and the bare package name resolve to the same exports. Both the
+ * require path and graph composition normalize here, which is what lets each
+ * importing package request the subpath its own code imports.
+ * @param spec - module specifier as a bundle requires it or a declaration spells it.
+ * @returns the specifier with a trailing `/client` removed.
+ */
+export function stripClientSuffix(spec) {
+    return spec.endsWith('/client') ? spec.slice(0, -'/client'.length) : spec;
+}
 /**
  * Parse `window.__DSH_BOOT__` into the two consumer views. Wire boundary:
  * a missing or malformed graph throws (the shell shows the loud failure —
@@ -58,16 +86,21 @@ export function parseBootManifest(wire) {
         if (typeof row.id !== 'string' || typeof row.url !== 'string' || typeof row.rev !== 'string') {
             throw new Error(`client-modules: boot manifest entry ${where} must carry string id/url/rev`);
         }
-        if (row.inject !== undefined && (!Array.isArray(row.inject) || row.inject.some(i => typeof i !== 'string'))) {
-            throw new Error(`client-modules: boot manifest entry ${where} inject must be a string array`);
-        }
+        const subject = `boot manifest entry ${where}`;
+        const inject = optionalStringArray(subject, 'inject', row.inject);
+        const external = optionalStringArray(subject, 'external', row.external);
         if (row.immediately !== undefined && typeof row.immediately !== 'boolean') {
             throw new Error(`client-modules: boot manifest entry ${where} immediately must be a boolean`);
         }
-        modules.push({ id: row.id, url: row.url, rev: row.rev });
+        modules.push({
+            id: row.id,
+            url: row.url,
+            rev: row.rev,
+            external: external === undefined ? [] : [...external],
+        });
         plugins.push({
             id: row.id,
-            inject: row.inject === undefined ? [] : [...row.inject],
+            inject: inject === undefined ? [] : [...inject],
             immediately: row.immediately === true,
         });
     }

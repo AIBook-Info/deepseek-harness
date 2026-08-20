@@ -157,7 +157,7 @@ function workspaceGroupHalf(e) {
     return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
 }
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
-function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t, }) {
+function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t, }) {
     const list = useSessions(s => s);
     const current = list.current;
     const [expandedSessionGroups, setExpandedSessionGroups] = useState([]);
@@ -330,7 +330,7 @@ function SessionTree({ useSessions, startSession, open, forkSession, workspaces,
                                 : (e) => {
                                     e.preventDefault();
                                     dropWorkspace(workspaceGroupHalf(e));
-                                }, children: [_jsx(ProjectRowItem, { group: group, t: t, onToggle: () => {
+                                }, children: [_jsx(ProjectRowItem, { group: group, home: home, t: t, onToggle: () => {
                                         if (group.expanded) {
                                             setExpandedSessionGroups(keys => keys.filter(key => key !== group.key));
                                         }
@@ -489,7 +489,8 @@ function SearchResults({ useSessions, open, workspaces, archivedSessionIds, quer
  * @param props - composed slot props (shell owner share + store + injected actions).
  * @returns the region element tree.
  */
-export function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, renderSlot, t, }) {
+export function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostDescription, renderSlot, t, }) {
+    const home = useHostDescription(description => description?.home);
     const workspaces = useWorkspaces(state => state.items);
     const workspacePhase = useWorkspaces(state => state.phase);
     const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds);
@@ -545,8 +546,13 @@ export function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspac
             return;
         searchInput.current?.focus({ preventScroll: true });
     }, [wide, searchExpanded, searchOnExpand]);
+    // Outside-click dismissal stays off while the rail gesture is in flight
+    // (searchOnExpand): the rail click flips the shell wide and mounts this
+    // listener during its own dispatch, then keeps bubbling to document with
+    // the now-unmounted rail button as its target — outside searchRoot, so the
+    // listener would dismiss the search that click just opened.
     useEffect(() => {
-        if (!wide || !searchExpanded)
+        if (!wide || !searchExpanded || searchOnExpand)
             return;
         const onClick = (event) => {
             if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true)
@@ -558,7 +564,7 @@ export function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspac
         };
         document.addEventListener('click', onClick);
         return () => { document.removeEventListener('click', onClick); };
-    }, [normalizedQuery, wide, searchExpanded]);
+    }, [normalizedQuery, wide, searchExpanded, searchOnExpand]);
     useEffect(() => {
         if (normalizedQuery === '') {
             setRemoteSearch({ query: '', status: 'idle', items: [], hasMore: false });
@@ -735,7 +741,7 @@ export function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspac
                     ? (_jsx(SearchResults, { useSessions: useSessions, open: open, workspaces: workspaces, archivedSessionIds: archivedSessionIds, query: normalizedQuery, remote: remoteSearch, resultLimit: searchResultLimit, t: t }))
                     : groupBy === 'flat'
                         ? (_jsx(FlatList, { useSessions: useSessions, open: open, forkSession: forkSession, onSessionRename: onSessionRename, onSessionArchive: onSessionArchive, archivedSessionIds: archivedSessionIds, orderBy: orderBy, sessionOrderByAccount: sessionOrderByAccount, sessionUpdatedAtByAccount: sessionUpdatedAtByAccount, syncSessionOrderAccount: actions.syncSessionOrderAccount, setSessionOrder: actions.setSessionOrder, t: t }))
-                        : (_jsx(SessionTree, { useSessions: useSessions, onSessionRename: onSessionRename, onSessionArchive: onSessionArchive, forkSession: forkSession, workspaces: workspaces, groupExpansion: groupExpansion, setGroupExpanded: actions.setGroupExpanded, sessionOrderByAccount: sessionOrderByAccount, sessionUpdatedAtByAccount: sessionUpdatedAtByAccount, syncSessionOrderAccount: actions.syncSessionOrderAccount, setSessionOrder: actions.setSessionOrder, archivedSessionIds: archivedSessionIds, startSession: startSession, open: open, insertWorkspaceBefore: insertWorkspaceBefore, insertSessionBefore: insertSessionBefore, orderBy: orderBy, t: t, onRenameRequest: (workspaceId, currentTitle) => {
+                        : (_jsx(SessionTree, { useSessions: useSessions, onSessionRename: onSessionRename, onSessionArchive: onSessionArchive, forkSession: forkSession, workspaces: workspaces, groupExpansion: groupExpansion, setGroupExpanded: actions.setGroupExpanded, sessionOrderByAccount: sessionOrderByAccount, sessionUpdatedAtByAccount: sessionUpdatedAtByAccount, syncSessionOrderAccount: actions.syncSessionOrderAccount, setSessionOrder: actions.setSessionOrder, archivedSessionIds: archivedSessionIds, startSession: startSession, open: open, insertWorkspaceBefore: insertWorkspaceBefore, insertSessionBefore: insertSessionBefore, orderBy: orderBy, home: home, t: t, onRenameRequest: (workspaceId, currentTitle) => {
                                 setRenameTarget({ workspaceId, currentTitle });
                                 setRenameDraft(currentTitle);
                                 setRenameError(null);

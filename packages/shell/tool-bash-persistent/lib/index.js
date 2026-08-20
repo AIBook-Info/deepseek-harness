@@ -68,7 +68,6 @@ var __disposeResources = (function(SuppressedError) {
 const TRUNCATED_MESSAGE = "<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with `grep -n` in order to find the line numbers of what you are looking for.</NOTE>";
 const LOST_PREFIX_MESSAGE = "<response clipped><NOTE>The beginning of this command output was dropped by the terminal scrollback limit. The following text is the earliest retained output.</NOTE>\n";
 const SHELL_RESET_MESSAGE = "The persistent bash shell was reset; the next bash call starts from the workspace with a fresh current directory and environment.";
-const SHELL_PROMPT = "__DSH_PERSISTENT_BASH_PROMPT__ ";
 const TIMEOUT_CODE = "PERSISTENT_BASH_TIMEOUT";
 const SCROLLBACK_PAGE_LINES = 1e3;
 const POLL_INTERVAL_MS = 25;
@@ -90,10 +89,8 @@ function quoteForBash(value) {
 function wrapCommand(command, marker) {
 	return `printf '%s\\n' ${quoteForBash(marker.start)}; eval -- ${quoteForBash(command)}; __dsh_persistent_bash_status=$?; printf '%s%s\\n' ${quoteForBash(marker.end)} "$__dsh_persistent_bash_status"`;
 }
-function stripPrompt(text) {
-	let result = text.replace(/\r?\n$/, "");
-	while (result.endsWith(SHELL_PROMPT)) result = result.slice(0, -31);
-	return result.endsWith("\n") ? result.slice(0, -1) : result;
+function trimTrailingNewline(text) {
+	return text.replace(/\r?\n$/, "");
 }
 function commandOutput(snapshot, marker) {
 	const text = snapshot.text;
@@ -103,25 +100,22 @@ function commandOutput(snapshot, marker) {
 	const startMarker = text.lastIndexOf(marker.start, end);
 	const start = startMarker < 0 ? 0 : startMarker + marker.start.length;
 	return {
-		text: stripPrompt(text.slice(start, end).replace(/^\r?\n/, "")),
+		text: trimTrailingNewline(text.slice(start, end).replace(/^\r?\n/, "")),
 		incomplete: startMarker < 0,
 		exitCode: Number(status)
 	};
 }
-function promptCompleted(result) {
-	return result.viewport.endsWith(SHELL_PROMPT) || result.viewport.endsWith(`${SHELL_PROMPT}\r\n`) || result.viewport.endsWith(`${SHELL_PROMPT}\n`);
-}
 function partialOutput(snapshot, marker, fallback, fallbackTruncated = false) {
 	const startMarker = snapshot.text.lastIndexOf(marker.start);
 	if (startMarker >= 0) return {
-		text: stripPrompt(snapshot.text.slice(startMarker + marker.start.length).replace(/^\r?\n/, "")),
+		text: trimTrailingNewline(snapshot.text.slice(startMarker + marker.start.length).replace(/^\r?\n/, "")),
 		incomplete: false
 	};
 	const fallbackStart = fallback.lastIndexOf(marker.start);
 	const afterStart = fallbackStart < 0 ? fallback : fallback.slice(fallbackStart + marker.start.length).replace(/^\r?\n/, "");
 	const fallbackEnd = afterStart.lastIndexOf(marker.end);
 	return {
-		text: stripPrompt((fallbackEnd < 0 ? afterStart : afterStart.slice(0, fallbackEnd)).replaceAll(SHELL_PROMPT, "")),
+		text: trimTrailingNewline(fallbackEnd < 0 ? afterStart : afterStart.slice(0, fallbackEnd)),
 		incomplete: fallbackTruncated || fallbackStart < 0
 	};
 }
@@ -166,6 +160,18 @@ function appendStatusMarker(content, marker) {
 }
 function renderShellExitStatus(content, exitCode, signal) {
 	return appendStatusMarker(content, signal !== null ? `[shell killed by signal: ${signal}]` : exitCode !== null ? `[shell exited: code ${exitCode}]` : "[shell exited]");
+}
+/**
+* Render the exited-session result, reset the owner's shell, and reset the
+* message that tells the model the next call starts fresh.
+* @param shells - the owner-scoped registry to reset.
+* @param status - the exited session status (exit code and signal).
+* @returns the complete model-facing result.
+*/
+async function respondToSessionExit(ctx, shells, owner, id, status, marker, fallback, fallbackTruncated, config) {
+	const snapshot = retainedScrollback(ctx, owner, id);
+	await shells.reset(owner, "persistent bash shell exited");
+	return [renderShellExitStatus(renderCaptured(partialOutput(snapshot, marker, fallback, fallbackTruncated), config.maxOutputChars), status.exitCode, status.signal), SHELL_RESET_MESSAGE].filter((part) => part.length > 0).join("\n");
 }
 function persistentShells(ctx, config) {
 	const pending = /* @__PURE__ */ new WeakMap();
@@ -212,7 +218,7 @@ function persistentShells(ctx, config) {
 					}, "tool-bash-persistent owner cache cleanup");
 				}
 				const result = await ctx.terminals.startSend(owner, spawned.sessionId, {
-					text: `stty -echo; PS1=${quoteForBash(SHELL_PROMPT)}`,
+					text: "stty -echo",
 					submit: true,
 					signal: combinedSignal
 				}).done;
@@ -249,6 +255,8 @@ async function executeCommand(ctx, shells, owner, command, config, upstream) {
 		let fallback = "";
 		let fallbackTruncated = false;
 		while (true) {
+			const status = ctx.terminals.list(owner).find((session) => session.sessionId === id)?.status;
+			if (status?.kind === "exited") return await respondToSessionExit(ctx, shells, owner, id, status, marker, fallback, fallbackTruncated, config);
 			let operation;
 			let result;
 			try {
@@ -288,12 +296,8 @@ async function executeCommand(ctx, shells, owner, command, config, upstream) {
 				const complete = commandOutput(retainedScrollback(ctx, owner, id, latest), marker);
 				if (complete !== void 0) return renderCaptured(complete, config.maxOutputChars);
 			}
-			if (result.sessionStatus.kind === "exited") {
-				const snapshot = retainedScrollback(ctx, owner, id, latest);
-				await shells.reset(owner, "persistent bash shell exited");
-				return [renderShellExitStatus(renderCaptured(partialOutput(snapshot, marker, fallback, fallbackTruncated), config.maxOutputChars), result.sessionStatus.exitCode, result.sessionStatus.signal), SHELL_RESET_MESSAGE].filter((part) => part.length > 0).join("\n");
-			}
-			if (promptCompleted(result)) return renderCaptured(partialOutput(retainedScrollback(ctx, owner, id, latest), marker, fallback, fallbackTruncated), config.maxOutputChars);
+			if (result.sessionStatus.kind === "exited") return await respondToSessionExit(ctx, shells, owner, id, result.sessionStatus, marker, fallback, fallbackTruncated, config);
+			if (result.waitReason === "stdin_read") return renderCaptured(partialOutput(retainedScrollback(ctx, owner, id, latest), marker, fallback, fallbackTruncated), config.maxOutputChars);
 			await pause();
 		}
 	} catch (e_1) {

@@ -236,6 +236,7 @@ function apply(ctx, config) {
 		return exitTask;
 	};
 	transport.onRequest(async (method, params) => {
+		if (method === "initialize") await ctx.get("loader")?.await();
 		const result = await server.handleRequest(method, params);
 		if (method === "shutdown") setImmediate(() => {
 			disposeAndExit();

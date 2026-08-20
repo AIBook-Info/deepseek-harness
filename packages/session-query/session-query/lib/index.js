@@ -2,7 +2,6 @@ import { Service } from "@deepseek-ai/cordis";
 import { Session, foldSurface, isSurfaceEvent, snapshotSessionEvent } from "@deepseek-ai/dsh-session";
 import { foldSessionTitle } from "@deepseek-ai/dsh-session-title";
 import { HarnessError } from "@deepseek-ai/dsh-llm";
-import { SessionPersistenceCorruptionError } from "@deepseek-ai/dsh-session-persistence";
 //#region lib/types/config.js
 /** Public configuration and typed failures for the combined session-query service. */
 /** Default maximum `before`/`after` raw-event window. */
@@ -255,7 +254,7 @@ async function inspectPersisted(persistence, sessionId, signal) {
 		return await persistence.inspect(sessionId, signal);
 	} catch (error) {
 		if (signal?.aborted) signal.throwIfAborted();
-		if (error instanceof SessionPersistenceCorruptionError) throw new SessionQueryError(`stored session "${sessionId}" is corrupt: ${errorMessage(error)}`, "SESSION_QUERY_CORRUPT_SESSION", { cause: error });
+		if (error instanceof Error && error.name === "SessionPersistenceCorruptionError") throw new SessionQueryError(`stored session "${sessionId}" is corrupt: ${errorMessage(error)}`, "SESSION_QUERY_CORRUPT_SESSION", { cause: error });
 		throw new SessionQueryError(`failed to inspect session "${sessionId}": ${errorMessage(error)}`, "SESSION_QUERY_PERSISTENCE_FAILED", { cause: error });
 	}
 }
@@ -649,7 +648,7 @@ function traceSession(records, sessionId) {
 	const target = byId.get(sessionId);
 	if (target === void 0) throw new SessionQueryError(`session "${sessionId}" not found`, "SESSION_QUERY_SESSION_NOT_FOUND");
 	const ancestors = [];
-	const ancestrySeen = /* @__PURE__ */ new Set([sessionId]);
+	const ancestrySeen = new Set([sessionId]);
 	let unresolvedParentId;
 	let parentId = target.header.parentSession;
 	while (parentId !== void 0) {

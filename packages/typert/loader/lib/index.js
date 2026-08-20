@@ -44,7 +44,7 @@ const name = "typert-loader";
 const inject = ["typert", "loader"];
 /** Validate explicit package names and default to Loader-entry discovery only. */
 const Config = z.object({ packages: z.array(z.string().min(1)).default([]) });
-const MEMBER_KINDS = /* @__PURE__ */ new Set([
+const MEMBER_KINDS = new Set([
 	"property",
 	"method",
 	"getter",

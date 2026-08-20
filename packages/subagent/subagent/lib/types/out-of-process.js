@@ -12,6 +12,28 @@
  */
 import { accessSync, constants, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
+/** Maximum UTF-8 size of {@link SubagentResult.diagnostic}. */
+const MAX_SUBAGENT_DIAGNOSTIC_BYTES = 4_096;
+const DIAGNOSTIC_TRUNCATION_SUFFIX = '\n[diagnostic truncated]';
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder();
+/**
+ * Limit provider-authored failure detail without splitting a UTF-8 sequence.
+ * @param diagnostic - safe diagnostic text produced by the provider.
+ * @returns the original text, or a visibly truncated value within the limit.
+ */
+function limitSubagentDiagnostic(diagnostic) {
+    const bytes = utf8Encoder.encode(diagnostic);
+    if (bytes.byteLength <= MAX_SUBAGENT_DIAGNOSTIC_BYTES)
+        return diagnostic;
+    const suffixBytes = utf8Encoder.encode(DIAGNOSTIC_TRUNCATION_SUFFIX).byteLength;
+    let prefixBytes = MAX_SUBAGENT_DIAGNOSTIC_BYTES - suffixBytes;
+    while ((bytes[prefixBytes] & 0b1100_0000) === 0b1000_0000) {
+        prefixBytes -= 1;
+    }
+    return utf8Decoder.decode(bytes.subarray(0, prefixBytes))
+        + DIAGNOSTIC_TRUNCATION_SUFFIX;
+}
 /**
  * The capability advertisement of an out-of-process backend: NONE. A child in
  * another process cannot honor parent-enforced start features
@@ -148,7 +170,15 @@ export async function settleRunResult(parts) {
         catch {
             // The diagnostic sink cannot reject the run result.
         }
-        return { output: parts.collectOutput(), stopReason: 'error' };
+        const collected = parts.collectDiagnostic?.();
+        const diagnostic = collected === undefined
+            ? undefined
+            : limitSubagentDiagnostic(collected);
+        return {
+            output: parts.collectOutput(),
+            ...diagnostic === undefined ? {} : { diagnostic },
+            stopReason: 'error',
+        };
     }
     finally {
         parts.signal.removeEventListener('abort', parts.onAbort);

@@ -11,6 +11,7 @@ export const hostDescribeValueSchema = z.object({
     provider: z.string().optional(),
     model: z.string().optional(),
     attachedSessions: z.number().int().nonnegative(),
+    home: z.string(),
     canOpenPath: z.boolean(),
 });
 /** host.pickDirectory request payload (empty object literal). */

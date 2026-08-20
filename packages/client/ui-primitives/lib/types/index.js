@@ -8,6 +8,8 @@ export { Pill } from "./Pill.js";
 export { Input } from "./Input.js";
 export { Menu } from "./Menu.js";
 export { useAnchoredMaxHeight } from "./useAnchoredMaxHeight.js";
+export { useAnchoredPosition } from "./useAnchoredPosition.js";
+export { useDismissOnOutsidePointer } from "./useDismissOnOutsidePointer.js";
 export { HoverCard } from "./HoverCard.js";
 export { Modal } from "./Modal.js";
 export { OnboardingSurface } from "./OnboardingSurface.js";

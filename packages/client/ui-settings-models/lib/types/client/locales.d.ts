@@ -69,6 +69,8 @@ export declare const en: {
     fetchEmpty: string;
     fetchTitle: string;
     fetchDescription: string;
+    fetchSelectAll: string;
+    fetchDeselectAll: string;
     fetchAdopt: string;
     customAdd: string;
     customTitle: string;

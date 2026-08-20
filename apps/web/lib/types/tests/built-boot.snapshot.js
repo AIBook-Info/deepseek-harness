@@ -1,3 +1,11 @@
+var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExtension) || function (path, preserveJsx) {
+    if (typeof path === "string" && /^\.\.?\//.test(path)) {
+        return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {
+            return tsx ? preserveJsx ? ".jsx" : ".js" : d && (!ext || !cm) ? m : (d + ext + "." + cm.toLowerCase() + "js");
+        });
+    }
+    return path;
+};
 // @vitest-environment jsdom
 // The built-bundle boot smoke: the assembled-jsdom test that owns the boot
 // graph itself. Other files share the same scaffolding (assembled-boot.ts) to
@@ -10,14 +18,36 @@
 // benches over src). This smoke additionally pins the resident interaction
 // fixture's cross-plugin projection because only the built connection/runtime/
 // workspace graph can prove that transport-to-row path end to end.
+import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { installAssembledBootEnv, mountAssembledApp } from "./assembled-boot.js";
 installAssembledBootEnv();
+const buildEnvironmentModulePath = '../../../scripts/client-build-environment.ts';
+const buildEnvironmentModule = await import(__rewriteRelativeImportExtension(buildEnvironmentModulePath));
+if (typeof buildEnvironmentModule !== 'object' || buildEnvironmentModule === null) {
+    throw new TypeError('client build environment module must be an object');
+}
+const readClientBuildRecord = Reflect.get(buildEnvironmentModule, 'readClientBuildRecord');
+if (!isBuildRecordReader(readClientBuildRecord)) {
+    throw new TypeError('client build environment module must export readClientBuildRecord');
+}
+const record = readClientBuildRecord(resolve(import.meta.dirname, '../../..'));
+if (typeof record !== 'object' || record === null)
+    throw new TypeError('client build record must be an object');
+const clientBuildEnvironment = Reflect.get(record, 'environment');
+if (typeof clientBuildEnvironment !== 'object' || clientBuildEnvironment === null) {
+    throw new TypeError('client build record environment must be an object');
+}
+function isBuildRecordReader(value) {
+    return typeof value === 'function';
+}
 it('boots the built plugin graph and renders a fixture session end to end', async () => {
     mountAssembledApp();
     // The sidebar renders from the boot graph: every inject layer activated.
     const tree = await screen.findByRole('tree', { name: 'Sessions' }, { timeout: 10_000 });
+    expect(document.querySelector('svg[viewBox="26 0 156 24"]')).not.toBeNull();
+    expect(screen.queryByText('DSH Local Build')).toBeNull();
     // The compact layout dropped group session counts; the fixture workspace
     // group row renders immediately with its sessions beneath it.
     const fixtureGroup = (await within(tree).findAllByText('fixture'))
@@ -40,9 +70,12 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
     await waitFor(() => {
         expect(document.querySelector('[data-sample="bash"]')).not.toBeNull();
     }, { timeout: 10_000 });
-    // Resolve the resident approval so the ordinary composer bar (which owns
-    // ContextMeter) resumes without replacing the session shell. This minimal
-    // boot graph intentionally does not mount the separate question UI plugin.
+    // The generated bundle roster mounts the question UI before the approval UI.
+    // Skip the resident fixture's three questions, then resolve its approval so
+    // the ordinary composer bar (which owns ContextMeter) resumes.
+    for (let index = 0; index < 3; index += 1) {
+        fireEvent.click(await screen.findByRole('button', { name: 'Skip this question' }));
+    }
     fireEvent.click(await screen.findByRole('button', { name: 'Allow once' }));
     // The fixture mirrors all three token-meter projections, so the assembled
     // ContextMeter reaches its composition panel instead of only the occupancy

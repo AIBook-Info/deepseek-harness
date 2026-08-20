@@ -4,7 +4,9 @@
  * @module @deepseek-ai/dsh-client-web/src/platform
  */
 /** The module specifiers the shell shares into the frozen module table. */
-export declare const PLATFORM_MODULES: readonly ["react", "react/jsx-runtime", "react-dom", "react-dom/client", "@deepseek-ai/cordis", "@deepseek-ai/dsh-client-ui-slots", "@deepseek-ai/dsh-client-web-react", "@deepseek-ai/dsh-client-ui-primitives", "@deepseek-ai/dsh-client-ui-attachment", "@deepseek-ai/dsh-client-schema-form"];
+export declare const PLATFORM_MODULES: readonly ["react", "react/jsx-runtime", "react-dom", "react-dom/client", "@deepseek-ai/cordis", "@deepseek-ai/dsh-client-ui-slots", "@deepseek-ai/dsh-client-ui-primitives"];
+/** Client-bundle specifiers whose factories the parser preloads before the shell starts. */
+export declare const PRELOADED_CLIENT_EXTERNALS: readonly ["@deepseek-ai/dsh-client-runtime/client"];
 /** One platform module specifier (a seed-table key). */
 export type PlatformModule = (typeof PLATFORM_MODULES)[number];
 //# sourceMappingURL=platform.d.ts.map

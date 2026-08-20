@@ -10,7 +10,7 @@ import { dirname, sep } from "node:path";
 * fallback for alias-equivalent roots such as Windows 8.3 names and casing.
 * @module @deepseek-ai/dsh-fs-sandbox/containment
 */
-const MISSING_CODES = /* @__PURE__ */ new Set(["ENOENT", "ENOTDIR"]);
+const MISSING_CODES = new Set(["ENOENT", "ENOTDIR"]);
 function isMissing(error) {
 	const code = error.code;
 	return MISSING_CODES.has(code);

@@ -1,6 +1,6 @@
 /**
  * jsdom slot test runtime: a real small runtime — Cordis `Context`, the
- * runtime `SlotRegistry`, and the web-react renderer — assembled around
+ * runtime `SlotRegistry`, and the UI renderer — assembled around
  * test-owned session/workspace doubles, so feature specs exercise
  * declaration, registration, scope, store, inject, rendering, updates, and
  * disposal without hand-building the machinery per suite.
@@ -16,10 +16,11 @@ import type { RenderResult } from '@testing-library/react';
 import type { queries } from '@testing-library/dom';
 import type { BoundFunctions } from '@testing-library/dom';
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client';
-import type { ChildrenDecl, ComposedProps, OwnerOf, SlotComponent, SlotMap, StoreInstanceLike } from '@deepseek-ai/dsh-client-ui-slots';
+import type { ChildrenDecl, ComposedProps, HostObservable, OwnerOf, SlotComponent, SlotMap, SlotRenderer, SnapshotSelectorHook, StoreInstanceLike } from '@deepseek-ai/dsh-client-ui-slots';
 import { TestSessions } from './sessions.ts';
 import { TestWorkspaces } from './workspaces.ts';
 import type { Stabilizer } from './fixtures.ts';
+export type { UseSession } from '@deepseek-ai/dsh-client-ui-renderer/client';
 export { domSnapshotSerializer, registerDomSnapshotSerializer } from './snapshot.ts';
 export { FixtureSession, TestSessions } from './sessions.ts';
 export { stubSettingsScope } from './settings-scope.ts';
@@ -30,6 +31,17 @@ export { conversationSnapshot, workspaceListState } from './fixtures.ts';
 export type { SessionBehaviorOverrides, SessionFixture, Stabilizer } from './fixtures.ts';
 export { makeTranslate } from './translate.ts';
 export { usePinnedBrowserLanguages } from './locale-env.ts';
+/**
+ * Bind an observable source to the production renderer's selector hook.
+ * @param source - Observable snapshot source.
+ * @returns Typed React selector hook.
+ */
+export declare function bindSnapshotSelector<T>(source: HostObservable<T>): SnapshotSelectorHook<T>;
+/**
+ * Create the production slot renderer used by client feature tests.
+ * @returns Slot renderer instance.
+ */
+export declare function createSlotRenderer(): SlotRenderer;
 /**
  * One rendered slot's local view, from {@link SlotTestRuntime.renderSlot}:
  * the renderer's own `[data-slot]` outlet anchor is the snapshot root

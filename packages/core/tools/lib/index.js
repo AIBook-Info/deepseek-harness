@@ -1,7 +1,7 @@
 import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { AnonymousEntries, NamedEntries, ScopedLayers, scopeOf, scopeTarget } from "@deepseek-ai/dsh-scope";
-import { CallId, HarnessError, assertNever, deepFreeze } from "@deepseek-ai/dsh-llm";
+import { CallId, HarnessError, assertNever, createUserMessage, deepFreeze } from "@deepseek-ai/dsh-llm";
 import { isJsonValue, snapshotJsonValue } from "@deepseek-ai/dsh-session";
 //#region lib/types/json-schema.js
 /**
@@ -29,7 +29,7 @@ var JsonSchemaError = class extends HarnessError {
 		this.violations = violations;
 	}
 };
-const CONSTRAINT_KEYWORDS = /* @__PURE__ */ new Set([
+const CONSTRAINT_KEYWORDS = new Set([
 	"type",
 	"oneOf",
 	"properties",
@@ -39,7 +39,7 @@ const CONSTRAINT_KEYWORDS = /* @__PURE__ */ new Set([
 	"enum",
 	"const"
 ]);
-const ANNOTATION_KEYWORDS = /* @__PURE__ */ new Set([
+const ANNOTATION_KEYWORDS = new Set([
 	"description",
 	"title",
 	"default",
@@ -150,12 +150,10 @@ const ONE_OF_SIBLING_KEYWORDS = [
 function checkObjectSchemaTail(node, path, properties, violations) {
 	const hasRequired = Object.hasOwn(node, "required");
 	const required = hasRequired ? node.required : void 0;
-	if (hasRequired) {
-		if (!isPlainJsonArray(required) || required.some((entry) => typeof entry !== "string")) violations.push(`${path}.required must be an array of strings`);
-		else {
-			const declared = isJsonSchemaRecord(properties) ? properties : {};
-			for (const key of required) if (!Object.hasOwn(declared, key)) violations.push(`${path}.required names "${key}" which is not in properties`);
-		}
+	if (hasRequired) if (!isPlainJsonArray(required) || required.some((entry) => typeof entry !== "string")) violations.push(`${path}.required must be an array of strings`);
+	else {
+		const declared = isJsonSchemaRecord(properties) ? properties : {};
+		for (const key of required) if (!Object.hasOwn(declared, key)) violations.push(`${path}.required names "${key}" which is not in properties`);
 	}
 	if (Object.hasOwn(node, "additionalProperties") && typeof node.additionalProperties !== "boolean") violations.push(`${path}.additionalProperties must be a boolean`);
 }
@@ -267,20 +265,18 @@ function checkSchemaNode(root, rootPath, violations, seen) {
 					path,
 					properties
 				});
-				if (Object.hasOwn(node, "properties")) {
-					if (!isJsonSchemaRecord(properties)) violations.push(`${path}.properties must be an object of schemas`);
-					else {
-						const entries = Object.entries(properties);
-						for (let index = entries.length - 1; index >= 0; index--) {
-							const entry = entries[index];
-							/* v8 ignore next -- the loop is bounded by the captured entry count. */
-							if (entry === void 0) continue;
-							tasks.push({
-								kind: "enter",
-								node: entry[1],
-								path: `${path}.properties.${entry[0]}`
-							});
-						}
+				if (Object.hasOwn(node, "properties")) if (!isJsonSchemaRecord(properties)) violations.push(`${path}.properties must be an object of schemas`);
+				else {
+					const entries = Object.entries(properties);
+					for (let index = entries.length - 1; index >= 0; index--) {
+						const entry = entries[index];
+						/* v8 ignore next -- the loop is bounded by the captured entry count. */
+						if (entry === void 0) continue;
+						tasks.push({
+							kind: "enter",
+							node: entry[1],
+							path: `${path}.properties.${entry[0]}`
+						});
 					}
 				}
 				break;
@@ -574,7 +570,9 @@ function assignCompiledNode(destination, node) {
 		case "item":
 			destination.target.items = node;
 			break;
-		case "one-of": destination.target[destination.index] = node;
+		case "one-of":
+			destination.target[destination.index] = node;
+			break;
 	}
 }
 /** Install a compiled property map at its root or containing object node. */
@@ -900,14 +898,14 @@ const RUN_CODE_NAME = "run_code";
 * fallback outside its own language.
 */
 const TYPESCRIPT_FLAVOR = {
-	description: "Execute a TypeScript program against the available tools. Takes two required arguments: `code`, the BODY of an async function (erasable syntax only; top-level `await` and `return` work), and `description`, a short summary of what the program does. Call tools as `await tools.name(args)` per the declarations in the system prompt. Only what you print or return comes back — curate it.",
+	description: "Execute a TypeScript program against the available tools. Takes two required arguments: `code`, the BODY of an async function (erasable syntax only; top-level `await` and `return` work), and `description`, a short summary of what the program does. Call tools as `await tools.name(args)` per the declarations in the system prompt. Only what you print or return is program output — curate it. Image-bearing subtool results are attached after the run.",
 	codeDescription: "The program: the body of an async TypeScript function."
 };
 /** Per-language `run_code` schema flavors (see {@link RunCodeFlavor}); one entry per {@link CodeSdkLanguage}. */
 const RUN_CODE_FLAVORS = {
 	typescript: TYPESCRIPT_FLAVOR,
 	python: {
-		description: "Execute a Python program against the available tools. Takes two required arguments: `code`, the BODY of an async function (top-level `await` and `return` work), and `description`, a short summary of what the program does. Call tools as `await tools.name(args)` per the declarations in the system prompt. Answer with `print(...)` and/or `return <value>` — only that comes back, so curate it.",
+		description: "Execute a Python program against the available tools. Takes two required arguments: `code`, the BODY of an async function (top-level `await` and `return` work), and `description`, a short summary of what the program does. Call tools as `await tools.name(args)` per the declarations in the system prompt. Use `print(...)` and/or `return <value>` for program output — curate it. Image-bearing subtool results are attached after the run.",
 		codeDescription: "The program: the body of an async Python function."
 	}
 };
@@ -1293,6 +1291,13 @@ function createRunCodeTool(registry, options) {
 							/* v8 ignore next -- commit() runs only after `settled` flipped, which set parked. */
 							if (parked === void 0) return;
 							const result = parked.kind === "post-result" ? await scheduler.finalize(parked.exec, parked.result) : scheduler.finish(parked.exec, parked.result);
+							if (!result.isError && result.content.some((block) => block.type === "image")) exec.deferContext(createUserMessage({
+								content: result.content,
+								source: {
+									kind: "plugin",
+									plugin: "tools-code-mode"
+								}
+							}));
 							for (const context of result.additionalContexts ?? []) exec.deferContext(context);
 							if (result.concludesTurn) exec.concludeTurn();
 							settle(result);
@@ -1591,7 +1596,7 @@ const SDK_INSTRUCTIONS$1 = `## Writing code for run_code
 - Call tools as \`await tools.name(args)\` — quoted access for exotic names: \`tools["my-tool"](args)\`. Every call resolves to the tool's typed canonical JSON value. Tool arguments must be lossless JSON.
 - A FAILED tool call rejects with \`ToolCallError\`, whose \`toolName\` identifies the failed tool and whose \`message\` is human-readable — \`try/catch\` it to handle and continue.
 - Independent read-only calls MAY overlap under \`Promise.all\` (safe calls run concurrently; mutating calls run alone, in submission order). Sequence dependent work with \`await\`.
-- Emit results with \`return\` and/or \`console.log(...)\`. ONLY what you print or return comes back to you — intermediate tool results never enter the conversation, so extract just what you need.
+- Emit results with \`return\` and/or \`console.log(...)\`. Only what you print or return is program output. A successful tool result containing an image is attached after the run so you can inspect it on the next step; every other intermediate result stays out of the conversation, so extract just what you need.
 
 The available tools:`;
 /**
@@ -1615,7 +1620,7 @@ function renderToolsSdk(schemas) {
 		argsMembers.push(`${pad$1(1)}${renderKey(schema.name)}: ${jsonSchemaToTs(schema.parameters, 1)};`);
 		outputMembers.push(`${pad$1(1)}${renderKey(schema.name)}: ${jsonSchemaToTs(schema.output, 1)};`);
 	}
-	const declaration = [
+	return `${SDK_INSTRUCTIONS$1}\n\n\`\`\`ts\ntype JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }\n\n${[
 		`interface ToolArgsMap {${argsMembers.length > 0 ? `\n${argsMembers.join("\n")}\n` : ""}}`,
 		`interface ToolOutputMap {${outputMembers.length > 0 ? `\n${outputMembers.join("\n")}\n` : ""}}`,
 		"type ToolName = keyof ToolOutputMap",
@@ -1630,8 +1635,7 @@ function renderToolsSdk(schemas) {
 			"  [K in ToolName]: (args: ToolArgsMap[K]) => Promise<ToolOutputMap[K]>;",
 			"}"
 		].join("\n")
-	].join("\n\n");
-	return `${SDK_INSTRUCTIONS$1}\n\n\`\`\`ts\ntype JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }\n\n${declaration}\n\`\`\``;
+	].join("\n\n")}\n\`\`\``;
 }
 //#endregion
 //#region lib/types/py-types.js
@@ -1748,7 +1752,7 @@ function isBareIdentifier(name) {
 * ``object``/``type`` resolves before the proxy hook, and implicit
 * special-method lookup bypasses the hook.
 */
-const RESERVED = /* @__PURE__ */ new Set([
+const RESERVED = new Set([
 	"False",
 	"None",
 	"True",
@@ -2288,7 +2292,7 @@ const SDK_INSTRUCTIONS = `## Writing code for run_code
 - Call tools as \`await tools.name(args)\` — subscript access for exotic, reserved, or underscore-leading names: \`await tools["my-tool"](args)\`. Every call resolves to the tool's typed canonical JSON value (each method's return type below). Tool arguments must be lossless JSON.
 - A FAILED tool call raises \`ToolCallError\`, whose \`toolName\` identifies the failed tool and whose message is human-readable — wrap in \`try/except\` to handle and continue.
 - Independent read-only calls MAY overlap under \`asyncio.gather\` (safe calls run concurrently; mutating calls run alone, in submission order). Sequence dependent work with \`await\`.
-- Emit the run's answer with \`print(...)\` and/or a top-level \`return <value>\`; the returned value must be lossless JSON. ONLY what you print and the returned value come back — intermediate tool results never enter the conversation, so extract just what you need.
+- Emit the run's answer with \`print(...)\` and/or a top-level \`return <value>\`; the returned value must be lossless JSON. Only what you print and return is program output. A successful tool result containing an image is attached after the run so you can inspect it on the next step; every other intermediate result stays out of the conversation, so extract just what you need.
 
 The available tools:`;
 /**
@@ -2315,7 +2319,7 @@ function renderToolsSdkPy(schemas) {
 		classes: [],
 		usedClassNames: /* @__PURE__ */ new Set(),
 		nextClassCounter: /* @__PURE__ */ new Map(),
-		typing: /* @__PURE__ */ new Set(["Protocol"])
+		typing: new Set(["Protocol"])
 	};
 	const members = [];
 	let statements = 0;
@@ -2336,9 +2340,8 @@ function renderToolsSdkPy(schemas) {
 	const body = (statements > 0 ? members : [`${pad(1)}pass`, ...members]).join("\n");
 	const imports = TYPING_ORDER.filter((symbol) => state.typing.has(symbol));
 	const classBlock = state.classes.length > 0 ? `${state.classes.join("\n\n")}\n\n` : "";
-	const declaration = `from typing import ${imports.join(", ")}\n\nclass ToolCallError(Exception):
-    toolName: str\n\n${classBlock}class Tools(Protocol):\n${body}\n\ntools: Tools`;
-	return `${SDK_INSTRUCTIONS}\n\n\`\`\`python\n${declaration}\n\`\`\``;
+	return `${SDK_INSTRUCTIONS}\n\n\`\`\`python\n${`from typing import ${imports.join(", ")}\n\nclass ToolCallError(Exception):
+    toolName: str\n\n${classBlock}class Tools(Protocol):\n${body}\n\ntools: Tools`}\n\`\`\``;
 }
 //#endregion
 //#region lib/types/testing.js
@@ -3459,13 +3462,12 @@ var ToolRuntime = class extends Service {
 			error: result.error,
 			...presentation
 		});
-		const detached = materializePresentation({
-			isError: false,
-			...presentation,
-			...result.concludesTurn === true ? { concludesTurn: true } : {}
-		});
 		return deepFreeze({
-			...detached,
+			...materializePresentation({
+				isError: false,
+				...presentation,
+				...result.concludesTurn === true ? { concludesTurn: true } : {}
+			}),
 			value: result.value
 		});
 	}

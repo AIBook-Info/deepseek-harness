@@ -34,19 +34,25 @@ function emptyPiUsage() {
 }
 /**
  * Project a successful pi-ai response into the minimal durable replay state.
+ * The per-block half is index-aligned with the streamed blocks (pi-ai content
+ * order), so `BlockAssembler` prunes an entry with its block whenever assembly
+ * removes one.
  * @param message - completed native pi-ai assistant response.
  * @returns the versioned lossless-JSON replay projection.
  */
 export function toPiReplayState(message) {
-    return {
+    const response = {
         kind: 'pi-ai',
-        version: 1,
+        version: 2,
         api: message.api,
         provider: message.provider,
         model: message.model,
         ...message.responseModel === undefined ? {} : { responseModel: message.responseModel },
         ...message.responseId === undefined ? {} : { responseId: message.responseId },
         stopReason: message.stopReason,
+    };
+    return {
+        response,
         blocks: message.content.map((block) => {
             switch (block.type) {
                 case 'text': return {
@@ -69,29 +75,34 @@ export function toPiReplayState(message) {
 function invalidReplay(message) {
     throw new LlmError(`invalid pi-ai replay state: ${message}`, 'INVALID_REPLAY_STATE');
 }
-/** Validate the adapter-private state before it reaches pi-ai. */
+/** Validate the durable adapter-private envelope before it reaches pi-ai. */
 function readReplayState(value) {
     if (typeof value !== 'object' || value === null || Array.isArray(value))
-        return invalidReplay('expected an object');
-    const state = value;
-    if (state['kind'] !== 'pi-ai')
+        return invalidReplay('expected a replay envelope');
+    const envelope = value;
+    const rawResponse = envelope['response'];
+    if (typeof rawResponse !== 'object' || rawResponse === null || Array.isArray(rawResponse))
+        return invalidReplay('expected a response object');
+    const response = rawResponse;
+    if (response['kind'] !== 'pi-ai')
         return invalidReplay('unknown state kind');
-    if (state['version'] !== 1)
-        return invalidReplay(`unsupported version ${String(state['version'])}`);
+    if (response['version'] !== 2)
+        return invalidReplay(`unsupported version ${String(response['version'])}`);
     for (const key of ['api', 'provider', 'model']) {
-        if (typeof state[key] !== 'string' || state[key].length === 0)
+        if (typeof response[key] !== 'string' || response[key].length === 0)
             return invalidReplay(`${key} must be a non-empty string`);
     }
-    if (!['stop', 'length', 'toolUse', 'error', 'aborted'].includes(String(state['stopReason']))) {
+    if (!['stop', 'length', 'toolUse', 'error', 'aborted'].includes(String(response['stopReason']))) {
         return invalidReplay('unknown stopReason');
     }
-    if (state['responseModel'] !== undefined && typeof state['responseModel'] !== 'string')
+    if (response['responseModel'] !== undefined && typeof response['responseModel'] !== 'string')
         return invalidReplay('responseModel must be a string');
-    if (state['responseId'] !== undefined && typeof state['responseId'] !== 'string')
+    if (response['responseId'] !== undefined && typeof response['responseId'] !== 'string')
         return invalidReplay('responseId must be a string');
-    if (!Array.isArray(state['blocks']))
+    const blocks = envelope['blocks'];
+    if (!Array.isArray(blocks))
         return invalidReplay('blocks must be an array');
-    for (const [index, value] of state['blocks'].entries()) {
+    for (const [index, value] of blocks.entries()) {
         if (typeof value !== 'object' || value === null || Array.isArray(value))
             return invalidReplay(`block ${index} must be an object`);
         const block = value;
@@ -104,7 +115,10 @@ function readReplayState(value) {
         if (block['redacted'] !== undefined && typeof block['redacted'] !== 'boolean')
             return invalidReplay(`block ${index} redacted must be boolean`);
     }
-    return state;
+    return {
+        response: response,
+        blocks: blocks,
+    };
 }
 /** Convert provider-neutral blocks without trusting them as same-model replay. */
 function foreignAssistant(message) {
@@ -149,9 +163,9 @@ function foreignAssistant(message) {
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
 function replayedAssistant(message, source, rawState) {
     const state = readReplayState(rawState);
-    if (state.provider !== source.provider)
+    if (state.response.provider !== source.provider)
         return invalidReplay('provider does not match assistant source');
-    if (state.model !== source.model)
+    if (state.response.model !== source.model)
         return invalidReplay('model does not match assistant source');
     if (state.blocks.length !== message.content.length)
         return invalidReplay('block count does not match assistant content');
@@ -185,25 +199,43 @@ function replayedAssistant(message, source, rawState) {
     return {
         role: 'assistant',
         content,
-        api: state.api,
-        provider: state.provider,
-        model: state.model,
-        ...state.responseModel === undefined ? {} : { responseModel: state.responseModel },
-        ...state.responseId === undefined ? {} : { responseId: state.responseId },
+        api: state.response.api,
+        provider: state.response.provider,
+        model: state.response.model,
+        ...state.response.responseModel === undefined ? {} : { responseModel: state.response.responseModel },
+        ...state.response.responseId === undefined ? {} : { responseId: state.response.responseId },
         usage: emptyPiUsage(),
-        stopReason: state.stopReason,
+        stopReason: state.response.stopReason,
         timestamp: 0,
     };
 }
 /**
  * Convert one durable Harness assistant message into pi-ai history.
+ *
+ * Durable content is the authoritative record; replay metadata only restores
+ * native fidelity (ids, signatures). A replay state this build cannot use —
+ * another adapter's kind, another version, a malformed value, or metadata that
+ * no longer matches the content — therefore degrades the one message to
+ * provider-neutral history instead of failing the request.
  * @param message - assistant content with required source and optional adapter-owned replay metadata.
+ * @param onDegrade - called with the diagnostic reason when an unusable replay
+ *   state falls back to provider-neutral conversion.
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
-export function toPiAssistant(message) {
+export function toPiAssistant(message, onDegrade) {
     const source = message.source;
-    return source.kind !== 'model' || source.replayState === undefined
-        ? foreignAssistant(message)
-        : replayedAssistant(message, source, source.replayState);
+    if (source.kind !== 'model' || source.replayState === undefined)
+        return foreignAssistant(message);
+    try {
+        return replayedAssistant(message, source, source.replayState);
+    }
+    catch (error) {
+        /* v8 ignore next -- replayedAssistant throws only INVALID_REPLAY_STATE LlmErrors today; the
+           guard keeps a future non-replay failure loud instead of silently degrading it */
+        if (!(error instanceof LlmError) || error.code !== 'INVALID_REPLAY_STATE')
+            throw error;
+        onDegrade?.(error.message);
+        return foreignAssistant(message);
+    }
 }
 //# sourceMappingURL=replay.js.map

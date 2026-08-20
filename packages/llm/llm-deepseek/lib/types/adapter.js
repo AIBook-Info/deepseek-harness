@@ -59,9 +59,9 @@ var __disposeResources = (this && this.__disposeResources) || (function (Suppres
     var e = new Error(message);
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 });
-import { attributionHeaders, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
+import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout';
-import { serializeRequest } from "./serialize.js";
+import { serializeRequest, serializeRequestWithImages } from "./serialize.js";
 import { parseSse } from "./sse.js";
 import { translate } from "./translate.js";
 /** Default maximum idle interval while an adapter stream read is outstanding. */
@@ -70,12 +70,16 @@ export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000;
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 /** Default per-request output-token cap. */
 export const DEFAULT_MAX_TOKENS = 256_000;
+/** Default bound on accumulated base64 image payload per request. */
+export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024;
 const STREAM_IDLE_TIMEOUT_CODE = 'LLM_STREAM_IDLE_TIMEOUT';
 const OFF_REASONING_EFFORT = ReasoningEffortId('off');
+const LOW_REASONING_EFFORT = ReasoningEffortId('low');
 const HIGH_REASONING_EFFORT = ReasoningEffortId('high');
 const MAX_REASONING_EFFORT = ReasoningEffortId('max');
 const REASONING_EFFORTS = [
     { id: OFF_REASONING_EFFORT, name: 'Off' },
+    { id: LOW_REASONING_EFFORT, name: 'Low' },
     { id: HIGH_REASONING_EFFORT, name: 'High' },
     { id: MAX_REASONING_EFFORT, name: 'Max' },
 ];
@@ -88,7 +92,7 @@ function modelInfo(provider, model) {
         id: model.id,
         name: model.name ?? model.id,
         ...model.description === undefined ? {} : { description: model.description },
-        inputModalities: ['text'],
+        inputModalities: model.inputModalities ?? ['text'],
     };
 }
 function providerRetryAfterMs(value) {
@@ -114,6 +118,8 @@ function requestId(headers) {
 export function httpErrorCode(status, error) {
     if (status === 401 || status === 403)
         return 'AUTH';
+    if (status === 413)
+        return 'INVALID_REQUEST';
     const detail = [error?.code, error?.type, error?.message].filter(Boolean).join(' ');
     if (isQuotaExceededError(detail))
         return QUOTA_EXCEEDED_CODE;
@@ -156,10 +162,9 @@ export class DeepSeekAdapter extends LlmAdapter {
         const contextWindow = configured?.contextWindow
             ?? connection.defaultContextWindow;
         return Promise.resolve({
-            // The chat-completions wire route is text-only regardless of catalog
-            // membership, so the uncatalogued fallback declares the same negative
-            // capability — "unknown" here would let the host accept and persist
-            // images the serializer must then reject.
+            // An uncatalogued endpoint is safely treated as text-only. Declaring an
+            // unverified image capability would let the host persist input that the
+            // endpoint may reject on every later turn.
             ...configured === undefined
                 ? { provider, id: model, name: model, inputModalities: ['text'] }
                 : modelInfo(provider, configured),
@@ -177,9 +182,11 @@ export class DeepSeekAdapter extends LlmAdapter {
                         efforts: REASONING_EFFORTS,
                         defaultEffort: connection.defaults.reasoningEffort === 'off'
                             ? OFF_REASONING_EFFORT
-                            : connection.defaults.reasoningEffort === 'max'
-                                ? MAX_REASONING_EFFORT
-                                : HIGH_REASONING_EFFORT,
+                            : connection.defaults.reasoningEffort === 'low'
+                                ? LOW_REASONING_EFFORT
+                                : connection.defaults.reasoningEffort === 'max'
+                                    ? MAX_REASONING_EFFORT
+                                    : HIGH_REASONING_EFFORT,
                     },
                 },
         });
@@ -193,6 +200,18 @@ export class DeepSeekAdapter extends LlmAdapter {
             // The key resolves *from this snapshot*, so an endpoint and the secret
             // sent to it can never come from different configuration generations.
             const connection = this.config.options();
+            const hasImages = options.messages.some(message => contentHasImage(message.content));
+            let attachments;
+            if (hasImages) {
+                const model = connection.models.find(entry => entry.id === options.model);
+                if (model?.inputModalities?.includes('image') !== true) {
+                    throw new LlmError(`DeepSeek model "${options.model}" does not accept image input.`, 'UNSUPPORTED_CONTENT');
+                }
+                attachments = this.config.resolveAttachments?.();
+                if (attachments === undefined) {
+                    throw new LlmError('DeepSeek image conversion requires the durable attachment service.', 'UNSUPPORTED_CONTENT');
+                }
+            }
             const apiKey = await this.config.resolveApiKey(connection);
             const userId = this.config.resolveUserId();
             const consumer = new AbortController();
@@ -200,7 +219,7 @@ export class DeepSeekAdapter extends LlmAdapter {
                 ? consumer.signal
                 : AbortSignal.any([options.signal, consumer.signal]);
             const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE), false);
-            const iterator = this.request(options, watchdog.signal, connection, apiKey, userId, () => { watchdog.pulse(); })[Symbol.asyncIterator]();
+            const iterator = this.request(options, watchdog.signal, connection, apiKey, userId, attachments, () => { watchdog.pulse(); })[Symbol.asyncIterator]();
             let exhausted = false;
             try {
                 while (true) {
@@ -243,8 +262,14 @@ export class DeepSeekAdapter extends LlmAdapter {
             __disposeResources(env_1);
         }
     }
-    async *request(options, signal, connection, apiKey, userId, onComment) {
-        const body = serializeRequest(options, connection.defaults);
+    async *request(options, signal, connection, apiKey, userId, attachments, onComment) {
+        const body = attachments === undefined
+            ? serializeRequest(options, connection.defaults)
+            : await serializeRequestWithImages(options, {
+                attachments,
+                maxRequestImageBytes: connection.maxRequestImageBytes,
+                signal,
+            }, connection.defaults);
         // Prepared outside the try so the TRANSPORT label below covers exactly the
         // transport boundary, never a serialization failure.
         const payload = JSON.stringify(body);

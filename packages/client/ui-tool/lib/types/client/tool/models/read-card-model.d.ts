@@ -1,18 +1,3 @@
-/**
- * Pure derivation of the read-card props from a frozen call slice: the
- * `card:'read'` render intent the read tool declares arrives on the snapshot as
- * the settled result node's `resultView`, and this is the one place that turns
- * it into what {@link ReadBlock} draws. Both conversation render sites (the chat
- * tool row's resident body and the details panel's Output section) call this, so
- * the path, lines, total, and language they show are derived once.
- *
- * The read card is result-side only ([read card note](../../../../../../.agents/notes/implemented/feature/2026-07-30-web-read-card.md)):
- * a call carries no file content until `execute` returns, so the pending call
- * stays a generic card (`kind: 'read'`). A running read therefore has no read
- * card, and this returns null for it — the row keeps its args-derived summary
- * until the result arrives.
- * @module
- */
 import type { ReadBlockProps } from '@deepseek-ai/dsh-client-ui-primitives';
 import { type ToolCallBlock } from './tool-call-model.ts';
 /**
@@ -49,12 +34,13 @@ export type ReadCardModel = Pick<ReadBlockProps, 'label' | 'lines' | 'totalLines
  *
  * The label is the read view's `title` when the tool supplied one (the
  * presentation contract's replacement-title rule), otherwise the file path
- * relativized to the session workspace so a workspace-rooted absolute path
- * displays the same short form the row summary shows.
+ * shortened the same way the row summary is: workspace-relative first, then
+ * POSIX `~` for a leftover host-home path.
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param sessionCwd - the session workspace root; a workspace-rooted absolute
  *   path label displays relative to it. Absent leaves the path as authored.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the read-card props, or null for the generic path.
  */
-export declare function readCardModel(block: ToolCallBlock, sessionCwd?: string): ReadCardModel | null;
+export declare function readCardModel(block: ToolCallBlock, sessionCwd?: string, home?: string): ReadCardModel | null;
 //# sourceMappingURL=read-card-model.d.ts.map

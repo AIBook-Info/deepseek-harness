@@ -1,3 +1,16 @@
+/**
+ * Menu reduction pure core. One group per source;
+ * generation-gated settlement; empty ready groups auto-close. Zero React /
+ * DOM / cordis. Stale or no-op events return the same state reference so
+ * store subscribers skip re-renders.
+ *
+ * Roster protocol: the frozen `hit` event carries no source roster, so the
+ * reducer cannot invent groups. Opening from a closed state, the shell seeds
+ * the roster with {@link seedGroups} and then dispatches `hit`; a `hit`
+ * while open (query refinement) resets the existing groups to pending under
+ * a new generation. Auto-close and explicit close drop the groups.
+ */
+import type { InputTriggerSource } from '../types.ts';
 import type { ExactMatch, MenuReduce, MenuState } from './contract.ts';
 /** Closed rest state with generation 0; store initializer and test seed. */
 export declare const MENU_CLOSED: MenuState;
@@ -6,10 +19,10 @@ export declare const MENU_CLOSED: MenuState;
  * Shell-side step before dispatching `hit` on a fresh menu open.
  *
  * @param state - Current menu state.
- * @param sources - Source names registered for the hit trigger, menu order.
+ * @param sources - Sources registered for the hit trigger, in menu order.
  * @returns State carrying the new pending roster; highlight cleared.
  */
-export declare function seedGroups(state: MenuState, sources: readonly string[]): MenuState;
+export declare function seedGroups(state: MenuState, sources: readonly Pick<InputTriggerSource, 'name' | 'showGroupTitle'>[]): MenuState;
 /**
  * Pure menu reducer. `hit` opens a new generation over the seeded roster
  * (null hit closes); `source-settled` outside the current generation, the

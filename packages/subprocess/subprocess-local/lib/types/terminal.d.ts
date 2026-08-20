@@ -15,6 +15,7 @@ export declare class LocalTerminalHandle implements SubprocessTerminalHandle {
     private readonly terminal;
     private readonly inspector;
     private readonly graceMs;
+    private readonly platform;
     readonly pid: number;
     readonly output: PassThrough;
     readonly done: Promise<SubprocessOutcome>;
@@ -30,8 +31,9 @@ export declare class LocalTerminalHandle implements SubprocessTerminalHandle {
      * @param terminal - allocated node-pty process.
      * @param inspector - platform process/session operations.
      * @param graceMs - TERM-to-KILL and exit-wait grace.
+     * @param platform - host platform; defaults to the running platform, injectable for deterministic tests.
      */
-    constructor(terminal: IPty, inspector: ProcessInspector, graceMs: number);
+    constructor(terminal: IPty, inspector: ProcessInspector, graceMs: number, platform?: NodeJS.Platform);
     write(data: string): Promise<void>;
     inspectForeground(): Promise<SubprocessTerminalForeground | undefined>;
     signalForeground(signal: SubprocessTerminalSignal): Promise<number>;
@@ -50,6 +52,9 @@ export declare class LocalTerminalHandle implements SubprocessTerminalHandle {
     private unionMembers;
     private stopDescendants;
     private stopShell;
+    private stopShellWindows;
+    private waitForWindowsShellExit;
     private closeOnce;
+    private settleExitIfGone;
 }
 //# sourceMappingURL=terminal.d.ts.map

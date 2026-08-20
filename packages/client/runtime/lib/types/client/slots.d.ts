@@ -89,7 +89,7 @@ export declare class SlotRegistry extends Service {
      */
     inject(key: keyof SlotMap & string, callback: () => SlotInjectionEffect): () => void;
     /**
-     * Install the shell's renderer (web-react's createSlotRenderer product).
+     * Install the shell's renderer (ui-renderer's createSlotRenderer product).
      * Boot-once: a second install throws. Runs through the caller's ctx.effect,
      * so shell fiber unload uninstalls the renderer.
      * @param renderer - the outlet machinery implementing SlotRenderer.

@@ -10,7 +10,8 @@
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
 export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from './PluginsSettingsSection.tsx';
-export type { ConfigurablePluginsTabInjected, ConfigurablePluginsTabProps } from './ConfigurablePluginsTab.tsx';
+export type { ConfigurablePluginsTabProps } from './ConfigurablePluginsTab.tsx';
+export type { ConfigurablePluginsTabFace, ConfigurablePluginsTabState } from './tab-store.ts';
 export type { PluginCardProps } from './PluginCard.tsx';
 export type { SettingsPluginItemOwnerProps } from './slot-contract.ts';
 export type { FieldProps } from './fields.tsx';

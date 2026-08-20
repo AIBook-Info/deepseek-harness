@@ -87,7 +87,7 @@ const ENV_OVERRIDES = {
 /** Default SIGTERM→SIGKILL grace period (the `graceMs` config; matches OpenCode's 3s). */
 const DEFAULT_GRACE_MS = 3e3;
 /** Default per-stream spill cap (the `maxSpillBytes` config). */
-const DEFAULT_MAX_SPILL_BYTES = 67108864;
+const DEFAULT_MAX_SPILL_BYTES = 64 * 1024 * 1024;
 /** Project a settled collect-mode reader into the final CollectedOutput shape. */
 function finalOutput(reader) {
 	const read = reader.readFrom(0);

@@ -9,8 +9,9 @@ export declare function installAssembledBootEnv(): void;
 /**
  * Mount the assembled application on the fixture transport; the teardown
  * registered by installAssembledBootEnv disposes it.
+ * @param search - fixture query string used to select deterministic host behavior.
  */
-export declare function mountAssembledApp(): void;
+export declare function mountAssembledApp(search?: string): void;
 /**
  * Match a CSS-module class by its logical name.
  * Module class names carry a per-build hash in one of two schemes —

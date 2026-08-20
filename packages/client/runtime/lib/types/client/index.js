@@ -17,13 +17,13 @@ export { indexSubagentDescendants } from "./sessions/subagent-lineage.js";
 export { SessionProvideChannel } from "./sessions/provide.js";
 export { createScope } from "./agents/scope.js";
 export { DirectoryBrowseError, WorkspaceCreateError, WorkspaceRuntime } from "./workspaces/service.js";
-export { resolveWorkspacePath } from "./workspaces/path.js";
-// Runtime owns the snapshot store; web-react only binds it to React.
+export { abbreviateHomePath, resolveWorkspacePath } from "./workspaces/path.js";
+// Runtime owns the snapshot store; ui-renderer only binds it to React.
 export { createSnapshotStore, defineStore, shallowEqual } from "./contract/store.js";
 export { EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS, toAssistantBlock, toAssistantBlocks, } from "./sessions/conversation.js";
 export { emptyAssistantBlock } from "./sessions/partial.js";
 export { isTokenDelta } from "./sessions/assistant-timing.js";
-export { contextForm, contextProvenance } from "./sessions/context-provenance.js";
+export { contextForm, contextProvenance, sessionRecallLabels } from "./sessions/context-provenance.js";
 export { displayFailureMessage } from "./sessions/failure-display.js";
 export { PendingWait } from "./sessions/pending.js";
 /** Required services: the wire handle and Client Typert registry. */

@@ -822,11 +822,10 @@ var ScheduleRuntime = class {
 					return Promise.resolve(false);
 				}
 				try {
-					const text = decision.kind === "one-shot" ? renderReminderFraming(decision.record) : renderEveryReminderBatchFraming(decision.reminders);
 					const message = createUserMessage({
 						content: [{
 							type: "text",
-							text
+							text: decision.kind === "one-shot" ? renderReminderFraming(decision.record) : renderEveryReminderBatchFraming(decision.reminders)
 						}],
 						source: {
 							kind: "plugin",

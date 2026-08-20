@@ -2,9 +2,9 @@
  * Automation-only Agent Client Protocol server over JSON-RPC stdio.
  *
  * The bridge exposes fresh harness sessions to trusted programmatic clients. It
- * carries prompt text, committed assistant text, cancellation, and one-shot
- * permission decisions; presentation and human-interaction features stay with
- * the harness's UI modules.
+ * carries prompt text/images, committed assistant text/images, cancellation,
+ * and one-shot permission decisions; presentation and human-interaction
+ * features stay with the harness's UI modules.
  *
  * @module @deepseek-ai/dsh-acp
  */

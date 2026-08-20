@@ -1,12 +1,11 @@
 /**
  * Models settings page store: one snapshot joining the configurable-provider
- * directory (`llm.providers`), the settings namespaces (`settings.describe`),
+ * directory (`llm.providers`), the settings namespaces (shared settings mirror),
  * and the referenced credentials (`credentials.describe`). The host stays the
  * single fact source — every mutation writes through the wire and the page
  * re-renders from the next describe, pushed or refetched.
  */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
-import { getPath, hasPath, nodeAtPath, rehydrateSchema } from '@deepseek-ai/dsh-client-schema-form';
 /**
  * Any route key walks a dict schema to the same profile node, so the lookup
  * names one that cannot collide with a configured route.
@@ -38,22 +37,23 @@ export function deriveKeyRef(provider) {
  * the choices the page offers cannot drift from the ones the adapter accepts:
  * both come from the same `Config`.
  * @param namespace - the namespace view whose schema declares the profile shape.
+ * @param schema - settings schema operations.
  * @returns the protocol identifiers, or an empty list when the schema has none.
  */
-export function protocolChoices(namespace) {
+export function protocolChoices(namespace, schema) {
     if (namespace === undefined)
         return [];
-    const node = nodeAtPath(rehydrateSchema(namespace.schema), ['providers', PROBE_ROUTE, 'api']);
+    const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api']);
     const list = node;
     if (list?.type !== 'union' || list.list === undefined)
         return [];
     return list.list.map(entry => entry.value).filter((value) => typeof value === 'string');
 }
 /** The credential reference a resolved profile names (its `apiKeyEnv` field). */
-function apiKeyEnvOf(namespace, path) {
+function apiKeyEnvOf(namespace, path, schema) {
     if (namespace === undefined)
         return undefined;
-    const profile = getPath(namespace.value, path);
+    const profile = schema.getPath(namespace.value, path);
     if (typeof profile !== 'object' || profile === null)
         return undefined;
     const ref = profile.apiKeyEnv;
@@ -62,6 +62,8 @@ function apiKeyEnvOf(namespace, path) {
 /** The models settings page controller (one per settings surface). */
 export class ModelsSettingsStore {
     api;
+    schema;
+    describeFace;
     /** The snapshot the section renders from (uSES-safe store). */
     store = createSnapshotStore({
         status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
@@ -69,15 +71,20 @@ export class ModelsSettingsStore {
     /** Latest load wins; an older response never overwrites a newer one. */
     generation = 0;
     /**
-     * @param api - the wire face (settings/credentials/llm domains).
+     * @param api - the wire face (credentials/llm domains, and settings writes).
+     * @param describeFace - the shared mirror's describe face (namespace views and writability).
      */
-    constructor(api) {
+    constructor(api, schema, describeFace) {
         this.api = api;
+        this.schema = schema;
+        this.describeFace = describeFace;
     }
     /**
-     * Refresh the whole page snapshot: directory and namespaces in parallel,
-     * then one batched credential describe over every referenced ref. A
-     * failure keeps the last good rows and surfaces the error.
+     * Refresh the whole page snapshot: the provider directory and the mirror's
+     * settings answer in parallel, then one batched credential describe over
+     * every referenced ref. Provider failure or absence of an initial settings
+     * answer keeps the last good rows and surfaces an error; a failed settings
+     * refresh reuses the mirror's held view.
      * @returns nothing; the snapshot carries the outcome.
      */
     async load() {
@@ -87,17 +94,19 @@ export class ModelsSettingsStore {
         let writable;
         let views;
         try {
-            const [providersResponse, settingsResponse] = await Promise.all([
+            const [providersResponse] = await Promise.all([
                 this.api.llm.providers({}),
-                this.api.settings.describe({}),
+                this.describeFace.ensure(),
             ]);
             if (!providersResponse.result.ok)
                 throw new Error(providersResponse.result.error.message);
-            if (!settingsResponse.result.ok)
-                throw new Error(settingsResponse.result.error.message);
+            const mirrored = this.describeFace.getSnapshot();
+            if (mirrored.view === undefined) {
+                throw new Error(mirrored.error ?? 'settings are unavailable in this browser');
+            }
             providers = providersResponse.result.value.providers;
-            writable = settingsResponse.result.value.writable;
-            views = settingsResponse.result.value.namespaces;
+            writable = mirrored.view.writable;
+            views = mirrored.view.namespaces;
         }
         catch (error) {
             if (generation !== this.generation)
@@ -112,16 +121,16 @@ export class ModelsSettingsStore {
         const rows = providers.map((entry) => {
             const namespace = namespaces.get(entry.settingsNs);
             const configured = namespace !== undefined
-                && (entry.settingsPath.length === 0 || getPath(namespace.value, entry.settingsPath) !== undefined);
+                && (entry.settingsPath.length === 0 || this.schema.getPath(namespace.value, entry.settingsPath) !== undefined);
             const removable = namespace !== undefined
                 && entry.settingsPath.length > 0
-                && hasPath(namespace.user, entry.settingsPath)
-                && !hasPath(namespace.base, entry.settingsPath);
+                && this.schema.hasPath(namespace.user, entry.settingsPath)
+                && !this.schema.hasPath(namespace.base, entry.settingsPath);
             return {
                 entry,
                 configured,
                 removable,
-                apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath),
+                apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
                 credential: undefined,
             };
         });

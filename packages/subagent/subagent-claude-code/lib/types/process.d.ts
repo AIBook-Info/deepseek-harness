@@ -5,7 +5,7 @@
  * @module @deepseek-ai/dsh-subagent-claude-code/process
  */
 import type { SpawnedProcess, SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
-import { type SubprocessHandle, type SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess';
+import { type SubprocessHandle, type SubprocessOutcome, type SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess';
 /**
  * Encode the SDK's complete child environment as a subprocess overlay.
  * @param env - SDK-composed child environment after its removals and replacements.
@@ -16,12 +16,9 @@ export declare function sdkEnvironmentOverlay(env: SpawnOptions['env']): NodeJS.
  * Translate one official SDK spawn request to the shared process owner.
  * @param options - command, arguments, workspace, environment, and forwarded signal from the SDK.
  * @param graceMs - process-tree termination grace.
- * @param platform - host platform selecting the Windows batch-shim boundary.
  * @returns the fully explicit shared subprocess request.
- * @remarks The batch-shim path quotes only the resolved executable. The pinned SDK
- * supplies fixed flag arguments without cmd metacharacters; cmd reparses that tail.
  */
-export declare function claudeSpawnSpec(options: SpawnOptions, graceMs: number, platform?: NodeJS.Platform): SubprocessSpawnSpec;
+export declare function claudeSpawnSpec(options: SpawnOptions, graceMs: number): SubprocessSpawnSpec;
 /**
  * SDK-facing view of one shared managed process. Protocol transport remains
  * in the official SDK; this adapter only projects streams and exit events.
@@ -31,8 +28,7 @@ export declare class ManagedClaudeCodeProcess implements SpawnedProcess {
     readonly stdin: import("stream").Writable;
     readonly stdout: import("stream").Readable;
     private readonly events;
-    private exitCodeValue;
-    private signalCodeValue;
+    private outcomeValue;
     private killRequested;
     /**
      * Project a managed process with piped stdin and stdout.
@@ -45,6 +41,8 @@ export declare class ManagedClaudeCodeProcess implements SpawnedProcess {
     get exitCode(): number | null;
     /** Direct-child terminating signal, if any. */
     get signalCode(): NodeJS.Signals | null;
+    /** Exact managed-process outcome after exit, or undefined while running. */
+    get outcome(): SubprocessOutcome | undefined;
     /**
      * Route the SDK's termination request to the tree-scoped process owner.
      * @param _signal - SDK-selected signal; the shared seam owns its escalation ladder.

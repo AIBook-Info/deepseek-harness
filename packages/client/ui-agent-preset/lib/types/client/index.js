@@ -21,14 +21,14 @@ import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from "./setti
 export { draftBlocker, } from "./section-store.js";
 export { AGENT_PRESET_SETTINGS_NS, writeDefaultPreset } from "./settings-store.js";
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'connection', 'remote'];
+export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope'];
 /**
  * Mount the General-settings row.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx) {
     const { api } = ctx.get('connection');
-    const controller = new AgentPresetSettingsController(api);
+    const controller = new AgentPresetSettingsController(api, ctx.settingsScope.describe());
     // One roster, four surfaces. The chip is registered in a later scope, so it
     // subscribes here rather than being reached from this one.
     const rosterReaders = new Set();

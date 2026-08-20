@@ -1,4 +1,17 @@
 /** Attachment failure class. @module @deepseek-ai/dsh-attachment/error */
+const IMAGE_ADMISSION_ERROR_CODES = [
+    'TOO_MANY_IMAGES',
+    'IMAGES_TOO_LARGE',
+    'UNSUPPORTED_IMAGE_TYPE',
+    'INVALID_IMAGE_BASE64',
+    'INVALID_IMAGE',
+    'IMAGE_TYPE_MISMATCH',
+    'IMAGE_TOO_LARGE',
+    'IMAGE_TOO_MANY_PIXELS',
+    'IMAGE_DIMENSION_TOO_LARGE',
+];
+/** Runtime membership for structurally compatible errors crossing package boundaries. */
+const IMAGE_ADMISSION_ERROR_CODE_SET = new Set(IMAGE_ADMISSION_ERROR_CODES);
 /**
  * Stable failures suitable for host RPC error mapping.
  *
@@ -21,5 +34,16 @@ export class AttachmentError extends Error {
         this.name = 'AttachmentError';
         this.code = code;
     }
+}
+/**
+ * Distinguish caller-correctable image admission failures from storage faults.
+ * @param error - failure raised while validating or persisting an image batch.
+ * @returns whether the caller can correct the proposed image content or batch.
+ */
+export function isImageAdmissionError(error) {
+    return error instanceof Error
+        && 'code' in error
+        && typeof error.code === 'string'
+        && IMAGE_ADMISSION_ERROR_CODE_SET.has(error.code);
 }
 //# sourceMappingURL=error.js.map

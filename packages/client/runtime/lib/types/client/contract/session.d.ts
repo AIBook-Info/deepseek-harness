@@ -34,7 +34,7 @@ export interface ISession {
      * @param mode - 'queue' appends a turn; 'steer' interrupts the running one.
      * @returns acceptance, or the business error (also mirrored into snapshot.promptError).
      */
-    prompt(content: PromptContentPart[], mode: 'queue' | 'steer'): Promise<RpcResult<{
+    prompt(content: PromptContentPart[], mode: 'queue' | 'steer', signal?: AbortSignal): Promise<RpcResult<{
         accepted: true;
     }>>;
     /**

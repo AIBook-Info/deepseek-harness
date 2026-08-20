@@ -1,6 +1,6 @@
 /**
  * jsdom slot test runtime: a real small runtime — Cordis `Context`, the
- * runtime `SlotRegistry`, and the web-react renderer — assembled around
+ * runtime `SlotRegistry`, and the UI renderer — assembled around
  * test-owned session/workspace doubles, so feature specs exercise
  * declaration, registration, scope, store, inject, rendering, updates, and
  * disposal without hand-building the machinery per suite.
@@ -18,7 +18,8 @@ import { Context, Inject } from '@deepseek-ai/cordis';
 import { createElement, Fragment, useSyncExternalStore } from 'react';
 import { act, render, within } from '@testing-library/react';
 import { ConversationEventRegistry, ConversationViewRegistry, SlotRegistry, } from '@deepseek-ai/dsh-client-runtime/client';
-import { createSlotRenderer } from '@deepseek-ai/dsh-client-web-react';
+import { bindSnapshotSelector as bindRendererSnapshotSelector } from '@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts';
+import { createSlotRenderer as createRenderer } from '@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx';
 import { registerDomSnapshotSerializer } from "./snapshot.js";
 import { TestSessions } from "./sessions.js";
 import { TestWorkspaces } from "./workspaces.js";
@@ -30,6 +31,21 @@ export { TestRemote } from "./remote.js";
 export { conversationSnapshot, workspaceListState } from "./fixtures.js";
 export { makeTranslate } from "./translate.js";
 export { usePinnedBrowserLanguages } from "./locale-env.js";
+/**
+ * Bind an observable source to the production renderer's selector hook.
+ * @param source - Observable snapshot source.
+ * @returns Typed React selector hook.
+ */
+export function bindSnapshotSelector(source) {
+    return bindRendererSnapshotSelector(source);
+}
+/**
+ * Create the production slot renderer used by client feature tests.
+ * @returns Slot renderer instance.
+ */
+export function createSlotRenderer() {
+    return createRenderer();
+}
 /**
  * Owner-props cell behind the auto frame: one external store the frame
  * subscribes to, so {@link SlotTestRuntime.renderSlot} and

@@ -1,7 +1,7 @@
 //#region lib/types/invariant.js
 /** Package-owned durable todo-snapshot invariants. @module @deepseek-ai/dsh-tool-todo/invariant */
 const PACKAGE_NAME = "@deepseek-ai/dsh-tool-todo";
-const TODO_STATUSES = /* @__PURE__ */ new Set([
+const TODO_STATUSES = new Set([
 	"pending",
 	"in_progress",
 	"completed"

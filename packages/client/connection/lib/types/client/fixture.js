@@ -488,7 +488,7 @@ function buildAlphaLog() {
     // the real tools so they hit the keyed WebRow registration. Ordered BEFORE
     // the todo turn for the same reason turn 66 is: the standing plan retires at
     // the next turn/start, so a turn after it would empty the dock's plan strip.
-    toolTurn(70, 'web_search', '{"query":"deepseek harness architecture"}', 'Search results for deepseek harness architecture.');
+    toolTurn(70, 'web_search', '{"queries":["deepseek harness architecture"]}', 'Search results for deepseek harness architecture.');
     toolTurn(71, 'web_fetch', '{"url":"https://www.deepseek.com/blog/harness-architecture"}', '# Harness architecture\n\nEverything is a plugin.');
     // Turn 72: max-tokens sample — the provider ends the turn at its output cap
     // mid-sentence, so the chat flow must render the turn-max-tokens notice
@@ -596,8 +596,11 @@ function presentCall(name, argsRaw) {
         // The web tools keep a GENERIC pending card and add the `web` result card
         // only at result time (the contract's result-only web shape); their pending
         // kind matches the result kind so a call and its result read as one category.
-        case 'web_search':
-            return { card: 'generic', title: `Search ${str(args.query)}`, kind: 'search', rawInput: args };
+        case 'web_search': {
+            const queries = Array.isArray(args.queries) ? args.queries.filter((query) => typeof query === 'string' && query !== '') : [];
+            const title = queries.join(', ');
+            return { card: 'generic', title: `Search ${title}`, kind: 'search', rawInput: args };
+        }
         case 'web_fetch':
             return { card: 'generic', title: `Fetch ${str(args.url)}`, kind: 'fetch', rawInput: args };
         default:
@@ -676,28 +679,37 @@ function viewFor(event, log) {
     return undefined;
 }
 /**
- * Fixture parallel of the plan unit's double-event fold: `command/run`
- * records named `plan` with recorded input set the wanted target (`off` →
- * false, else true); `plan/mode` commits and clears it. `wanted` is exposed
- * for the prompt boundary (the fixture's step/start parallel).
+ * Fixture parallel of the plan unit's lifecycle fold. The paired
+ * `command/done` retains successful plan selections and drops failures;
+ * `plan/mode` commits one. `wanted` is exposed for the prompt boundary (the
+ * fixture's step/start parallel).
  */
 function foldPlan(log) {
     let active = false;
     let wanted = null;
+    let running = null;
     for (const event of log) {
         const item = event;
         if (item.type === 'command/run' && item.data?.['name'] === 'plan') {
             const args = item.data['args'];
             if (typeof args !== 'string')
                 continue;
-            wanted = args.trim() !== 'off';
+            running = { commandId: item.data['commandId'], wanted: args.trim() !== 'off' };
+        }
+        else if (item.type === 'command/done'
+            && item.data !== undefined
+            && running !== null
+            && item.data['commandId'] === running.commandId) {
+            wanted = item.data['kind'] === 'success' && running.wanted !== active ? running.wanted : null;
+            running = null;
         }
         else if (item.type === 'plan/mode') {
             active = item.data?.['active'] === true;
             wanted = null;
         }
     }
-    return { active, pending: wanted !== null && wanted !== active, wanted };
+    const selected = running?.wanted ?? wanted;
+    return { active, pending: selected !== null && selected !== active, wanted: selected };
 }
 /** The plan projection's wire view over the full log. */
 function planViewOf(log) {
@@ -962,6 +974,7 @@ function projectionValuesOf(log) {
         maxImagesPerMessage: 20,
         maxMessageImageBytes: 100 * 1024 * 1024,
         maxImagePixels: 40_000_000,
+        maxImageDimension: 2000,
         mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
     };
     return values;
@@ -1340,11 +1353,19 @@ function createFixtureWorld(options) {
     // live under one workspace, whose account carries them in attach order.
     const wid = (raw) => raw;
     const fixtureEpoch = new Date(Date.now() - 300_000).toISOString();
+    const FIXTURE_HOME = '/home/fixture';
     const workspaces = options.empty ? [] : [{
             workspaceId: wid('fx-ws-fixture'),
             path: '/tmp/fixture',
             title: 'fixture',
             sessionIds: [sid('fx-alpha'), sid('fx-beta'), sid('fx-gamma')],
+            createdAt: fixtureEpoch,
+            updatedAt: fixtureEpoch,
+        }, {
+            workspaceId: wid('fx-ws-home'),
+            path: `${FIXTURE_HOME}/Documents/project`,
+            title: 'project',
+            sessionIds: [],
             createdAt: fixtureEpoch,
             updatedAt: fixtureEpoch,
         }];
@@ -1356,7 +1377,6 @@ function createFixtureWorld(options) {
     // deterministic content mirroring the design mock so assembled Web tests
     // and snapshots can walk it. Leaves are materialized lazily: a child listed
     // by its parent lists as empty until something is created inside it.
-    const FIXTURE_HOME = '/home/fixture';
     const directoryTree = new Map([
         ['/', ['home']],
         ['/home', ['fixture']],
@@ -1511,13 +1531,13 @@ function createFixtureWorld(options) {
                 value: [
                     { name: 'compact', description: 'fixture：压缩当前会话上下文' },
                     { name: 'echo', description: 'fixture：回显参数', input: { hint: 'text to echo' } },
-                    { name: 'goal', description: 'set or view the goal for a long-running task', input: { hint: '<objective>' } },
+                    { name: 'goal', description: 'set or view the goal for a long-running task', input: { hint: '<objective>', images: true } },
                     { name: 'permission', description: 'Switch the permission preset (sandbox mode + approval policy)', input: { hint: '<preset>' } },
-                    { name: 'plan', description: 'Enter or leave plan mode', input: { hint: '[off|message]' } },
+                    { name: 'plan', description: 'Enter or leave plan mode', input: { hint: '[off|message]', images: true } },
                 ],
             };
         },
-        execute(id, line) {
+        execute(id, line, images = []) {
             const missing = requireGoalSession(id);
             if (missing !== undefined)
                 return missing;
@@ -1526,6 +1546,29 @@ function createFixtureWorld(options) {
             const match = /^\/(\S+)((?:\s.*)?)$/.exec(line.trim());
             const name = match?.[1];
             const args = match?.[2] ?? '';
+            // Mirror the Host image policy AFTER command resolution, matching the
+            // executor's order (an unknown name answers undefined and logs no
+            // lifecycle): the declaration rejection covers every known command
+            // without `input.images`, and the two producer grammar rejections cover
+            // the declaring commands' control-only lines. The fixture stores no
+            // bytes, so an accepted batch is acknowledged and dropped.
+            const known = ['permission', 'goal', 'compact', 'echo', 'plan'];
+            if (images.length > 0 && name !== undefined && known.includes(name)) {
+                const rejection = name !== 'goal' && name !== 'plan'
+                    ? `/${name} does not accept image attachments`
+                    : name === 'goal' && args.trim() === ''
+                        ? 'Image attachments only accompany a goal objective: /goal <objective> or /goal edit <objective>.'
+                        : name === 'plan' && args.trim() === 'off'
+                            ? 'Image attachments cannot accompany /plan off.'
+                            : undefined;
+                if (rejection !== undefined) {
+                    const commandId = `fx-cmd-${logOf(id).length}`;
+                    append(id, { type: 'command/run', data: { commandId, name, args, source: { kind: 'user' } } });
+                    const result = { kind: 'error', text: rejection };
+                    append(id, { type: 'command/done', data: { commandId, ...result } });
+                    return { ok: true, value: { commandId, result } };
+                }
+            }
             if (name === 'permission') {
                 const preset = args.trim();
                 const commandId = `fx-cmd-${logOf(id).length}`;
@@ -1607,6 +1650,46 @@ function createFixtureWorld(options) {
         activation: projection.goal.phase === 'active' ? 'armed' : 'disarmed',
     });
     /** Canonical fixture implementation of the generated Goal Remote contract. */
+    /** Canonical fixture implementation of the generated reference-discovery Remote contracts. */
+    const referenceRemotes = {
+        files(id, query) {
+            const missing = requireGoalSession(id);
+            if (missing !== undefined)
+                return missing;
+            const needle = query.toLocaleLowerCase();
+            const items = [
+                { path: 'notes', kind: 'directory' },
+                { path: 'README.md', kind: 'file' },
+                { path: 'notes/demo.txt', kind: 'file' },
+            ].filter(item => item.path.toLocaleLowerCase().includes(needle));
+            return { ok: true, value: items };
+        },
+        sessions(id, query) {
+            const missing = requireGoalSession(id);
+            if (missing !== undefined)
+                return missing;
+            const needle = query.toLocaleLowerCase();
+            const value = sessions
+                .filter(item => item.sessionId !== id)
+                .filter(item => String(item.sessionId).toLocaleLowerCase().includes(needle)
+                || item.cwd?.toLocaleLowerCase().includes(needle) === true)
+                .map((item) => {
+                const label = item.sessionId === sid('fx-beta') ? 'Fixture child session' : String(item.sessionId);
+                const encoded = btoa(JSON.stringify(item.sessionId))
+                    .replaceAll('+', '-')
+                    .replaceAll('/', '_')
+                    .replace(/=+$/u, '');
+                return {
+                    sessionId: item.sessionId,
+                    label,
+                    ...item.cwd === undefined ? {} : { cwd: item.cwd },
+                    createdAt: item.updatedAt,
+                    mention: `@[${label}](dsh-session:${encoded})`,
+                };
+            });
+            return { ok: true, value };
+        },
+    };
     const goalRemotes = {
         create(id, request) {
             const missing = requireGoalSession(id);
@@ -2169,6 +2252,13 @@ function createFixtureWorld(options) {
                     return err(request, { code: 'session-not-found', message: `no session ${id}`, details: { sessionId: id } });
                 }
                 if (options.rejectPrompt) {
+                    if (content.some(block => block.type === 'image')) {
+                        return err(request, {
+                            code: 'attachment-error',
+                            message: 'fixture: image side exceeds the deployment limit',
+                            details: { reason: 'IMAGE_DIMENSION_TOO_LARGE' },
+                        });
+                    }
                     return err(request, {
                         code: 'agent-busy',
                         message: 'fixture: prompt rejected before acceptance',
@@ -2279,7 +2369,7 @@ function createFixtureWorld(options) {
         },
         host: {
             describe: request => ok(request, {
-                version: '0.0.0-fixture', cwd: '/tmp/fixture', attachedSessions, canOpenPath: true,
+                version: '0.0.0-fixture', cwd: '/tmp/fixture', attachedSessions, home: FIXTURE_HOME, canOpenPath: true,
             }),
             // Deterministic native pick: the keyless lanes drive the full
             // pick-then-adopt path without an OS chooser (design-mock content,
@@ -2744,7 +2834,9 @@ function createFixtureWorld(options) {
             const sessionId = args.agentId;
             switch (endpoint) {
                 case 'commands/list': return Promise.resolve(commandRemotes.list(sessionId));
-                case 'commands/execute': return Promise.resolve(commandRemotes.execute(sessionId, args.line));
+                case 'commands/execute': return Promise.resolve(commandRemotes.execute(sessionId, args.line, args.images ?? []));
+                case 'fileReferences/list': return Promise.resolve(referenceRemotes.files(sessionId, args.query ?? ''));
+                case 'sessionReferenceResolver/candidates': return Promise.resolve(referenceRemotes.sessions(sessionId, args.query ?? ''));
                 case 'goals/create': return Promise.resolve(goalRemotes.create(sessionId, {
                     objective: args.request?.objective,
                     ...args.request?.maxGoalRounds === undefined ? {} : { maxGoalRounds: args.request.maxGoalRounds },

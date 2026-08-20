@@ -3,7 +3,7 @@ import { memo, useMemo } from 'react';
 import { JsonBlock } from '@deepseek-ai/dsh-client-ui-primitives';
 import css from './ChatView.module.css';
 /** Subscribe and dispatch one stable Context key without observing sibling Nodes. */
-export const ChatNodeSeat = memo(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions, useSession, renderSlot, t, }) {
+export const ChatNodeSeat = memo(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useSession, renderSlot, t, }) {
     const node = useSession(snapshot => snapshot.chat.nodes.get(nodeKey));
     const routedNode = node;
     const owner = useMemo(() => node === undefined
@@ -14,9 +14,11 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({ nodeKey, selectedCallId
             openFile,
             inspectCall,
             forkAt,
-            loadImage,
+            renderMessageImages,
             fileMentions,
-        }, [node, selectedCallId, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions]);
+        }, [
+        node, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions,
+    ]);
     if (routedNode === undefined || owner === null)
         return null;
     // Runtime dispatch owns the correlation: every Node's discriminant is the

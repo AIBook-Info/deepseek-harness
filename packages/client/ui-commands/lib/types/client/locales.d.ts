@@ -8,6 +8,7 @@ export declare const zh: {
     'status.empty': string;
     'overlay.aria': string;
     'listbox.aria': string;
+    'notice.imagesUnsupported': string;
 };
 /** The command namespace key union. */
 export type CommandKey = keyof typeof zh;
@@ -20,5 +21,6 @@ export declare const en: {
     'status.empty': string;
     'overlay.aria': string;
     'listbox.aria': string;
+    'notice.imagesUnsupported': string;
 };
 //# sourceMappingURL=locales.d.ts.map

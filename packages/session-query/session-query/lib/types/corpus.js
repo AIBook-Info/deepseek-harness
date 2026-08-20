@@ -1,5 +1,4 @@
 /** Live/persisted logical-corpus resolution for session-query. */
-import { SessionPersistenceCorruptionError } from '@deepseek-ai/dsh-session-persistence';
 import { SessionQueryError } from "./config.js";
 import { assertSessionHeadersCompatible } from "./sources.js";
 /** Resolves a live-preferred corpus against the persistence service mounted now. */
@@ -231,7 +230,7 @@ async function inspectPersisted(persistence, sessionId, signal) {
     catch (error) {
         if (signal?.aborted)
             signal.throwIfAborted();
-        if (error instanceof SessionPersistenceCorruptionError) {
+        if (error instanceof Error && error.name === 'SessionPersistenceCorruptionError') {
             throw new SessionQueryError(`stored session "${sessionId}" is corrupt: ${errorMessage(error)}`, 'SESSION_QUERY_CORRUPT_SESSION', { cause: error });
         }
         throw new SessionQueryError(`failed to inspect session "${sessionId}": ${errorMessage(error)}`, 'SESSION_QUERY_PERSISTENCE_FAILED', { cause: error });

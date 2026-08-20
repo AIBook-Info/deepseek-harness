@@ -3,54 +3,36 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
 function messageOf(error) {
     return error instanceof Error ? error.message : String(error);
 }
-/** Loads local-document availability and invokes the pathless Host-owned open operation. */
+/** Derives local-document availability from the shared mirror and invokes the pathless Host-owned open operation. */
 export class SettingsDocumentStore {
     api;
+    describeFace;
     /** uSES-safe state source shared by the registered header action. */
     store = createSnapshotStore({
         status: 'idle', opening: false, error: null,
     });
-    generation = 0;
+    following;
     /**
-     * @param api - loopback settings wire face that reports and opens the provider document.
+     * @param api - loopback settings wire face that opens the provider document.
+     * @param describeFace - the shared mirror's describe face (`hasDocument` source).
      */
-    constructor(api) {
+    constructor(api, describeFace) {
         this.api = api;
+        this.describeFace = describeFace;
     }
     /**
-     * Load whether the current provider owns a local document.
-     * @returns after the latest metadata response updates the store.
+     * Begin following the mirror (idempotent) and reflect whether the current
+     * provider owns a local document.
+     * @returns settlement once the snapshot reflects the mirror.
      */
     async load() {
-        const generation = ++this.generation;
+        this.following ??= this.describeFace.subscribe(() => { this.derive(); });
         this.store.update((state) => {
             state.status = 'loading';
             state.error = null;
         });
-        try {
-            const { result } = await this.api.settings.describe({});
-            if (generation !== this.generation)
-                return;
-            if (!result.ok) {
-                this.store.update((state) => {
-                    state.status = 'unavailable';
-                    state.error = result.error.message;
-                });
-                return;
-            }
-            this.store.update((state) => {
-                state.status = result.value.hasDocument ? 'ready' : 'unavailable';
-                state.error = null;
-            });
-        }
-        catch (error) {
-            if (generation !== this.generation)
-                return;
-            this.store.update((state) => {
-                state.status = 'unavailable';
-                state.error = messageOf(error);
-            });
-        }
+        await this.describeFace.ensure();
+        this.derive();
     }
     /**
      * Open the loaded document once; concurrent gestures collapse behind the in-flight action.
@@ -76,14 +58,29 @@ export class SettingsDocumentStore {
             this.store.update((state) => { state.opening = false; });
         }
     }
-}
-/**
- * Refresh document availability after reconnect only when a surface has already requested it.
- * @param controller - optional loopback document state owner.
- */
-export function refreshDocumentIfLoaded(controller) {
-    if (controller === undefined || controller.store.getSnapshot().status === 'idle')
-        return;
-    void controller.load();
+    /** Stop following the mirror. */
+    dispose() {
+        this.following?.();
+        this.following = undefined;
+    }
+    derive() {
+        const mirrored = this.describeFace.getSnapshot();
+        if (mirrored.view === undefined) {
+            // A held failure with no answer means the document cannot be located;
+            // without one the read is still in flight and loading stands.
+            if (mirrored.error !== null) {
+                this.store.update((state) => {
+                    state.status = 'unavailable';
+                    state.error = mirrored.error;
+                });
+            }
+            return;
+        }
+        const { hasDocument } = mirrored.view;
+        this.store.update((state) => {
+            state.status = hasDocument ? 'ready' : 'unavailable';
+            state.error = null;
+        });
+    }
 }
 //# sourceMappingURL=settings-document-store.js.map

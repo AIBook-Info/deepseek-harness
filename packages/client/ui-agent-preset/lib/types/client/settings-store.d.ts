@@ -8,6 +8,7 @@
  */
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client';
 import { type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client';
 /** The agent-preset settings namespace on the host wire. */
 export declare const AGENT_PRESET_SETTINGS_NS = "agent-presets";
 /**
@@ -137,9 +138,14 @@ export interface AgentPresetSettingsState {
 /** Reads the roster and persists the chosen default. */
 export declare class AgentPresetSettingsController {
     private readonly api;
+    private readonly describeFace;
     /** Row snapshot the renderer subscribes to. */
     readonly store: SnapshotStore<AgentPresetSettingsState>;
-    constructor(api: IApiClient);
+    /**
+     * @param api - the agent-preset and settings wire faces (roster and default write).
+     * @param describeFace - the shared mirror's describe face (writability source).
+     */
+    constructor(api: IApiClient, describeFace: SettingsDescribeFace);
     private set;
     /**
      * Load the roster. An empty roster means the deployment composes no

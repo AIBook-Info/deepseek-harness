@@ -245,7 +245,7 @@ function snapshotSpillRoot(fixtureFile, platform = process.platform) {
 */
 async function runScenario(input, opts) {
 	const cwd = await mkdtemp(join(opts.workspaceParent ?? tmpdir(), "acp-snap-cwd-"));
-	const cwdAliases = [.../* @__PURE__ */ new Set([realpathSync(cwd), realpathSync.native(cwd)])];
+	const cwdAliases = [...new Set([realpathSync(cwd), realpathSync.native(cwd)])];
 	const sessionsRoot = await mkdtemp(join(tmpdir(), "acp-snap-sessions-"));
 	const spillRoot = snapshotSpillRoot(opts.fixtureFile);
 	let launched;
@@ -373,6 +373,15 @@ async function runStep(client, step, cwd, waitForUpdate, getSessionId, setSessio
 					type: "text",
 					text: step.text
 				}]
+			});
+			return;
+		}
+		case "promptContent": {
+			const sessionId = getSessionId();
+			if (sessionId === void 0) throw new Error("snapshot-harness: promptContent before newSession");
+			await client.prompt({
+				sessionId,
+				prompt: step.content
 			});
 			return;
 		}
@@ -706,9 +715,9 @@ function canonicalizeEmbeddedPaths(value) {
 }
 /** Return every known spelling of the generated cwd, most specific first. */
 function cwdSpellings(ctx) {
-	const spellings = [.../* @__PURE__ */ new Set([ctx.cwd, ...ctx.cwdAliases ?? []])].filter((spelling) => spelling.length > 0);
+	const spellings = [...new Set([ctx.cwd, ...ctx.cwdAliases ?? []])].filter((spelling) => spelling.length > 0);
 	const macAliases = spellings.filter((spelling) => spelling.startsWith("/") && !spelling.startsWith("/private/")).map((spelling) => `/private${spelling}`);
-	return [.../* @__PURE__ */ new Set([...spellings, ...macAliases])].sort((left, right) => right.length - left.length);
+	return [...new Set([...spellings, ...macAliases])].sort((left, right) => right.length - left.length);
 }
 /** Whether an embedded cwd match starts and ends at a path/text boundary. */
 function isCwdMatch(value, start, length) {
@@ -986,7 +995,7 @@ function childSystemPromptSnapshot(index) {
 const WINDOWS_STDOUT_SNAPSHOT = "stdout.expected.windows.jsonl";
 /** Stable session-log token standing in for the sidecar's initial schemas. */
 const TOOLS_TOKEN = "{{tools}}";
-const PACKED_CHUNK_ROW_TYPES = /* @__PURE__ */ new Set([
+const PACKED_CHUNK_ROW_TYPES = new Set([
 	"text-chunks",
 	"reasoning-chunks",
 	"tool-call-chunks"
@@ -1302,10 +1311,10 @@ function uniqueMessageIds(logs) {
 		const messageId = id;
 		const fingerprint = canonicalJson(withoutId);
 		const fingerprints = fingerprintsById.get(messageId);
-		if (fingerprints === void 0) fingerprintsById.set(messageId, /* @__PURE__ */ new Set([fingerprint]));
+		if (fingerprints === void 0) fingerprintsById.set(messageId, new Set([fingerprint]));
 		else fingerprints.add(fingerprint);
 		const ids = idsByFingerprint.get(fingerprint);
-		if (ids === void 0) idsByFingerprint.set(fingerprint, /* @__PURE__ */ new Set([messageId]));
+		if (ids === void 0) idsByFingerprint.set(fingerprint, new Set([messageId]));
 		else ids.add(messageId);
 	}
 	const unique = /* @__PURE__ */ new Map();
@@ -1693,18 +1702,14 @@ function defineAcpSnapshotSuite(options) {
 					const prompts = normalizedSystemPrompts(primary.content, ctx);
 					expect(prompts.length, `${mode} produced no system prompt to snapshot`).toBeGreaterThan(0);
 					const promptSnapshot = formatSystemPromptSnapshot(prompts[0], prompts.slice(1));
-					/* v8 ignore next -- registration guarantees every scenario class has resolved sources. */
-					const promptSource = promptSourceByClass.get(classOf(scenario)) ?? scenario;
-					const promptPath = join(snapshotsDir, promptSource.name, SYSTEM_PROMPT_SNAPSHOT);
+					const promptPath = join(snapshotsDir, (promptSourceByClass.get(classOf(scenario)) ?? scenario).name, SYSTEM_PROMPT_SNAPSHOT);
 					claimSharedSnapshot(promptClaims, promptPath, scenario.name, promptSnapshot);
 					await writeFile(promptPath, promptSnapshot);
 					const schemaSets = normalizedToolSchemas(primary.content, ctx);
 					expect(schemaSets.length, `${mode} produced no tool schemas to snapshot`).toBeGreaterThan(0);
 					expect(schemaSets.length, `${mode} produced a tool-schema sequence that differs from its prompt sequence`).toBe(prompts.length);
 					const toolSchemasSnapshot = formatToolSchemasSnapshot(schemaSets[0], schemaSets.slice(1));
-					/* v8 ignore next -- registration guarantees every scenario class has resolved sources. */
-					const schemaSource = schemaSourceByClass.get(classOf(scenario)) ?? scenario;
-					const schemaPath = join(snapshotsDir, schemaSource.name, TOOL_SCHEMAS_SNAPSHOT);
+					const schemaPath = join(snapshotsDir, (schemaSourceByClass.get(classOf(scenario)) ?? scenario).name, TOOL_SCHEMAS_SNAPSHOT);
 					claimSharedSnapshot(schemaClaims, schemaPath, scenario.name, toolSchemasSnapshot);
 					await writeFile(schemaPath, toolSchemasSnapshot);
 				}
@@ -1742,8 +1747,7 @@ function defineAcpSnapshotSuite(options) {
 			const promptSource = promptSourceByClass.get(classOf(scenario)) ?? pinningScenario;
 			/* v8 ignore next -- registration guarantees every scenario class has resolved sources. */
 			const schemaSource = schemaSourceByClass.get(classOf(scenario)) ?? pinningScenario;
-			const pinningDir = join(snapshotsDir, pinningScenario.name);
-			const pinnedFixture = await readFile(join(pinningDir, "session.jsonl"), "utf8");
+			const pinnedFixture = await readFile(join(join(snapshotsDir, pinningScenario.name), "session.jsonl"), "utf8");
 			const pinned = normalizedHeaders(pinnedFixture, fixtureContext(pinnedFixture));
 			const promptSnapshot = await readFile(join(snapshotsDir, promptSource.name, SYSTEM_PROMPT_SNAPSHOT), "utf8");
 			const initialPromptSnapshot = initialSystemPromptSnapshot(promptSnapshot);
@@ -1870,10 +1874,7 @@ function defineAcpSnapshotSuite(options) {
 				for (const index of scenario.pinsChildSystemPrompts ?? []) {
 					expect(files[index], `${scenario.name}: child prompt pin ${index} must name an existing session.<n>.jsonl fixture`).toBeDefined();
 					const file = childSystemPromptSnapshot(index);
-					const sidecar = await readFile(join(dir, file), "utf8");
-					/* v8 ignore next -- registration guarantees every scenario class has resolved sources. */
-					const promptSource = promptSourceByClass.get(classOf(scenario)) ?? scenario;
-					assertChildSystemPromptSnapshot(sidecar, initialSystemPromptSnapshot(await readFile(join(snapshotsDir, promptSource.name, SYSTEM_PROMPT_SNAPSHOT), "utf8")), `${scenario.name}/${file}`);
+					assertChildSystemPromptSnapshot(await readFile(join(dir, file), "utf8"), initialSystemPromptSnapshot(await readFile(join(snapshotsDir, (promptSourceByClass.get(classOf(scenario)) ?? scenario).name, SYSTEM_PROMPT_SNAPSHOT), "utf8")), `${scenario.name}/${file}`);
 				}
 			}
 		});

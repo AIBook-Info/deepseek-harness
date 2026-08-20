@@ -11,6 +11,7 @@ export declare const hostDescribeValueSchema: z.ZodObject<{
     provider: z.ZodOptional<z.ZodString>;
     model: z.ZodOptional<z.ZodString>;
     attachedSessions: z.ZodNumber;
+    home: z.ZodString;
     canOpenPath: z.ZodBoolean;
 }, z.core.$strip>;
 /** host.pickDirectory request payload (empty object literal). */

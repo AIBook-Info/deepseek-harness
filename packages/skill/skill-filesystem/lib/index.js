@@ -776,8 +776,7 @@ function parseFrontmatter(raw) {
 	const start = firstLineEnd + 1;
 	const closing = findClosingFrontmatter(raw, start);
 	if (closing === void 0) return void 0;
-	const yaml = raw.slice(start, closing.start);
-	const parsed = parse(yaml);
+	const parsed = parse(raw.slice(start, closing.start));
 	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return void 0;
 	return {
 		data: parsed,

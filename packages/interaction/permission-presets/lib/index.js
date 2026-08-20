@@ -122,8 +122,7 @@ var PermissionPresetService = class extends Service {
 			const label = this.presets[name]?.name;
 			return label === void 0 ? choice : choice.description(label);
 		});
-		const settingsSchema = z.object({ defaultPreset: z.union(presetChoices).required() });
-		installSettingsSection(ctx, PERMISSION_SETTINGS_NAMESPACE, settingsSchema, baseSettings, {
+		installSettingsSection(ctx, PERMISSION_SETTINGS_NAMESPACE, z.object({ defaultPreset: z.union(presetChoices).required() }), baseSettings, {
 			setSource: (current) => {
 				this.defaultSettings = current;
 			},

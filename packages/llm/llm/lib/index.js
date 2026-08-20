@@ -353,7 +353,7 @@ function isHarnessError(value) {
 *
 * @module @deepseek-ai/dsh-llm/retry-policy
 */
-const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_DELAY_MS = 500;
 const DEFAULT_MAX_DELAY_MS = 1e4;
 const DEFAULT_JITTER_RATIO = .1;
@@ -381,14 +381,19 @@ const alwaysPolicySchema = z.object({
 });
 /** Cordis schema embedded by each concrete provider configuration. */
 const RetryPolicySchema = z.union([normalPolicySchema, alwaysPolicySchema]);
-const NORMAL_POLICY_KEYS = /* @__PURE__ */ new Set([
+const NORMAL_POLICY_KEYS = new Set([
 	"mode",
 	"maxRetries",
 	"retryableCodes",
 	"backoff"
 ]);
-const ALWAYS_POLICY_KEYS = /* @__PURE__ */ new Set(["mode", "backoff"]);
-const BACKOFF_KEYS = /* @__PURE__ */ new Set([
+const ALWAYS_POLICY_KEYS = new Set([
+	"mode",
+	"maxRetries",
+	"retryableCodes",
+	"backoff"
+]);
+const BACKOFF_KEYS = new Set([
 	"initialDelayMs",
 	"maxDelayMs",
 	"jitterRatio"
@@ -639,6 +644,8 @@ function assertNever(value, context) {
 //#endregion
 //#region lib/types/content.js
 /** Content-block structure helpers. @module @deepseek-ai/dsh-llm/content */
+/** Model-facing stand-in for an image removed to fit a provider request bound. */
+const OFFLOADED_IMAGE_TEXT = "[image omitted to keep the request within its image limit; older images are omitted first. If this image is still needed, read its file again when a path is available; otherwise ask the user to attach it again.]";
 /**
 * True when typed model content contains an image block, walking nested
 * tool-result content. This is the one recursive image walk shared by every
@@ -649,6 +656,73 @@ function assertNever(value, context) {
 */
 function contentHasImage(content) {
 	return content.some((block) => block.type === "image" || block.type === "tool-result" && contentHasImage(block.content));
+}
+/** Base64 length of raw image bytes, including padding. */
+function base64Length(bytes) {
+	return Math.ceil(bytes / 3) * 4;
+}
+/** Collect base64 payload lengths in request and nested-block order. */
+function collectImageLengths(blocks, lengths) {
+	for (const block of blocks) if (block.type === "image") lengths.push(base64Length(block.attachment.bytes));
+	else if (block.type === "tool-result") collectImageLengths(block.content, lengths);
+}
+/** Replace the first `remaining.count` image occurrences without mutating durable messages. */
+function replaceOldestImages(blocks, remaining) {
+	let next;
+	for (const [index, block] of blocks.entries()) {
+		if (block.type === "image" && remaining.count > 0) {
+			remaining.count -= 1;
+			next ??= blocks.slice(0, index);
+			next.push({
+				type: "text",
+				text: OFFLOADED_IMAGE_TEXT
+			});
+			continue;
+		}
+		if (block.type === "tool-result") {
+			const content = replaceOldestImages(block.content, remaining);
+			if (content !== block.content) {
+				next ??= blocks.slice(0, index);
+				next.push({
+					...block,
+					content
+				});
+				continue;
+			}
+		}
+		next?.push(block);
+	}
+	return next ?? blocks;
+}
+/**
+* Return transient request messages whose oldest images are replaced until
+* their accumulated base64 payload fits the configured bound. The selection
+* is deterministic from durable message order and attachment metadata; a
+* provider can serialize the returned messages without reading omitted bytes.
+* @param messages - complete request history, oldest first.
+* @param maxRequestImageBytes - positive bound on total base64 image payload; undefined preserves every image.
+* @returns the original messages when they already fit, otherwise shallow message copies with replaced content trees.
+*/
+function offloadRequestImages(messages, maxRequestImageBytes) {
+	if (maxRequestImageBytes === void 0) return messages;
+	const lengths = [];
+	for (const message of messages) collectImageLengths(message.content, lengths);
+	let total = lengths.reduce((sum, bytes) => sum + bytes, 0);
+	let count = 0;
+	for (const bytes of lengths) {
+		if (total <= maxRequestImageBytes) break;
+		total -= bytes;
+		count += 1;
+	}
+	if (count === 0) return messages;
+	const remaining = { count };
+	return messages.map((message) => {
+		const content = replaceOldestImages(message.content, remaining);
+		return content === message.content ? message : {
+			...message,
+			content
+		};
+	});
 }
 //#endregion
 //#region lib/types/assembler.js
@@ -664,7 +738,8 @@ function contentHasImage(content) {
 * {@link ContentBlock}s and a final assistant {@link Message}.
 *
 * The agent loop feeds it while logging raw chunks for replay fidelity, then
-* reads `blocks()` / `message()` / `usage` / `finish` once the stream ends.
+* reads `blocks()` / `message()` / `usage` / `finish` once the stream ends,
+* or `interruptedBlocks()` when cancellation cut the stream short.
 *
 * Tolerant of delta-only protocols (no block-start/end); deltas arriving for
 * an index already closed by `block-end` are ignored (malformed stream) so a
@@ -675,7 +750,7 @@ var BlockAssembler = class {
 	order = [];
 	_usage;
 	_finish;
-	_replayState = void 0;
+	_replayState;
 	/**
 	* Feed one chunk into the assembly state.
 	* @param chunk - the next raw chunk, in stream order.
@@ -763,14 +838,54 @@ var BlockAssembler = class {
 		return partial;
 	}
 	/**
+	* The one shared keep/drop decision over all seen blocks: max-token
+	* truncation drops tool calls that cannot be executed safely. Emitted blocks
+	* and replay metadata both derive from this result, so they cannot disagree.
+	*/
+	assembled() {
+		const all = this.order.map((index) => this.assemble(this.mustGet(index), index));
+		const kept = this.finish.kind === "max-tokens" ? all.map((block) => block.type !== "tool-call") : void 0;
+		const blocks = kept === void 0 ? all : all.filter((_, position) => kept[position]);
+		const envelope = this._replayState;
+		if (envelope?.blocks === void 0) return {
+			blocks,
+			replay: envelope
+		};
+		if (envelope.blocks.length !== all.length) return {
+			blocks,
+			replay: void 0
+		};
+		return {
+			blocks,
+			replay: kept === void 0 || blocks.length === all.length ? envelope : {
+				response: envelope.response,
+				blocks: envelope.blocks.filter((_, position) => kept[position])
+			}
+		};
+	}
+	/**
 	* Assemble all blocks seen so far, in stream order.
 	* @returns one block per seen index, except that max-token truncation drops
 	*   tool calls that cannot be executed safely; an open block assembles from
 	*   its accumulated deltas (an unknown block type never closed by `block-end` throws).
 	*/
 	blocks() {
-		const blocks = this.order.map((index) => this.assemble(this.mustGet(index), index));
-		return this.finish.kind === "max-tokens" ? blocks.filter((block) => block.type !== "tool-call") : blocks;
+		return this.assembled().blocks;
+	}
+	/**
+	* Assemble the prefix an interrupted stream can safely finalize: closed and
+	* open text/reasoning blocks with non-whitespace content, in stream order.
+	* Tool calls are omitted because interruption precedes dispatch; retaining
+	* one would require a fabricated result. Open unknown blocks are also omitted.
+	* @returns the kept blocks; empty when nothing streamed before the interruption.
+	*/
+	interruptedBlocks() {
+		return this.order.map((index) => {
+			const partial = this.mustGet(index);
+			const type = partial.block?.type ?? partial.blockType;
+			if (type !== "text" && type !== "reasoning") return void 0;
+			return this.assemble(partial, index);
+		}).filter((block) => (block?.type === "text" || block?.type === "reasoning") && block.text.trim() !== "");
 	}
 	/** Usage from the `usage` chunk; undefined until one arrives. */
 	get usage() {
@@ -780,9 +895,13 @@ var BlockAssembler = class {
 	get finish() {
 		return this._finish ?? { kind: "stop" };
 	}
-	/** Adapter-private replay state from the terminal finish chunk, if any. */
+	/**
+	* Replay metadata from the terminal finish chunk, if any, with per-block
+	* entries pruned in step with {@link blocks}. Undefined when the envelope's
+	* entries do not align with the emitted blocks.
+	*/
 	get replayState() {
-		return this._replayState;
+		return this.assembled().replay;
 	}
 	/**
 	* The assembled assistant message.
@@ -1404,4 +1523,4 @@ function adapterFailureChunk(error, signal) {
 	};
 }
 //#endregion
-export { APP_IDENTITY, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, LlmRuntime, LlmRuntime as default, MessageId, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertNever, assertUsableApiKey, attributionHeaders, boundContextSummary, callConfigEquals, contentHasImage, createAssistantMessage, createMessage, createToolResultMessage, createUserMessage, deepFreeze, errorChain, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, markAgentLoopRequest, normalizeApiKey, resolveRetryPolicy, userAgent };
+export { APP_IDENTITY, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, LlmRuntime, LlmRuntime as default, MessageId, OFFLOADED_IMAGE_TEXT, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertNever, assertUsableApiKey, attributionHeaders, boundContextSummary, callConfigEquals, contentHasImage, createAssistantMessage, createMessage, createToolResultMessage, createUserMessage, deepFreeze, errorChain, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, markAgentLoopRequest, normalizeApiKey, offloadRequestImages, resolveRetryPolicy, userAgent };

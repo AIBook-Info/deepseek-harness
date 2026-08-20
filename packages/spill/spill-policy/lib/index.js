@@ -65,12 +65,10 @@ function ownerSessionId(exec) {
 }
 /** Build the bounded head/tail preview for `text`, splitting `budget` bytes across the two ends. */
 function preview(text, budget) {
-	const headBytes = Math.ceil(budget / 2);
-	const tailBytes = Math.floor(budget / 2);
 	const retainer = new TextRetainer({
 		kind: "headTail",
-		headBytes,
-		tailBytes
+		headBytes: Math.ceil(budget / 2),
+		tailBytes: Math.floor(budget / 2)
 	});
 	retainer.push(text);
 	const kept = retainer.finish();

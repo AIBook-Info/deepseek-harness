@@ -412,7 +412,7 @@ function parseRecord(domain, table, key, parse) {
 * @returns resolution after an already-available backend set activates the form.
 */
 function apply(ctx, config) {
-	const backendServices = [.../* @__PURE__ */ new Set([config.backend, ...Object.values(config.routes ?? {})])].map(storageBackendServiceKey);
+	const backendServices = [...new Set([config.backend, ...Object.values(config.routes ?? {})])].map(storageBackendServiceKey);
 	const fiber = ctx.inject(backendServices, (domainCtx) => {
 		const facility = new DomainFacility(domainCtx, config);
 		domainCtx.effect(() => {

@@ -11,15 +11,16 @@ import css from './ToolDetails.module.css';
 /**
  * Render the selected Tool call's structured output when its presentation
  * intent is known, otherwise preserve the flattened result text.
- * @param props - selected call slice, workspace root, and locale seat.
+ * @param props - selected call slice, workspace root, host home, and locale seat.
  * @returns the details output body.
  */
-export function ToolDetails({ block, cwd, t }) {
+export function ToolDetails({ block, cwd, useHostDescription, t, }) {
+    const home = useHostDescription(description => description?.home);
     const terminal = terminalCardModel(block, cwd);
     if (terminal !== null) {
         return (_jsxs(_Fragment, { children: [terminal.description !== undefined ? (_jsx("div", { className: css.description, children: terminal.description })) : null, _jsx(TerminalBlock, { ...terminal.card, labels: terminalBlockLabels(t), className: css.cardBody })] }));
     }
-    const read = readCardModel(block, cwd);
+    const read = readCardModel(block, cwd, home);
     if (read !== null)
         return _jsx(ReadBlock, { ...read, className: css.read });
     const diff = diffCardModel(block);
