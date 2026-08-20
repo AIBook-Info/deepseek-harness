@@ -175,7 +175,7 @@ window.__ModuleLoader__.load({
 										children: "DSH Local Build"
 									}), (0, react_jsx_runtime.jsx)("span", {
 										className: SidebarRoot_module_css_default.buildRevision,
-										children: "d873e35"
+										children: "6f9388f"
 									})] }) })
 								})]
 							})
